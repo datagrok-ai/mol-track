@@ -12,10 +12,11 @@ Work in progress:
     * [x] **Structure Validation**: Valence checking, standardization of stereochemistry, etc.
     * [ ] **Structure Standardization**: Converts entered structures into a consistent format, handling tautomerization, salts, and stereo conventions.
 2. Metadata
-    * [ ] **Custom Attributes**: Supports capturing custom metadata (e.g., biological data, physicochemical properties, origin information).
+    * [ ] **Custom Attributes**: Supports capturing custom metadata (e.g., biological data, physicochemical properties, origin information) and ties it to the appropriate entity (compound, batch/lot).
     * [ ] **Attachment Management**: Allows attaching documents (NMR spectra, mass spectrometry data, analytical certificates).
 3. Batches and Lots
     * [ ] **Batch Registration**: Manages registration of multiple batches or lots for a single compound.
+    * [ ] **Duplicate Detection**: Prevents the registration of duplicates
     * [ ] **Purity and Inventory Tracking**: Tracks batch-specific details such as purity, quantity, storage location, supplier, and expiration dates.
 4. Protocols and Assay Results
     * [ ] **Protocols**: Define assay types used to measure batches.
@@ -104,12 +105,19 @@ Here we build a list of user stories that we should support as we progress.
 - As an administrator, I want to configure the business rules for compound uniqueness verification.
 - As an administrator, I want to configure the business rules for no-structure uniqueness.
 - As a chemist, I want to register a batch with a no-structure compound and receive appropriate batch and compound identifiers.
+- As a chemist or registrar, I want to annotate my registration with aliases, so that I can capture external identifiers.
+- As chemist, I want to query compounds using substructure, similarity, exact, no-stereo exact or tautomeric methods, so that I might retrieve the exact subset that is scientifically interesting.
+- As a scientist, I want to query batches by properties and/or aliases to find the relevant batches.
+- As a scientist, I want to query compounds by properties and/or aliases to find the relevant compounds.
+- As a peptide chemist, I want to register my compounds using a helm representation, 
+- As an administrator, I want to configure my system so that certain properties must adhere to controlled vocabularies, in order to maintain data cleanliness.
 
 
 ## Persona / Roles
 - Administrator has all the appropriate rights to administer the system
 - Chemist (or editor) has the ability to add batches and compounds and update those that created.
 - Registar has the ability to add batches and compounds in bulk and edit all compounds and batches.
+- Viewer has the ability to search and retrieve compounds, batches/lots and appropriate properties
 
 ## Concepts
 - As a compound registration system, meaning registering and tracking the parent structure and obtaining a unique corporate id for the structure.  
