@@ -90,3 +90,29 @@ Once the server is running, you can access:
 ### Properties
 - `POST /properties/` - Create a new property
 - `GET /compounds/{compound_id}/properties/` - Get properties for a compound 
+
+## User Stories
+Here we build a list of user stories that we should support as we progress.
+
+- As an administrator, I can add a chemist to the user management system, so they may register their batches.
+- As a chemist, I want to add a batch of a compound that I have synthesized and receive an appropriate batch identifier and compound identifier so that the biologist can generate identifiable unique assay results.
+- As a chemist, I want to edit a batch that I have registered to correct or add additional information or update the structure.
+- As a registrar, I want to add batches (and compounds) in bulk to support the case when we might acquire a set of batches and compounds for research purposes.
+- As a registrar, I want to edit the batches (and compounds) that others have registered to correct errors.
+- As a biologist, I want to view all the information for a specific batch so that I might prepare my experiment correctly.
+- As an administrator, I want to configure the business rules for batch uniquenss verification.
+- As an administrator, I want to configure the business rules for compound uniqueness verification.
+- As an administrator, I want to configure the business rules for no-structure uniqueness.
+- As a chemist, I want to register a batch with a no-structure compound and receive appropriate batch and compound identifiers.
+
+
+## Persona / Roles
+- Administrator has all the appropriate rights to administer the system
+- Chemist (or editor) has the ability to add batches and compounds and update those that created.
+- Registar has the ability to add batches and compounds in bulk and edit all compounds and batches.
+
+## Concepts
+- As a compound registration system, meaning registering and tracking the parent structure and obtaining a unique corporate id for the structure.  
+- As a batch registration system, where the batch entity is the primary entity and compound represents a structural annotation for the batch.
+- Salts and/or solvents are an additional annotation on the batch, but all serve as a point of aggregation - 'find all salt/solvent form for batches of this structure.'
+- 
