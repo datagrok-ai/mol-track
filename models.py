@@ -33,7 +33,7 @@ class Compound(Base):
     inchi = Column(Text, nullable=False)
     inchikey = Column(Text, nullable=False, unique=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     is_archived = Column(Boolean, default=False)
     
     # Relationships

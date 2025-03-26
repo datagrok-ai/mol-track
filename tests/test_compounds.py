@@ -115,6 +115,11 @@ def test_update_compound(client):
     assert "inchi" in updated_data
     assert "inchikey" in updated_data
 
+    # Verify that dates are appropriate
+    assert "created_at" in updated_data
+    assert "updated_at" in updated_data
+    assert updated_data["updated_at"] > updated_data["created_at"]
+
 def test_delete_compound(client):
     """Test deleting a compound"""
     # First create a compound
