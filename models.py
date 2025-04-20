@@ -30,6 +30,7 @@ class Compound(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     canonical_smiles = Column(Text, nullable=False)
+    original_molfile = Column(Text)  # as sketched by the chemist
     inchi = Column(Text, nullable=False)
     inchikey = Column(Text, nullable=False, unique=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

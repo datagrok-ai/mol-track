@@ -136,4 +136,5 @@ def client(test_db):
 
 # Common test data
 aspirin_smiles = "CC(=O)OC1=CC=CC=C1C(=O)O"
+aspirin_smiles_noncanonical = "O=C(O)C1CCCCC1OC(C)=O"
 caffeine_smiles = "CN1C=NC2=C1C(=O)N(C(=O)N2C)C" 

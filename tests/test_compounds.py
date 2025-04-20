@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Import common data from conftest.py (fixtures are automatically available)
-from tests.conftest import aspirin_smiles, caffeine_smiles
+from tests.conftest import aspirin_smiles, aspirin_smiles_noncanonical, caffeine_smiles
 
 # Test data
 test_compound_data = {
@@ -137,3 +137,15 @@ def test_delete_compound(client):
     
     # Should return 404 Not Found
     assert get_response.status_code == 404 
+
+def test_create_compound_with_equivalent_smiles(client):
+    """Test that creating a compound with equivalent but different SMILES representation fails"""
+    # First create a compound with canonical SMILES
+    client.post("/compounds/", json={"smiles": aspirin_smiles})
+    
+    # Try to create another compound with non-canonical but chemically equivalent SMILES
+    response = client.post("/compounds/", json={"smiles": aspirin_smiles_noncanonical})
+    
+    # This should fail since they represent the same molecule
+    assert response.status_code == 400
+    assert "already exists" in response.json()["detail"].lower() 

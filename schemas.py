@@ -102,12 +102,14 @@ class Batch(BatchBase):
 # Compound schemas
 class CompoundBase(BaseModel):
     canonical_smiles: str
+    original_molfile: Optional[str] = None
     inchi: str
     inchikey: str
     is_archived: Optional[bool] = False
 
 class CompoundCreate(BaseModel):
     smiles: str
+    original_molfile: Optional[str] = None
     is_archived: Optional[bool] = False
 
 class CompoundBatchCreate(BaseModel):
@@ -115,6 +117,7 @@ class CompoundBatchCreate(BaseModel):
 
 class CompoundUpdate(BaseModel):
     canonical_smiles: Optional[str] = None
+    original_molfile: Optional[str] = None
     inchi: Optional[str] = None
     inchikey: Optional[str] = None
     is_archived: Optional[bool] = None

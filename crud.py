@@ -40,6 +40,7 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     # Create the compound with calculated values
     db_compound = models.Compound(
         canonical_smiles=canonical_smiles,
+        original_molfile=compound.original_molfile,
         inchi=inchi,
         inchikey=inchikey,
         is_archived=compound.is_archived
