@@ -79,6 +79,7 @@ def setup_test_db():
     with test_engine.connect() as conn:
         # Execute each statement in the schema
         for statement in schema_sql.split(';'):
+            statement = statement.replace('^', ';')   # had to replace it for trigger function 
             if statement.strip():
                 conn.execute(text(statement))
         conn.execute(text("COMMIT"))
@@ -136,5 +137,5 @@ def client(test_db):
 
 # Common test data
 aspirin_smiles = "CC(=O)OC1=CC=CC=C1C(=O)O"
-aspirin_smiles_noncanonical = "O=C(O)C1CCCCC1OC(C)=O"
+aspirin_smiles_noncanonical = "CC(Oc1c(C(O)=O)cccc1)=O"
 caffeine_smiles = "CN1C=NC2=C1C(=O)N(C(=O)N2C)C" 

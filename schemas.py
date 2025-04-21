@@ -130,4 +130,13 @@ class Compound(CompoundBase):
 
     class Config:
         orm_mode = True
+        from_attributes = True
+
+# Query parameters for compound search
+class CompoundQueryParams(BaseModel):
+    substructure: Optional[str] = None
+    skip: int = 0
+    limit: int = 100
+
+    class Config:
         from_attributes = True 

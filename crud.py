@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from rdkit import Chem
 from typing import List
+from sqlalchemy import text
 
 # Handle both package imports and direct execution
 try:
@@ -17,6 +18,9 @@ def get_compound(db: Session, compound_id: int):
 
 def get_compound_by_inchi_key(db: Session, inchikey: str):
     return db.query(models.Compound).filter(models.Compound.inchikey == inchikey).first()
+
+def get_compound_by_canonical_smiles(db: Session, canonical_smiles: str):
+    return db.query(models.Compound).filter(models.Compound.canonical_smiles == canonical_smiles).first()
 
 def get_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).offset(skip).limit(limit).all()
@@ -36,7 +40,12 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     existing_compound = get_compound_by_inchi_key(db, inchikey)
     if existing_compound:
         raise HTTPException(status_code=400, detail=f"Compound with InChIKey {inchikey} already exists")
-    
+
+    existing_compound = get_compound_by_canonical_smiles(db, canonical_smiles)
+    if existing_compound:
+        raise HTTPException(status_code=400, detail=f"Compound with canonical SMILES {canonical_smiles} already exists")
+
+
     # Create the compound with calculated values
     db_compound = models.Compound(
         canonical_smiles=canonical_smiles,
@@ -284,4 +293,44 @@ def delete_assay(db: Session, assay_id: int):
     db_assay = db.query(models.Assay).filter(models.Assay.id == assay_id).first()
     db.delete(db_assay)
     db.commit()
-    return db_assay 
+    return db_assay
+
+def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
+    """
+    Get compounds with optional filtering parameters.
+    
+    Args:
+        db: Database session
+        query_params: Query parameters including substructure, skip, and limit
+        
+    Returns:
+        List of compounds matching the query parameters
+    """
+    # If substructure is provided, use substructure search
+    if query_params.substructure:
+        # Validate the substructure SMILES
+        mol = Chem.MolFromSmiles(query_params.substructure)
+        if mol is None:
+            raise HTTPException(status_code=400, detail="Invalid substructure SMILES string")
+        
+        # SQL query using the RDKit cartridge substructure operator '@>'
+        sql = text(f"""
+            SELECT c.* FROM {models.DB_SCHEMA}.compounds c
+            JOIN rdk.mols ON rdk.mols.id = c.id
+            WHERE rdk.mols.m@>'{query_params.substructure}'
+            ORDER BY c.id
+            OFFSET :skip LIMIT :limit
+        """)
+        
+        result = db.execute(sql, {"skip": query_params.skip, "limit": query_params.limit})
+        compounds = []
+        for row in result:
+            compound = models.Compound()
+            for column, value in row._mapping.items():
+                setattr(compound, column, value)
+            compounds.append(compound)
+        
+        return compounds
+    else:
+        # If no substructure provided, use regular get_compounds function
+        return get_compounds(db, skip=query_params.skip, limit=query_params.limit) 

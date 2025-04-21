@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 # Import common data from conftest.py (fixtures are automatically available)
 from tests.conftest import aspirin_smiles, aspirin_smiles_noncanonical, caffeine_smiles
@@ -148,4 +149,35 @@ def test_create_compound_with_equivalent_smiles(client):
     
     # This should fail since they represent the same molecule
     assert response.status_code == 400
-    assert "already exists" in response.json()["detail"].lower() 
+    assert "already exists" in response.json()["detail"].lower()
+
+def test_substructure_search(client, test_db):
+    """Test substructure search using the API endpoint"""
+    # Define test molecules
+    substructure = "Oc1c(C(O)=O)cccc1"
+    mol1 = "CC(Oc1c(C(O)=O)cccc1)=O"  # Should match
+    mol2 = "C(Oc1c(C(O)=O)c(C)ccc1)=O"  # Should match
+    mol3 = "CC(Oc1ccccc1)=O"  # Should NOT match
+    
+    # Create compounds in the database
+    response1 = client.post("/compounds/", json={"smiles": mol1})
+    response2 = client.post("/compounds/", json={"smiles": mol2})
+    response3 = client.post("/compounds/", json={"smiles": mol3})
+    
+    # Get compound IDs
+    compound1_id = response1.json()["id"]
+    compound2_id = response2.json()["id"]
+    compound3_id = response3.json()["id"]
+    
+    # Test the API endpoint with substructure parameter
+    response = client.get(f"/compounds/?substructure={substructure}")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Extract IDs from API response
+    result_ids = [compound["id"] for compound in data]
+    
+    # Verify correct results
+    assert compound1_id in result_ids, "Molecule 1 should match the substructure"
+    assert compound2_id in result_ids, "Molecule 2 should match the substructure"
+    assert compound3_id not in result_ids, "Molecule 3 should NOT match the substructure" 

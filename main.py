@@ -19,6 +19,8 @@ app = FastAPI(title="MolTrack API", description="API for managing chemical compo
 # Dependency
 def get_db():
     db = SessionLocal()
+    print(db.bind.url);
+    print("Database connection successful");
     try:
         yield db
     finally:
@@ -40,8 +42,18 @@ def create_compounds_batch(batch: schemas.CompoundBatchCreate, db: Session = Dep
     return crud.create_compounds_batch(db=db, smiles_list=batch.compounds)
 
 @app.get("/compounds/", response_model=List[schemas.Compound])
-def read_compounds(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    compounds = crud.get_compounds(db, skip=skip, limit=limit)
+def read_compounds(
+    query: schemas.CompoundQueryParams = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a list of compounds with optional filtering by substructure.
+    
+    - **substructure**: Optional SMILES pattern to search for substructures
+    - **skip**: Number of records to skip (for pagination)
+    - **limit**: Maximum number of records to return (for pagination)
+    """
+    compounds = crud.get_compounds_ex(db, query_params=query)
     return compounds
 
 @app.get("/compounds/{compound_id}", response_model=schemas.Compound)
