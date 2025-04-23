@@ -1,6 +1,5 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
 
 # Import common data from conftest.py (fixtures are automatically available)
 from tests.conftest import aspirin_smiles, aspirin_smiles_noncanonical, caffeine_smiles
@@ -151,7 +150,7 @@ def test_create_compound_with_equivalent_smiles(client):
     assert response.status_code == 400
     assert "already exists" in response.json()["detail"].lower()
 
-def test_substructure_search(client, test_db):
+def test_substructure_search(client):
     """Test substructure search using the API endpoint"""
     # Define test molecules
     substructure = "Oc1c(C(O)=O)cccc1"
