@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
+from rdkit.Chem.MolStandardize import rdMolStandardize
 from typing import List, Dict, Any, Optional, Union
 from sqlalchemy import text
 from datetime import datetime, timezone
@@ -686,5 +687,32 @@ def delete_batch_detail(db: Session, batch_detail_id: int):
     return db_batch_detail
 
 
-def standardize_smiles(smiles: str) -> str:
-    raise NotImplemented
+def standardize_mol(mol: Chem.Mol) -> Chem.Mol:
+    """
+    Standardizes a given RDKit molecule by performing the following steps:
+    
+    1. General Cleanup: Cleans the molecule using RDKit standardization routines.
+        - `rdMolStandardize.Cleanup`: Fixes common structural issues in the molecule.
+        - `rdMolStandardize.FragmentParent`: Removes minor fragments, retaining the main structure of the molecule.
+        - `Chem.RemoveHs`: Removes explicit hydrogens for better standardization.
+    
+    2. Neutralization: Neutralizes charges in the molecule to ensure a canonical form.
+        - `rdMolStandardize.Uncharger`: Removes formal charges by neutralizing the molecule.
+    
+    Args:
+        mol (Chem.Mol): The input molecule to be standardized.
+    
+    Returns:
+        Chem.Mol: The standardized, cleaned, and neutralized molecule.
+    """
+    # General cleanup
+    mol = rdMolStandardize.Cleanup(mol)  # Fix structural issues and clean up the molecule
+    parent_mol = rdMolStandardize.FragmentParent(mol)  # Retain the largest fragment as the main structure
+    mol = Chem.RemoveHs(parent_mol)  # Remove explicit hydrogens for further standardization
+
+    # Neutralize charges
+    uncharger = rdMolStandardize.Uncharger()  # Initialize the uncharger object
+    neutralized_mol = uncharger.uncharge(mol)  # Convert charged groups to neutral forms
+
+    return neutralized_mol
+
