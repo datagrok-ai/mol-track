@@ -683,4 +683,8 @@ def delete_batch_detail(db: Session, batch_detail_id: int):
     if db_batch_detail:
         db.delete(db_batch_detail)
         db.commit()
-    return db_batch_detail 
+    return db_batch_detail
+
+
+def standardize_smiles(smiles: str) -> str:
+    raise NotImplemented
