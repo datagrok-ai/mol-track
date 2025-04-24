@@ -1,0 +1,13 @@
+operations:
+  - type: "Cleanup"
+    description: "Basic cleanup the molecule including explicit hydrogens removal"
+    enable: true
+
+  - type: "FragmentParent"
+    description: "Retains the largest parent fragment of the molecule."
+    enable: true
+
+  - type: "Uncharger"
+    description: "Neutralizes charges on the molecule."
+    enable: true
+

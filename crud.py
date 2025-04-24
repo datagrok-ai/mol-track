@@ -5,6 +5,7 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 from typing import List, Dict, Any, Optional, Union
 from sqlalchemy import text
 from datetime import datetime, timezone
+import yaml
 
 # Handle both package imports and direct execution
 try:
@@ -687,30 +688,60 @@ def delete_batch_detail(db: Session, batch_detail_id: int):
     return db_batch_detail
 
 
-def standardize_mol(mol: Chem.Mol) -> Chem.Mol:
+
+
+def standardize_mol(mol: Chem.Mol, standardizer_config_file: str = "molecule_standarizer_operations.yaml") -> Chem.Mol:
     """
-    Standardizes a given RDKit molecule by performing the following steps:
-    
-    1. General Cleanup: Cleans the molecule using RDKit standardization routines.
-        - `rdMolStandardize.Cleanup`: Fixes common structural issues in the molecule, removes explicit hydrogens
-        - `rdMolStandardize.FragmentParent`: Removes minor fragments, retaining the main structure of the molecule.
-    
-    2. Neutralization: Neutralizes charges in the molecule to ensure a canonical form.
-        - `rdMolStandardize.Uncharger`: Removes formal charges by neutralizing the molecule.
-    
+    Standardizes a given RDKit molecule using operations defined in a YAML configuration file.
+
+    The operations are dynamically executed in the order defined in the file, but only if they are enabled.
+
     Args:
-        mol (Chem.Mol): The input molecule to be standardized.
-    
+        mol (Chem.Mol): The molecule to standardize.
+        standardizer_config_file (str): Path to the YAML configuration file with operation definitions.
+
     Returns:
-        Chem.Mol: The standardized, cleaned, and neutralized molecule.
+        Chem.Mol: The standardized molecule after performing all configured operations.
     """
-    # General cleanup
-    mol = rdMolStandardize.Cleanup(mol)  # Fix structural issues and clean up the molecule
-    parent_mol = rdMolStandardize.FragmentParent(mol)  # Retain the largest fragment as the main structure
 
-    # Neutralize charges
-    uncharger = rdMolStandardize.Uncharger()  # Initialize the uncharger object
-    neutralized_mol = uncharger.uncharge(parent_mol)  # Convert charged groups to neutral forms
+    
+    with open(standardizer_config_file, 'r') as f:
+        config = yaml.safe_load(f)
 
-    return neutralized_mol
+    # Apply only the enabled operations in the order of declaration in the yml file.
+    for operation in config.get("operations", []):
+        operation_type = operation.get("type")
+        is_enabled = operation.get("enable", True)
 
+        if not is_enabled:
+            continue
+        
+        if not operation_type:
+            raise ValueError(f"Operation type is missing in the configuration file:{standardizer_config_file}.")
+        
+        mol = apply_standardizer_operation(mol, operation_type)
+    
+    return mol
+
+def apply_standardizer_operation(mol: Chem.Mol, operation_type: str) -> Chem.Mol:
+    """
+    Applies a specific operation to the molecule based on the operation type.
+
+    Args:
+        mol (Chem.Mol): The molecule to modify.
+        operation_type (str): The type of standardization operation to perform.
+
+    Returns:
+        Chem.Mol: The transformed molecule.
+    """
+    operation_map = {
+        "Cleanup": rdMolStandardize.Cleanup,
+        "FragmentParent": rdMolStandardize.FragmentParent,
+        "RemoveHs": Chem.RemoveHs,
+        "Uncharger": lambda mol: rdMolStandardize.Uncharger().uncharge(mol),
+    }
+
+    if operation_type not in operation_map:
+        raise ValueError(f"Unknown operation type: {operation_type}")
+    
+    return operation_map[operation_type](mol)
