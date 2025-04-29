@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Database Schema Structure
+
+The database schema is defined in [db/schema.sql](mdc:db/schema.sql) and consists of two main schemas:
+
+## MolTrack Schema (`moltrack`)
+Core tables for managing chemical compounds and their properties:
+
+1. **Compounds Management**
+   - `compounds`: Stores unique chemical structures with SMILES, InChI, and InChIKey
+   - `batches`: Physical samples of compounds with amount, purity, and expiry info
+   - `batch_details`: User-defined properties for specific batches
+
+2. **Properties System**
+   - `semantic_types`: Defines categories of properties (Molecule, Cell, etc.)
+   - `properties`: Defines calculated, measured, or predicted properties
+
+3. **Assay System**
+   - `assay_types`: Defines types of assays and their required properties
+   - `assay_type_properties`: Links properties to assay types
+   - `assays`: Individual experiments measuring properties
+   - `assay_properties`: Properties measured in specific assays
+   - `assay_results`: Actual measurement results
+
+## RDKit Schema (`rdk`)
+Maintains chemical structure data in RDKit format:
+- `mols`: Contains molecules in RDKit's native format
+- Automatically synchronized with `moltrack.compounds` via triggers
+
+
+

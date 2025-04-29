@@ -217,7 +217,6 @@ def get_properties(db: Session, skip: int = 0, limit: int = 100):
 def create_property(db: Session, property: schemas.PropertyCreate):
     db_property = models.Property(
         name=property.name,
-        required=property.required,
         value_type=property.value_type,
         property_class=property.property_class,
         unit=property.unit

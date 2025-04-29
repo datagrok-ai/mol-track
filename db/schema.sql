@@ -26,12 +26,19 @@ CREATE TABLE moltrack.batches (
     created_by INTEGER
 );
 
+-- Explains the meaning of a scalar property. 
+CREATE TABLE moltrack.semantic_types (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,    -- e.g., "Molecule", "Cell", "Tissue", "Organism", "Treatment", "Drug", "Image"
+    description TEXT
+);
+
 -- Properties table - for calculated and measured properties
 CREATE TABLE moltrack.properties (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    required BOOLEAN NOT NULL DEFAULT FALSE,   -- if true, used for validation of the submitted data
-    value_type TEXT CHECK (value_type IN ('NUMBER', 'STRING', 'BOOL')),
+    value_type TEXT CHECK (value_type IN ('int', 'double', 'bool', 'datetime', 'string')),
+    semantic_type_id INTEGER REFERENCES moltrack.semantic_types(id),
     property_class TEXT CHECK (property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')),
     unit TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -60,6 +67,7 @@ CREATE TABLE moltrack.assay_types (
 CREATE TABLE moltrack.assay_type_properties (
     assay_type_id INTEGER NOT NULL REFERENCES moltrack.assay_types(id),
     property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
+    required BOOLEAN NOT NULL DEFAULT FALSE,   -- if true, used for validation of the submitted data
     PRIMARY KEY (assay_type_id, property_id)
 );
 

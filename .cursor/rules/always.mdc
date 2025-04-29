@@ -1,0 +1,39 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Always
+
+## Database Conventions
+- Never make changes to schema.sql, unless explicitly asked
+- Use `snake_case` for all database identifiers (table names, column names)
+- All tables must have a primary key named `id`
+- Include `created_at` timestamp in all tables
+- Foreign keys should be named `{referenced_table_singular}_id`
+- Schema-qualify all table references (e.g., `moltrack.compounds`)
+
+## Property System
+- Properties must have a value_type from: 'int', 'double', 'bool', 'datetime', 'string'
+- Property classes must be one of: 'CALCULATED', 'MEASURED', 'PREDICTED'
+- Always include appropriate units for numerical properties
+- Document the purpose of each property
+
+## Chemical Structure Handling
+- Store canonical SMILES strings for all chemical structures
+- Include both InChI and InChIKey for compound identification
+- Use RDKit for all molecular operations
+- Validate chemical structure input before storage
+
+## Assay Data
+- Link all assay results to valid batches and properties
+- Include proper validation for measurement values
+- Document assay conditions and protocols
+
+## Code Style
+- Use consistent indentation (4 spaces) in SQL
+- Add comments for complex queries or triggers
+- Follow PostgreSQL best practices for performance
+
+
+- Document all schema changes in version control

@@ -1,0 +1,38 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Data Types and Constraints
+
+Key data types and constraints used in [db/schema.sql](mdc:db/schema.sql):
+
+## Property Value Types
+Properties can have the following value types:
+- `int`: Integer values
+- `double`: Floating point values
+- `bool`: Boolean values
+- `datetime`: Date and time values
+- `string`: Text values
+
+## Property Classifications
+Properties are classified as one of:
+- `CALCULATED`: Computed properties
+- `MEASURED`: Experimentally measured values
+- `PREDICTED`: Values predicted by models
+
+## Key Constraints
+1. Every batch must reference a valid compound (`batches.compound_id`)
+2. Properties must have valid semantic types (`properties.semantic_type_id`)
+3. Assay results must reference valid:
+   - Batches (`assay_results.batch_id`)
+   - Assays (`assay_results.assay_id`)
+   - Properties (`assay_results.property_id`)
+
+## Timestamps
+Most tables include:
+- `created_at`: Automatically set to current timestamp
+- `updated_at`: For tracking modifications
+
+
+

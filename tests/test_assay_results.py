@@ -11,21 +11,21 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # Define individual property test data
 ic50prop = {
     "name": "IC50",
-    "value_type": "NUMBER",
+    "value_type": "double",
     "property_class": "MEASURED",
     "unit": "nM"
 }
 
 solProp = {
     "name": "Solubility",
-    "value_type": "NUMBER",
+    "value_type": "double",
     "property_class": "MEASURED",
     "unit": "mg/mL"
 }
 
 activityProp = {
     "name": "Activity Score",
-    "value_type": "NUMBER",
+    "value_type": "double",
     "property_class": "CALCULATED",
     "unit": ""
 }

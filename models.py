@@ -84,9 +84,11 @@ class BatchDetail(Base):
     property = relationship("Property", back_populates="batch_details")
 
 class ValueType(enum.Enum):
-    NUMBER = "NUMBER"
-    STRING = "STRING"
-    BOOL = "BOOL"
+    INT = "int"
+    DOUBLE = "double"
+    BOOL = "bool"
+    DATETIME = "datetime"
+    STRING = "string"
 
 class PropertyClass(enum.Enum):
     CALCULATED = "CALCULATED"
@@ -97,7 +99,7 @@ class Property(Base):
     __tablename__ = "properties"
     __table_args__ = (
         CheckConstraint(
-            "value_type IN ('NUMBER', 'STRING', 'BOOL')",
+            "value_type IN ('int', 'double', 'bool', 'datetime', 'string')",
             name="check_value_type"
         ),
         CheckConstraint(
@@ -109,7 +111,6 @@ class Property(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(Text, nullable=False)
-    required = Column(Boolean, default=False)
     value_type = Column(Text)
     property_class = Column(Text)
     unit = Column(Text)

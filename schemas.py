@@ -5,9 +5,11 @@ from enum import Enum
 
 # Property schemas
 class ValueType(str, Enum):
-    NUMBER = "NUMBER"
-    STRING = "STRING"
-    BOOL = "BOOL"
+    INT = "int"
+    DOUBLE = "double"
+    BOOL = "bool"
+    DATETIME = "datetime"
+    STRING = "string"
 
 class PropertyClass(str, Enum):
     CALCULATED = "CALCULATED"
@@ -19,7 +21,6 @@ class PropertyBase(BaseModel):
     value_type: ValueType
     property_class: PropertyClass
     unit: Optional[str] = None
-    required: Optional[bool] = False
 
 class PropertyCreate(PropertyBase):
     pass
