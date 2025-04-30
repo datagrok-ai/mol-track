@@ -8,3 +8,4 @@ pytest
 pytest-asyncio
 httpx
 rdkit
+pyyaml==6.0.2
