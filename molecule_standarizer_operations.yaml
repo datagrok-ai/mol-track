@@ -1,6 +1,6 @@
 operations:
   - type: "Cleanup"
-    description: "Basic cleanup of the molecule including explicit hydrogens removal."
+    description: "Basic cleanup of the molecule, including removal of explicit hydrogens"
     enable: true
 
   - type: "FragmentParent"
