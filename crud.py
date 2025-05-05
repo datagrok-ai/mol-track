@@ -713,21 +713,3 @@ def create_batch_detail(db: Session, batch_detail: schemas.BatchDetailCreate):
     db.commit()
     db.refresh(db_batch_detail)
     return db_batch_detail
-
-def update_batch_detail(db: Session, batch_detail_id: int, batch_detail: schemas.BatchDetailUpdate):
-    db_batch_detail = db.query(models.BatchDetail).filter(models.BatchDetail.id == batch_detail_id).first()
-    if db_batch_detail:
-        update_data = batch_detail.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_batch_detail, key, value)
-        db.add(db_batch_detail)
-        db.commit()
-        db.refresh(db_batch_detail)
-    return db_batch_detail
-
-def delete_batch_detail(db: Session, batch_detail_id: int):
-    db_batch_detail = db.query(models.BatchDetail).filter(models.BatchDetail.id == batch_detail_id).first()
-    if db_batch_detail:
-        db.delete(db_batch_detail)
-        db.commit()
-    return db_batch_detail 
