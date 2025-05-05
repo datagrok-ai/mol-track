@@ -1,5 +1,6 @@
 import yaml
 from rdkit import Chem
+from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
 
@@ -63,3 +64,28 @@ def apply_standardizer_operation(mol: Chem.Mol, operation_type: str) -> Chem.Mol
         raise ValueError(f"Unknown operation type: {operation_type}")
 
     return operation_map[operation_type](mol)
+
+
+def generate_molhash(mol: Chem.Mol) -> tuple:
+    """
+    Generate a molecular hash and corresponding layers for a given molecule.
+
+    This function calculates a molecular hash (MolHash) and its associated layers using
+    the `RegistrationHash` module.
+
+    Args:
+        mol: An RDKit molecule object (`rdkit.Chem.Mol`) for which the MolHash 
+                  and layers will be generated.
+
+    Returns:
+        tuple: A tuple containing:
+            - mhash (str): The molecular hash string for the input molecule.
+            - layers (dict): A dictionary containing the layers used to compute the MolHash.
+    """
+    # Generate molecular layers
+    layers = RegistrationHash.GetMolLayers(molecule, enable_tautomer_hash_v2=True)
+    
+    # Generate the molecular hash based on the layers
+    mhash = RegistrationHash.GetMolHash(layers)
+    
+    return mhash, layers
