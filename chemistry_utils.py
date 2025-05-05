@@ -83,7 +83,7 @@ def generate_molhash(mol: Chem.Mol) -> tuple:
             - layers (dict): A dictionary containing the layers used to compute the MolHash.
     """
     # Generate molecular layers
-    layers = RegistrationHash.GetMolLayers(molecule, enable_tautomer_hash_v2=True)
+    layers = RegistrationHash.GetMolLayers(mol, enable_tautomer_hash_v2=True)
     
     # Generate the molecular hash based on the layers
     mhash = RegistrationHash.GetMolHash(layers)

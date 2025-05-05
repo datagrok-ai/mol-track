@@ -6,6 +6,8 @@ from typing import List, Dict, Any, Optional, Union
 from sqlalchemy import text
 from datetime import datetime, timezone
 import yaml
+from chemistry_utils import standardize_mol,generate_molhash
+from rdkit.Chem.RegistrationHash import HashLayer 
 
 # Handle both package imports and direct execution
 try:
@@ -34,10 +36,24 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     if mol is None:
         raise HTTPException(status_code=400, detail="Invalid SMILES string")
     
+    # Standardize mol and calculate hashes
+
+    standarized_mol = standardize_mol(mol)
+    molhash, mol_layers = generate_molhash(standarized_mol)
+
+    formula = mol_layers[HashLayer.FORMULA]
+    canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
+    tautomer = mol_layers[HashLayer.TAUTOMER_HASH]
+    no_stereo_smiles = mol_layers[HashLayer.NO_STEREO_SMILES]
+    no_stereo_tautomer = mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH]
+    sgroup_data = mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH]
+
+    
+    # canonical_smiles = Chem.MolToSmiles(standarized_mol, isomericSmiles=True, canonical=True)
     # Calculate canonical SMILES, InChI, and InChIKey
-    canonical_smiles = Chem.MolToSmiles(mol, isomericSmiles=True, canonical=True)
     inchi = Chem.MolToInchi(mol)
     inchikey = Chem.InchiToInchiKey(inchi)
+    
     
     # Check if compound with this InChIKey already exists
     existing_compound = get_compound_by_inchi_key(db, inchikey)
