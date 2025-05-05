@@ -37,7 +37,14 @@ CREATE TABLE moltrack.semantic_types (
 CREATE TABLE moltrack.properties (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    value_type TEXT CHECK (value_type IN ('int', 'double', 'bool', 'datetime', 'string')),
+
+    -- value_type defines the colummn in the batch_details, assay_details and assay_results 
+    -- tables that store the property value:
+    -- * [value_num] for "int" and "double", 
+    -- * [value_datetime] for "datetime", 
+    -- * [value_uuid] for "uuid", 
+    -- * [value_string] for "string"
+    value_type TEXT CHECK (value_type IN ('int', 'double', 'bool', 'datetime', 'uuid', 'string')),
     semantic_type_id INTEGER REFERENCES moltrack.semantic_types(id),
     property_class TEXT CHECK (property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')),
     unit TEXT,
@@ -49,7 +56,12 @@ create table moltrack.batch_details (
     id SERIAL PRIMARY KEY,
     batch_id INTEGER NOT NULL REFERENCES moltrack.batches(id),
     property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
-    result_value REAL
+
+    value_qualifier SMALLINT NOT NULL DEFAULT 0,  -- 0 for "=", 1 for "<", 2 for ">". Only used for numeric properties.
+    value_datetime TIMESTAMP WITH TIME ZONE,
+    value_uuid uuid,
+    value_num REAL,
+    value_string TEXT
 );
 
 -- Assay type defines what properties are measured in an assay.
@@ -63,11 +75,16 @@ CREATE TABLE moltrack.assay_types (
     updated_on timestamp without time zone
 );
 
--- Assay type properties define what properties are measured in an assay (see assay_type_properties).
-CREATE TABLE moltrack.assay_type_properties (
+-- Assay type metadata
+CREATE TABLE moltrack.assay_type_details (
     assay_type_id INTEGER NOT NULL REFERENCES moltrack.assay_types(id),
     property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
-    required BOOLEAN NOT NULL DEFAULT FALSE,   -- if true, used for validation of the submitted data
+
+    value_datetime TIMESTAMP WITH TIME ZONE,
+    value_uuid uuid,
+    value_num REAL,
+    value_string TEXT,
+
     PRIMARY KEY (assay_type_id, property_id)
 );
 
@@ -80,11 +97,27 @@ CREATE TABLE moltrack.assays (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Assay Properties table - for linking assays to properties
-CREATE TABLE moltrack.assay_properties (
+-- User-defined assay details 
+-- (like when the assay was performed, where, by whom, etc.)
+CREATE TABLE moltrack.assay_details (
     assay_id INTEGER NOT NULL REFERENCES moltrack.assays(id),
     property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
+
+    value_datetime TIMESTAMP WITH TIME ZONE,
+    value_uuid uuid,
+    value_num REAL,
+    value_string TEXT,
+
     PRIMARY KEY (assay_id, property_id)
+);
+
+-- A set of measurement types for a given assay type.
+-- This will be used to validate the data submitted for an assay.
+CREATE TABLE moltrack.assay_type_properties (
+    assay_type_id INTEGER NOT NULL REFERENCES moltrack.assay_types(id),
+    property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
+    required BOOLEAN NOT NULL DEFAULT FALSE,   -- if true, used for validation of the submitted data
+    PRIMARY KEY (assay_type_id, property_id)
 );
 
 -- Actual measurements.
@@ -93,7 +126,12 @@ CREATE TABLE moltrack.assay_results (
     batch_id INTEGER NOT NULL REFERENCES moltrack.batches(id),
     assay_id INTEGER NOT NULL REFERENCES moltrack.assays(id),  
     property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),  -- should also be in the corresponding assay_type
-    result_value REAL
+    
+    -- For performance reasons, only numbers, strings, and booleans are supported for assay results (no datetime or uuid).
+    value_qualifier SMALLINT NOT NULL DEFAULT 0,  -- 0 for "=", 1 for "<", 2 for ">". Only used for numeric properties.
+    value_num REAL,
+    value_string TEXT,
+    value_bool BOOLEAN
 );
 
 GRANT ALL PRIVILEGES ON SCHEMA moltrack TO CURRENT_USER;

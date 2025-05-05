@@ -16,23 +16,19 @@ except ImportError:
 # Get the schema name from environment variable or use default
 DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 
+# This association table is no longer needed since assay_properties isn't in the schema
 # Association table for Assay-Property many-to-many relationship
-AssayProperty = Table(
-    "assay_properties",
-    Base.metadata,
-    Column("assay_id", Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), primary_key=True),
-    Column("property_id", Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True),
-    schema=DB_SCHEMA
-)
+# AssayProperty = Table(
+#     "assay_properties",
+#     Base.metadata,
+#     Column("assay_id", Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), primary_key=True),
+#     Column("property_id", Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True),
+#     schema=DB_SCHEMA
+# )
 
+# No longer needed as we've converted to an ORM class
 # Association table for AssayType-Property many-to-many relationship
-AssayTypeProperty = Table(
-    "assay_type_properties",
-    Base.metadata,
-    Column("assay_type_id", Integer, ForeignKey(f"{DB_SCHEMA}.assay_types.id"), primary_key=True),
-    Column("property_id", Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True),
-    schema=DB_SCHEMA
-)
+# AssayTypeProperty = Table(
 
 class Compound(Base):
     __tablename__ = "compounds"
@@ -77,7 +73,12 @@ class BatchDetail(Base):
     id = Column(Integer, primary_key=True, index=True)
     batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False)
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), nullable=False)
-    result_value = Column(Float)
+    
+    value_qualifier = Column(Integer, nullable=False, default=0)  # 0 for "=", 1 for "<", 2 for ">"
+    value_datetime = Column(DateTime(timezone=True))
+    value_uuid = Column(String(36))
+    value_num = Column(Float)
+    value_string = Column(Text)
     
     # Relationships
     batch = relationship("Batch", back_populates="batch_details")
@@ -120,6 +121,51 @@ class Property(Base):
     assay_results = relationship("AssayResult", back_populates="property")
     batch_details = relationship("BatchDetail", back_populates="property")
 
+class AssayTypeDetail(Base):
+    __tablename__ = "assay_type_details"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    assay_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.assay_types.id"), primary_key=True)
+    property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True)
+    
+    value_datetime = Column(DateTime(timezone=True))
+    value_uuid = Column(String(36))
+    value_num = Column(Float)
+    value_string = Column(Text)
+    
+    # Relationships
+    assay_type = relationship("AssayType", back_populates="assay_type_details")
+    property = relationship("Property")
+
+class AssayDetail(Base):
+    __tablename__ = "assay_details"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    assay_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), primary_key=True)
+    property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True)
+    
+    value_datetime = Column(DateTime(timezone=True))
+    value_uuid = Column(String(36))
+    value_num = Column(Float)
+    value_string = Column(Text)
+    
+    # Relationships
+    assay = relationship("Assay", back_populates="assay_details")
+    property = relationship("Property")
+
+# Redefining AssayTypeProperty which was previously just a Table
+class AssayTypeProperty(Base):
+    __tablename__ = "assay_type_properties"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    assay_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.assay_types.id"), primary_key=True)
+    property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True)
+    required = Column(Boolean, default=False)
+    
+    # Relationships
+    assay_type = relationship("AssayType", back_populates="property_requirements")
+    property = relationship("Property")
+
 class AssayType(Base):
     __tablename__ = "assay_types"
     __table_args__ = {"schema": DB_SCHEMA}
@@ -130,10 +176,18 @@ class AssayType(Base):
     created_on = Column(DateTime, server_default=func.now())
     updated_on = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
-    # Relationships
-    properties = relationship("Property", secondary=AssayTypeProperty, backref="assay_types")
+    # Relationships - use secondary join for many-to-many
+    properties = relationship(
+        "Property", 
+        secondary=f"{DB_SCHEMA}.assay_type_properties",
+        primaryjoin=f"AssayType.id==AssayTypeProperty.assay_type_id",
+        secondaryjoin=f"AssayTypeProperty.property_id==Property.id",
+        backref="assay_types"
+    )
     assays = relationship("Assay", back_populates="assay_type")
-    
+    assay_type_details = relationship("AssayTypeDetail", back_populates="assay_type")
+    property_requirements = relationship("AssayTypeProperty", back_populates="assay_type")
+
 class Assay(Base):
     __tablename__ = "assays"
     __table_args__ = {"schema": DB_SCHEMA}
@@ -144,10 +198,11 @@ class Assay(Base):
     description = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Relationships
-    properties = relationship("Property", secondary=AssayProperty, backref="assays")
+    # Relationships - use assay_type_properties via assay_type to get list of expected properties
+    # No direct properties relationship as assay_properties table no longer exists
     assay_type = relationship("AssayType", back_populates="assays")
     assay_results = relationship("AssayResult", back_populates="assay")
+    assay_details = relationship("AssayDetail", back_populates="assay")
 
 class AssayResult(Base):
     __tablename__ = "assay_results"
@@ -157,7 +212,12 @@ class AssayResult(Base):
     batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False)
     assay_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), nullable=False)
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), nullable=False)
-    result_value = Column(Float)
+    
+    # Value fields
+    value_qualifier = Column(Integer, nullable=False, default=0)  # 0 for "=", 1 for "<", 2 for ">"
+    value_num = Column(Float)
+    value_string = Column(Text)
+    value_bool = Column(Boolean)
     
     # Relationships
     batch = relationship("Batch", back_populates="assay_results")
