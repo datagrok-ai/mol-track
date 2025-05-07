@@ -56,6 +56,19 @@ def read_compounds(
     compounds = crud.get_compounds_ex(db, query_params=query)
     return compounds
 
+@app.get("/compounds/", response_model=List[schemas.Compound])
+def exact_search(
+    query: schemas.CompoundHashQueryParams = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    Search compounds using various hashes
+
+    """
+    compounds = crud.get_compounds_by_hashes(db, query_params=query)
+    return compounds
+
+
 @app.get("/compounds/{compound_id}", response_model=schemas.Compound)
 def read_compound(compound_id: int, db: Session = Depends(get_db)):
     db_compound = crud.get_compound(db, compound_id=compound_id)

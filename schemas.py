@@ -241,8 +241,15 @@ class Compound(CompoundBase):
 # Query parameters for compound search
 class CompoundQueryParams(BaseModel):
     substructure: Optional[str] = None
+    tautomer: Optional[str] = None
     skip: int = 0
     limit: int = 100
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+class CompoundHashQueryParams(BaseModel):
+    no_stereo_smiles: Optional[str] = None
+    tautomer: Optional[str] = None
+    class Config:
+        from_attributes = True  

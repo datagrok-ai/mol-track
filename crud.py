@@ -30,6 +30,9 @@ def get_compound_by_molhash(db: Session, molhash: str):
 def get_compound_by_canonical_smiles(db: Session, canonical_smiles: str):
     return db.query(models.Compound).filter(models.Compound.canonical_smiles == canonical_smiles).first()
 
+def get_compound_by_tautomer(db: Session, tautomer: str):
+    return db.query(models.Compound).filter(models.Compound.tautomer == tautomer).all()
+
 def get_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).options(joinedload(models.Compound.batches)).offset(skip).limit(limit).all()
 
@@ -435,9 +438,23 @@ def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
             compounds.append(compound)
         
         return compounds
+    
+         
     else:
         # If no substructure provided, use regular get_compounds function
         return get_compounds(db, skip=query_params.skip, limit=query_params.limit)
+
+
+def get_compounds_by_hashes(db: Session, query_params: schemas.CompoundHashQueryParams):
+
+    raise HTTPException(status_code=400, detail="Not implemented")
+    
+    mol = Chem.MolFromSmiles(query_params.substructure)
+    if mol is None:
+        raise HTTPException(status_code=400, detail="Invalid substructure SMILES string")
+    
+    
+
 
 # AssayResult CRUD operations
 def get_assay_result(db: Session, assay_result_id: int):
