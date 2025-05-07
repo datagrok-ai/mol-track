@@ -24,6 +24,9 @@ def get_compound(db: Session, compound_id: int):
 def get_compound_by_inchi_key(db: Session, inchikey: str):
     return db.query(models.Compound).filter(models.Compound.inchikey == inchikey).first()
 
+def get_compound_by_molhash(db: Session, molhash: str):
+    return db.query(models.Compound).filter(models.Compound.molhash == molhash).first()
+
 def get_compound_by_canonical_smiles(db: Session, canonical_smiles: str):
     return db.query(models.Compound).filter(models.Compound.canonical_smiles == canonical_smiles).first()
 
@@ -41,6 +44,7 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     standarized_mol = standardize_mol(mol)
     molhash, mol_layers = generate_molhash(standarized_mol)
 
+
     formula = mol_layers[HashLayer.FORMULA]
     canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
     tautomer = mol_layers[HashLayer.TAUTOMER_HASH]
@@ -51,11 +55,16 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     
     # canonical_smiles = Chem.MolToSmiles(standarized_mol, isomericSmiles=True, canonical=True)
     # Calculate canonical SMILES, InChI, and InChIKey
-    inchi = Chem.MolToInchi(mol)
+    inchi = Chem.MolToInchi(standarized_mol)
     inchikey = Chem.InchiToInchiKey(inchi)
     
     
     # Check if compound with this InChIKey already exists
+
+    existing_compound = get_compound_by_molhash(db, molhash)
+    if existing_compound:
+        raise HTTPException(status_code=400, detail=f"Compound with molhash {molhash} already exists")
+
     existing_compound = get_compound_by_inchi_key(db, inchikey)
     if existing_compound:
         raise HTTPException(status_code=400, detail=f"Compound with InChIKey {inchikey} already exists")
@@ -63,11 +72,19 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     existing_compound = get_compound_by_canonical_smiles(db, canonical_smiles)
     if existing_compound:
         raise HTTPException(status_code=400, detail=f"Compound with canonical SMILES {canonical_smiles} already exists")
+    
+
 
     # Create the compound with calculated values
     db_compound = models.Compound(
         canonical_smiles=canonical_smiles,
         original_molfile=compound.original_molfile,
+        molhash = molhash,
+        formula = formula,
+        tautomer = tautomer,
+        no_stereo_smiles = no_stereo_smiles,
+        no_stereo_tautomer = no_stereo_tautomer,
+        sgroup_data = sgroup_data, 
         inchi=inchi,
         inchikey=inchikey,
         created_at=datetime.now(),

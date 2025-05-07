@@ -46,6 +46,13 @@ class Compound(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     is_archived = Column(Boolean, default=False)
+    molhash = Column(Text, nullable=False, unique=True)
+    formula = Column(Text, nullable=False)
+    tautomer =  Column(Text, nullable=False)
+    no_stereo_smiles =  Column(Text, nullable=False)
+    no_stereo_tautomer =  Column(Text, nullable=False)
+    sgroup_data =  Column(Text, nullable=False)
+
     
     # Relationships
     batches = relationship("Batch", back_populates="compound")

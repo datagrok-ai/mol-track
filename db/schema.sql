@@ -1,15 +1,39 @@
 CREATE SCHEMA moltrack;
 
--- Unique chemical structures
+-- -- Unique chemical structures
+-- CREATE TABLE moltrack.compounds (
+--     id SERIAL PRIMARY KEY,
+--     canonical_smiles TEXT NOT NULL,  -- RDKit canonical SMILES
+--     original_molfile TEXT,           -- as sketched by the chemist
+--     inchi TEXT NOT NULL,             -- IUPAC InChI
+--     molhash TEXT NOT NULL,
+--     formula TEXT NOT NULL,
+--     tautomer TEXT NOT NULL,
+--     no_stereo_smiles TEXT NOT NULL,
+--     no_stereo_tautomer TEXT NOT NULL,
+--     sgroup_data TEXT NOT NULL,
+--     inchikey TEXT NOT NULL UNIQUE,   -- IUPAC InChIKey
+--     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+--     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+--     is_archived BOOLEAN DEFAULT FALSE
+-- );
+
+-- Table for Compound
 CREATE TABLE moltrack.compounds (
     id SERIAL PRIMARY KEY,
-    canonical_smiles TEXT NOT NULL,  -- RDKit canonical SMILES
-    original_molfile TEXT,           -- as sketched by the chemist
-    inchi TEXT NOT NULL,             -- IUPAC InChI
-    inchikey TEXT NOT NULL UNIQUE,   -- IUPAC InChIKey
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    is_archived BOOLEAN DEFAULT FALSE
+    canonical_smiles VARCHAR NULL,
+    original_molfile TEXT NULL,
+    inchi TEXT NULL,
+    inchikey TEXT NULL,
+    molhash TEXT NULL,
+    formula VARCHAR NULL,
+    tautomer VARCHAR NULL,
+    no_stereo_smiles VARCHAR NULL,
+    no_stereo_tautomer VARCHAR NULL,
+    sgroup_data TEXT NULL,
+    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- Batch is a physical sample of the compound (for instance synthesized or procured).
@@ -100,36 +124,37 @@ GRANT ALL PRIVILEGES ON SCHEMA moltrack TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA moltrack TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA moltrack TO CURRENT_USER;
 
+-- Commenting below for now --
 
--- Maintaining RDKit cartrige data in the rdk schema
-create extension if not exists rdkit;
-drop schema if exists rdk cascade;
-create schema rdk;
-drop table if exists rdk.mols;
+-- -- Maintaining RDKit cartrige data in the rdk schema
+-- create extension if not exists rdkit;
+-- drop schema if exists rdk cascade;
+-- create schema rdk;
+-- drop table if exists rdk.mols;
 
--- rdk.mols contains ids and molecules in RDKit Mol format
-select * into rdk.mols 
-from (select id, mol_from_smiles(canonical_smiles::cstring) m from moltrack.compounds) tmp;
+-- -- rdk.mols contains ids and molecules in RDKit Mol format
+-- select * into rdk.mols 
+-- from (select id, mol_from_smiles(canonical_smiles::cstring) m from moltrack.compounds) tmp;
 
-create index molidx on rdk.mols using gist(m);
+-- create index molidx on rdk.mols using gist(m);
 
--- trigger to insert into rdk.mols after a new compound is inserted into moltrack.compounds
--- Note that we have the "^" symbol in the body below instead of the semicolon because we
--- split the file by semicolon when executing commands (and convert back after splitting)
-create or replace function insert_into_rdk_mols()
-returns trigger as $$
-begin
-  insert into rdk.mols(id, m)
-  values (
-    new.id,
-    mol_from_smiles(new.canonical_smiles::cstring)
-  )^
-  return null^
-end^
-$$ language plpgsql;
+-- -- trigger to insert into rdk.mols after a new compound is inserted into moltrack.compounds
+-- -- Note that we have the "^" symbol in the body below instead of the semicolon because we
+-- -- split the file by semicolon when executing commands (and convert back after splitting)
+-- create or replace function insert_into_rdk_mols()
+-- returns trigger as $$
+-- begin
+--   insert into rdk.mols(id, m)
+--   values (
+--     new.id,
+--     mol_from_smiles(new.canonical_smiles::cstring)
+--   )^
+--   return null^
+-- end^
+-- $$ language plpgsql;
 
--- trigger to insert into rdk.mols after a new compound is inserted into moltrack.compounds
-create trigger compounds_after_insert
-after insert on moltrack.compounds
-for each row
-execute function insert_into_rdk_mols();
+-- -- trigger to insert into rdk.mols after a new compound is inserted into moltrack.compounds
+-- create trigger compounds_after_insert
+-- after insert on moltrack.compounds
+-- for each row
+-- execute function insert_into_rdk_mols();

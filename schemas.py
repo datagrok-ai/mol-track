@@ -186,6 +186,12 @@ class CompoundBase(BaseModel):
     original_molfile: Optional[str] = None
     inchi: Optional[str] = None
     inchikey: Optional[str] = None
+    molhash: Optional[str] = None
+    formula: Optional[str] = None
+    tautomer: Optional[str] = None
+    no_stereo_smiles: Optional[str] = None
+    no_stereo_tautomer: Optional[str] = None
+    sgroup_data: Optional[str] = None
 
     @validator('inchi', 'inchikey', always=True)
     def set_inchi(cls, v, values):
@@ -203,7 +209,7 @@ class CompoundBase(BaseModel):
 
 class CompoundCreate(CompoundBase):
     smiles: str
-    is_archived: Optional[bool] = False
+    is_archived: Optional[bool] = None
 
 class CompoundBatchCreate(BaseModel):
     compounds: List[str]  # List of canonical SMILES strings
@@ -212,6 +218,12 @@ class CompoundUpdate(BaseModel):
     canonical_smiles: Optional[str] = None
     original_molfile: Optional[str] = None
     inchi: Optional[str] = None
+    molhash: Optional[str] = None
+    formula: Optional[str] = None
+    tautomer: Optional[str] = None
+    no_stereo_smiles: Optional[str] = None
+    no_stereo_tautomer: Optional[str] = None
+    sgroup_data: Optional[str] = None
     inchikey: Optional[str] = None
     is_archived: Optional[bool] = None
 
