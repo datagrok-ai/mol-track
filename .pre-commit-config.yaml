@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/PyCQA/flake8 # Command-line utility that checks code against coding style and programming errors
+    rev: 7.2.0
+    hooks:
+      - id: flake8
+
+  - repo: https://github.com/pre-commit/mirrors-mypy # Static type checker
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+
+  - repo: https://github.com/psf/black # Code formatter
+    rev: 25.1.0
+    hooks:
+      - id: black
