@@ -62,7 +62,7 @@ celecoxib = {
         {
             "batch_corporate_id": "EPA-120-001",
             "compound": {
-                "smiles": "OC(=O)c1cc2c(cc1)c(=O)O",
+                "smiles": "c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N",
                 "USAN": "celecoxib",
                 "CAS Number": "169590-42-5"
             }
