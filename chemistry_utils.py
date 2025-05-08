@@ -2,6 +2,7 @@ import yaml
 from rdkit import Chem
 from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
+import hashlib
 
 
 def standardize_mol(
@@ -89,3 +90,17 @@ def generate_molhash(mol: Chem.Mol) -> tuple:
     mhash = RegistrationHash.GetMolHash(layers)
     
     return mhash, layers
+
+def generate_sha1_hash_from_string(input_string: str) -> str:
+    """
+    Generate a SHA-1 hash for a given input string.
+
+    Args:
+        input_string (str): The input string to hash.
+
+    Returns:
+        str: The SHA-1 hash of the input string.
+    """
+    # Compute the SHA-1 hash of the input string
+    sha1_hash = hashlib.sha1(input_string.encode('utf-8')).hexdigest()
+    return sha1_hash

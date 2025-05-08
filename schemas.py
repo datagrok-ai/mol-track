@@ -169,6 +169,8 @@ class BatchUpdate(BaseModel):
     notes: Optional[str] = None
     expiry_date: Optional[date] = None
 
+
+
 class Batch(BatchBase):
     id: int
     compound_id: int
@@ -185,13 +187,14 @@ class CompoundBase(BaseModel):
     canonical_smiles: Optional[str] = None
     original_molfile: Optional[str] = None
     inchi: Optional[str] = None
-    inchikey: Optional[str] = None
     molhash: Optional[str] = None
     formula: Optional[str] = None
-    tautomer: Optional[str] = None
-    no_stereo_smiles: Optional[str] = None
-    no_stereo_tautomer: Optional[str] = None
+    hash_tautomer: Optional[str] = Field(None, max_length=40)
+    hash_canonical_smiles: Optional[str] = Field(None, max_length=40)
+    hash_no_stereo_smiles: Optional[str] = Field(None, max_length=40)
+    hash_no_stereo_tautomer: Optional[str] = Field(None, max_length=40)
     sgroup_data: Optional[str] = None
+    inchikey: Optional[str] = None
 
     @validator('inchi', 'inchikey', always=True)
     def set_inchi(cls, v, values):
@@ -220,9 +223,10 @@ class CompoundUpdate(BaseModel):
     inchi: Optional[str] = None
     molhash: Optional[str] = None
     formula: Optional[str] = None
-    tautomer: Optional[str] = None
-    no_stereo_smiles: Optional[str] = None
-    no_stereo_tautomer: Optional[str] = None
+    hash_tautomer: Optional[str] = Field(None, max_length=40)
+    hash_canonical_smiles: Optional[str] = Field(None, max_length=40)
+    hash_no_stereo_smiles: Optional[str] = Field(None, max_length=40)
+    hash_no_stereo_tautomer: Optional[str] = Field(None, max_length=40)
     sgroup_data: Optional[str] = None
     inchikey: Optional[str] = None
     is_archived: Optional[bool] = None
@@ -241,15 +245,10 @@ class Compound(CompoundBase):
 # Query parameters for compound search
 class CompoundQueryParams(BaseModel):
     substructure: Optional[str] = None
-    tautomer: Optional[str] = None
+    # tautomer: Optional[str] = None
     skip: int = 0
     limit: int = 100
 
     class Config:
         from_attributes = True
 
-class CompoundHashQueryParams(BaseModel):
-    no_stereo_smiles: Optional[str] = None
-    tautomer: Optional[str] = None
-    class Config:
-        from_attributes = True  

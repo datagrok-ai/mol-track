@@ -1,40 +1,26 @@
 CREATE SCHEMA moltrack;
 
--- -- Unique chemical structures
--- CREATE TABLE moltrack.compounds (
---     id SERIAL PRIMARY KEY,
---     canonical_smiles TEXT NOT NULL,  -- RDKit canonical SMILES
---     original_molfile TEXT,           -- as sketched by the chemist
---     inchi TEXT NOT NULL,             -- IUPAC InChI
---     molhash TEXT NOT NULL,
---     formula TEXT NOT NULL,
---     tautomer TEXT NOT NULL,
---     no_stereo_smiles TEXT NOT NULL,
---     no_stereo_tautomer TEXT NOT NULL,
---     sgroup_data TEXT NOT NULL,
---     inchikey TEXT NOT NULL UNIQUE,   -- IUPAC InChIKey
---     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
---     is_archived BOOLEAN DEFAULT FALSE
--- );
 
 -- Table for Compound
 CREATE TABLE moltrack.compounds (
     id SERIAL PRIMARY KEY,
-    canonical_smiles VARCHAR NULL,
+    canonical_smiles TEXT NULL,
     original_molfile TEXT NULL,
     inchi TEXT NULL,
-    inchikey TEXT NULL,
-    molhash TEXT NULL,
-    formula VARCHAR NULL,
-    tautomer VARCHAR NULL,
-    no_stereo_smiles VARCHAR NULL,
-    no_stereo_tautomer VARCHAR NULL,
+    molhash VARCHAR(40) NULL,
+    formula TEXT NULL,
+    hash_tautomer VARCHAR(40) NULL,
+    hash_canonical_smiles VARCHAR(40) NULL,
+    hash_no_stereo_smiles VARCHAR(40) NULL,
+    hash_no_stereo_tautomer VARCHAR(40) NULL,
     sgroup_data TEXT NULL,
-    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+    inchikey TEXT NULL,
+    is_archived BOOLEAN NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+
 
 -- Batch is a physical sample of the compound (for instance synthesized or procured).
 CREATE TABLE moltrack.batches (

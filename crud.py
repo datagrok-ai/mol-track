@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional, Union
 from sqlalchemy import text
 from datetime import datetime, timezone
 import yaml
-from chemistry_utils import standardize_mol,generate_molhash
+from chemistry_utils import standardize_mol,generate_molhash, generate_sha1_hash_from_string
 from rdkit.Chem.RegistrationHash import HashLayer 
 
 # Handle both package imports and direct execution
@@ -50,10 +50,11 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
 
     formula = mol_layers[HashLayer.FORMULA]
     canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
-    tautomer = mol_layers[HashLayer.TAUTOMER_HASH]
-    no_stereo_smiles = mol_layers[HashLayer.NO_STEREO_SMILES]
-    no_stereo_tautomer = mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH]
-    sgroup_data = mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH]
+    hash_canonical_smiles = generate_sha1_hash_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
+    hash_tautomer = generate_sha1_hash_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
+    hash_no_stereo_smiles = generate_sha1_hash_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
+    hash_no_stereo_tautomer = generate_sha1_hash_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
+    sgroup_data = mol_layers[HashLayer.SGROUP_DATA]
 
     
     # canonical_smiles = Chem.MolToSmiles(standarized_mol, isomericSmiles=True, canonical=True)
@@ -84,9 +85,10 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
         original_molfile=compound.original_molfile,
         molhash = molhash,
         formula = formula,
-        tautomer = tautomer,
-        no_stereo_smiles = no_stereo_smiles,
-        no_stereo_tautomer = no_stereo_tautomer,
+        hash_canonical_smiles = hash_canonical_smiles,
+        hash_tautomer = hash_tautomer,
+        hash_no_stereo_smiles = hash_no_stereo_smiles,
+        hash_no_stereo_tautomer = hash_no_stereo_tautomer,
         sgroup_data = sgroup_data, 
         inchi=inchi,
         inchikey=inchikey,
@@ -444,16 +446,6 @@ def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
         # If no substructure provided, use regular get_compounds function
         return get_compounds(db, skip=query_params.skip, limit=query_params.limit)
 
-
-def get_compounds_by_hashes(db: Session, query_params: schemas.CompoundHashQueryParams):
-
-    raise HTTPException(status_code=400, detail="Not implemented")
-    
-    mol = Chem.MolFromSmiles(query_params.substructure)
-    if mol is None:
-        raise HTTPException(status_code=400, detail="Invalid substructure SMILES string")
-    
-    
 
 
 # AssayResult CRUD operations
