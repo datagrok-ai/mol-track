@@ -134,6 +134,37 @@ CREATE TABLE moltrack.assay_results (
     value_bool BOOLEAN
 );
 
+-- Synonym types
+CREATE TABLE moltrack.synonym_types (
+    id SERIAL PRIMARY KEY,
+    synonym_level TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,  -- should be unique?
+    pattern TEXT NOT NULL,
+    description TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Compound synonyms
+CREATE TABLE moltrack.compound_synonyms (
+    id SERIAL PRIMARY KEY,
+    compound_id INTEGER NOT NULL,
+    synonym_type_id INTEGER NOT NULL,
+    synonym_value TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Batch synonyms
+CREATE TABLE moltrack.batch_synonyms (
+    id SERIAL PRIMARY KEY,
+    batch_id INTEGER NOT NULL,
+    synonym_type_id INTEGER NOT NULL,
+    synonym_value TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 GRANT ALL PRIVILEGES ON SCHEMA moltrack TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA moltrack TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA moltrack TO CURRENT_USER;
