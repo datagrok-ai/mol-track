@@ -243,7 +243,7 @@ class CompoundSynonym(Base):
 
     id = Column(Integer, primary_key=True, index=True),
     batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.compounds.id"), nullable=False)
-    synonym_type_id = Column(Integer)
+    synonym_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.synonym_types.id"), nullable=False)
     synonym_value = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -258,7 +258,7 @@ class BatchSynonym(Base):
 
     id = Column(Integer, primary_key=True, index=True),
     batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False)
-    synonym_type_id = Column(Integer)
+    synonym_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.synonym_types.id"), nullable=False)
     synonym_value = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
