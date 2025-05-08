@@ -1,7 +1,13 @@
+import logging
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
+
+from logging_setup import setup_logging
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # Handle both package imports and direct execution
 try:
@@ -25,8 +31,8 @@ app = FastAPI(
 # Dependency
 def get_db():
     db = SessionLocal()
-    print(db.bind.url)
-    print("Database connection successful")
+    logger.info(db.bind.url)
+    logger.info("Database connection successful")
     try:
         yield db
     finally:
