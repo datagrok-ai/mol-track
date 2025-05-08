@@ -317,4 +317,70 @@ class CompoundQueryParams(BaseModel):
     limit: int = 100
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+# SynonymType schemas
+class SynonymTypeBase(BaseModel):
+    synonym_level: str  # 'batch' or 'compound'
+    name: str
+    pattern: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
+
+class SynonymTypeCreate(SynonymTypeBase):
+    pass
+
+class SynonymType(SynonymTypeBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+# Compound synonym schemas
+class CompoundSynonymBase(BaseModel):
+    compound_synonym_id: int  # ID of the compound
+    compound_synonym_type_id: int  # 'batch' or 'compound'
+    compound_synonym_value: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class CompoundSynonym(CompoundSynonymBase):
+    pass
+
+class CompoundSynonymUpdate(BaseModel):
+    compound_synonym_id: Optional[int] = None
+    compound_synonym_type_id: Optional[int] = None
+    compound_synonym_value: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class CompoundSynonym(CompoundSynonymBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+# Batch synonym schemas
+class BatchSynonymBase(BaseModel):
+    batch_synonym_id: int  # ID of the batch
+    batch_synonym_type_id: int
+    batch_synonym_value: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class BatchSynonym(BatchSynonymBase):
+    pass
+
+class BatchSynonymUpdate(BaseModel):
+    batch_synonym_id: Optional[int] = None
+    batch_synonym_type_id: Optional[int] = None
+    batch_synonym_value: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class BatchSynonym(BatchSynonymBase):
+    id: int
+
+    class Config:
+        from_attributes = True
