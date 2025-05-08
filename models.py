@@ -223,4 +223,46 @@ class AssayResult(Base):
     batch = relationship("Batch", back_populates="assay_results")
     assay = relationship("Assay", back_populates="assay_results")
     property = relationship("Property", back_populates="assay_results")
-    
+
+
+class SynonymType(Base):
+    __tablename__ = "synonym_types"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True, index=True),
+    synonym_level = Column(Text)
+    name = Column(Text)
+    pattern = Column(Text)
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class CompoundSynonym(Base):
+    __tablename__ = "compound_synonyms"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True, index=True),
+    batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.compounds.id"), nullable=False)
+    synonym_type_id = Column(Integer)
+    synonym_value = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    batch = relationship("Compound", back_populates="compound_synonyms")
+    synonym_type = relationship("SynonymType", back_populates="compound_synonyms")
+
+class BatchSynonym(Base):
+    __tablename__ = "batch_synonyms"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True, index=True),
+    batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False)
+    synonym_type_id = Column(Integer)
+    synonym_value = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    batch = relationship("Batch", back_populates="batch_synonyms")
+    synonym_type = relationship("SynonymType", back_populates="batch_synonyms")
