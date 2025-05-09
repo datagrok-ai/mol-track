@@ -75,9 +75,7 @@ def test_standardize_mol_missing_operation(test_molecule, tmp_path):
     with open(config_file, "w") as f:
         yaml.dump(config_data, f)
 
-    with pytest.raises(
-        ValueError, match="Operation type is missing in the configuration file"
-    ):
+    with pytest.raises(ValueError, match="Operation type is missing in the configuration file"):
         standardize_mol(test_molecule, str(config_file))
 
 

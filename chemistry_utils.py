@@ -32,9 +32,7 @@ def standardize_mol(
             continue
 
         if not operation_type:
-            raise ValueError(
-                f"Operation type is missing in the configuration file:{standardizer_config_file}."
-            )
+            raise ValueError(f"Operation type is missing in the configuration file:{standardizer_config_file}.")
 
         mol = apply_standardizer_operation(mol, operation_type)
 

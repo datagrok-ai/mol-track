@@ -1,9 +1,8 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Float, DateTime, Date, Enum, CheckConstraint, Table, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Float, DateTime, Date, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 import os
-from datetime import datetime
 
 # Handle both package imports and direct execution
 try:
@@ -30,6 +29,7 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 # Association table for AssayType-Property many-to-many relationship
 # AssayTypeProperty = Table(
 
+
 class Compound(Base):
     __tablename__ = "compounds"
     __table_args__ = {"schema": DB_SCHEMA}
@@ -42,9 +42,10 @@ class Compound(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     is_archived = Column(Boolean, default=False)
-    
+
     # Relationships
     batches = relationship("Batch", back_populates="compound")
+
 
 class Batch(Base):
     __tablename__ = "batches"
@@ -60,11 +61,12 @@ class Batch(Base):
     expiry_date = Column(Date)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(Integer)
-    
+
     # Relationships
     compound = relationship("Compound", back_populates="batches")
     assay_results = relationship("AssayResult", back_populates="batch")
     batch_details = relationship("BatchDetail", back_populates="batch")
+
 
 class BatchDetail(Base):
     __tablename__ = "batch_details"
@@ -73,16 +75,17 @@ class BatchDetail(Base):
     id = Column(Integer, primary_key=True, index=True)
     batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False)
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), nullable=False)
-    
+
     value_qualifier = Column(Integer, nullable=False, default=0)  # 0 for "=", 1 for "<", 2 for ">"
     value_datetime = Column(DateTime(timezone=True))
     value_uuid = Column(String(36))
     value_num = Column(Float)
     value_string = Column(Text)
-    
+
     # Relationships
     batch = relationship("Batch", back_populates="batch_details")
     property = relationship("Property", back_populates="batch_details")
+
 
 class ValueType(enum.Enum):
     INT = "int"
@@ -91,23 +94,19 @@ class ValueType(enum.Enum):
     DATETIME = "datetime"
     STRING = "string"
 
+
 class PropertyClass(enum.Enum):
     CALCULATED = "CALCULATED"
     MEASURED = "MEASURED"
     PREDICTED = "PREDICTED"
 
+
 class Property(Base):
     __tablename__ = "properties"
     __table_args__ = (
-        CheckConstraint(
-            "value_type IN ('int', 'double', 'bool', 'datetime', 'string')",
-            name="check_value_type"
-        ),
-        CheckConstraint(
-            "property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')",
-            name="check_property_class"
-        ),
-        {"schema": DB_SCHEMA}
+        CheckConstraint("value_type IN ('int', 'double', 'bool', 'datetime', 'string')", name="check_value_type"),
+        CheckConstraint("property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')", name="check_property_class"),
+        {"schema": DB_SCHEMA},
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -116,10 +115,11 @@ class Property(Base):
     property_class = Column(Text)
     unit = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     # Relationship to assay results
     assay_results = relationship("AssayResult", back_populates="property")
     batch_details = relationship("BatchDetail", back_populates="property")
+
 
 class AssayTypeDetail(Base):
     __tablename__ = "assay_type_details"
@@ -127,15 +127,16 @@ class AssayTypeDetail(Base):
 
     assay_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.assay_types.id"), primary_key=True)
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True)
-    
+
     value_datetime = Column(DateTime(timezone=True))
     value_uuid = Column(String(36))
     value_num = Column(Float)
     value_string = Column(Text)
-    
+
     # Relationships
     assay_type = relationship("AssayType", back_populates="assay_type_details")
     property = relationship("Property")
+
 
 class AssayDetail(Base):
     __tablename__ = "assay_details"
@@ -143,15 +144,16 @@ class AssayDetail(Base):
 
     assay_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), primary_key=True)
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True)
-    
+
     value_datetime = Column(DateTime(timezone=True))
     value_uuid = Column(String(36))
     value_num = Column(Float)
     value_string = Column(Text)
-    
+
     # Relationships
     assay = relationship("Assay", back_populates="assay_details")
     property = relationship("Property")
+
 
 # Redefining AssayTypeProperty which was previously just a Table
 class AssayTypeProperty(Base):
@@ -161,10 +163,11 @@ class AssayTypeProperty(Base):
     assay_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.assay_types.id"), primary_key=True)
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True)
     required = Column(Boolean, default=False)
-    
+
     # Relationships
     assay_type = relationship("AssayType", back_populates="property_requirements")
     property = relationship("Property")
+
 
 class AssayType(Base):
     __tablename__ = "assay_types"
@@ -175,18 +178,19 @@ class AssayType(Base):
     description = Column(Text)
     created_on = Column(DateTime, server_default=func.now())
     updated_on = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships - use secondary join for many-to-many
     properties = relationship(
-        "Property", 
+        "Property",
         secondary=f"{DB_SCHEMA}.assay_type_properties",
-        primaryjoin=f"AssayType.id==AssayTypeProperty.assay_type_id",
-        secondaryjoin=f"AssayTypeProperty.property_id==Property.id",
-        backref="assay_types"
+        primaryjoin="AssayType.id==AssayTypeProperty.assay_type_id",
+        secondaryjoin="AssayTypeProperty.property_id==Property.id",
+        backref="assay_types",
     )
     assays = relationship("Assay", back_populates="assay_type")
     assay_type_details = relationship("AssayTypeDetail", back_populates="assay_type")
     property_requirements = relationship("AssayTypeProperty", back_populates="assay_type")
+
 
 class Assay(Base):
     __tablename__ = "assays"
@@ -197,12 +201,13 @@ class Assay(Base):
     name = Column(Text, nullable=False)
     description = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     # Relationships - use assay_type_properties via assay_type to get list of expected properties
     # No direct properties relationship as assay_properties table no longer exists
     assay_type = relationship("AssayType", back_populates="assays")
     assay_results = relationship("AssayResult", back_populates="assay")
     assay_details = relationship("AssayDetail", back_populates="assay")
+
 
 class AssayResult(Base):
     __tablename__ = "assay_results"
@@ -212,15 +217,14 @@ class AssayResult(Base):
     batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False)
     assay_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), nullable=False)
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), nullable=False)
-    
+
     # Value fields
     value_qualifier = Column(Integer, nullable=False, default=0)  # 0 for "=", 1 for "<", 2 for ">"
     value_num = Column(Float)
     value_string = Column(Text)
     value_bool = Column(Boolean)
-    
+
     # Relationships
     batch = relationship("Batch", back_populates="assay_results")
     assay = relationship("Assay", back_populates="assay_results")
     property = relationship("Property", back_populates="assay_results")
-    

@@ -13,9 +13,7 @@ DB_NAME = os.environ.get("DB_NAME", "moltrack")
 DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 
 # Construct the database URL from the parameters
-SQLALCHEMY_DATABASE_URL = (
-    f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
+SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Create the engine with the appropriate URL
 engine = create_engine(
