@@ -1,9 +1,9 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Float, DateTime, Date, Enum, CheckConstraint, Table, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, Text, Float, DateTime, Date, CheckConstraint, Table
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 import os
-from datetime import datetime
 
 # Handle both package imports and direct execution
 try:
@@ -40,25 +40,20 @@ class Compound(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     canonical_smiles = Column(Text, nullable=False)
-    original_molfile = Column(Text)  # as sketched by the chemist
+    original_molfile = Column(Text, nullable=False)
     inchi = Column(Text, nullable=False)
-    inchikey = Column(Text, nullable=False, unique=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    canonical_smiles = Column(Text)
-    original_molfile = Column(Text)
-    inchi = Column(Text)
-    molhash = Column(Text)
-    formula = Column(Text)
-    hash_tautomer = Column(String(40))
-    hash_canonical_smiles = Column(String(40))
-    hash_no_stereo_smiles = Column(String(40))
-    hash_no_stereo_tautomer = Column(String(40))
-    sgroup_data = Column(Text)
-    inchikey = Column(Text)
-    is_archived = Column(Boolean, default=False)
+    formula = Column(Text, nullable=False)
+    hash_mol = Column(UUID(as_uuid=True), nullable=False)
+    hash_tautomer = Column(UUID(as_uuid=True), nullable=False)
+    hash_canonical_smiles = Column(UUID(as_uuid=True), nullable=False)
+    hash_no_stereo_smiles = Column(UUID(as_uuid=True), nullable=False)
+    hash_no_stereo_tautomer = Column(UUID(as_uuid=True), nullable=False)
+    sgroup_data = Column(Text, nullable=True)
+    inchikey = Column(Text, nullable=False)
+    is_archived = Column(Boolean, nullable=True, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    
     # Relationships
     batches = relationship("Batch", back_populates="compound")
 

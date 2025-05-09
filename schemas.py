@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, validator
-from typing import Optional, List, Dict, Any, Union
+from pydantic import BaseModel, validator
+from typing import Optional, List, Dict,Union
 from datetime import datetime, date
 from enum import Enum
+import uuid
 
 # Property schemas
 class ValueType(str, Enum):
@@ -187,14 +188,15 @@ class CompoundBase(BaseModel):
     canonical_smiles: Optional[str] = None
     original_molfile: Optional[str] = None
     inchi: Optional[str] = None
-    molhash: Optional[str] = None
+    hash_mol: Optional[uuid.UUID] = None
     formula: Optional[str] = None
-    hash_tautomer: Optional[str] = Field(None, max_length=40)
-    hash_canonical_smiles: Optional[str] = Field(None, max_length=40)
-    hash_no_stereo_smiles: Optional[str] = Field(None, max_length=40)
-    hash_no_stereo_tautomer: Optional[str] = Field(None, max_length=40)
+    hash_tautomer: Optional[uuid.UUID] = None
+    hash_canonical_smiles: Optional[uuid.UUID] = None
+    hash_no_stereo_smiles: Optional[uuid.UUID] = None
+    hash_no_stereo_tautomer: Optional[uuid.UUID] = None
     sgroup_data: Optional[str] = None
     inchikey: Optional[str] = None
+    is_archived: Optional[bool] = None
 
     @validator('inchi', 'inchikey', always=True)
     def set_inchi(cls, v, values):
@@ -221,12 +223,12 @@ class CompoundUpdate(BaseModel):
     canonical_smiles: Optional[str] = None
     original_molfile: Optional[str] = None
     inchi: Optional[str] = None
-    molhash: Optional[str] = None
+    hash_mol: Optional[uuid.UUID] = None
     formula: Optional[str] = None
-    hash_tautomer: Optional[str] = Field(None, max_length=40)
-    hash_canonical_smiles: Optional[str] = Field(None, max_length=40)
-    hash_no_stereo_smiles: Optional[str] = Field(None, max_length=40)
-    hash_no_stereo_tautomer: Optional[str] = Field(None, max_length=40)
+    hash_tautomer: Optional[uuid.UUID] = None
+    hash_canonical_smiles: Optional[uuid.UUID] = None
+    hash_no_stereo_smiles: Optional[uuid.UUID] = None
+    hash_no_stereo_tautomer: Optional[uuid.UUID] = None
     sgroup_data: Optional[str] = None
     inchikey: Optional[str] = None
     is_archived: Optional[bool] = None

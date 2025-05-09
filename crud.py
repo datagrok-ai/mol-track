@@ -1,12 +1,10 @@
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
-from rdkit.Chem.MolStandardize import rdMolStandardize
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict
 from sqlalchemy import text
 from datetime import datetime, timezone
-import yaml
-from chemistry_utils import standardize_mol,generate_molhash, generate_sha1_hash_from_string
+from chemistry_utils import standardize_mol,generate_hash_layers, generate_uuid_from_string, generate_uuid_hash_mol
 from rdkit.Chem.RegistrationHash import HashLayer 
 
 # Handle both package imports and direct execution
@@ -15,7 +13,8 @@ try:
     from . import models, schemas
 except ImportError:
     # When run directly
-    import models, schemas
+    import models
+    import schemas
 
 # Compound CRUD operations
 def get_compound(db: Session, compound_id: int):
@@ -24,8 +23,8 @@ def get_compound(db: Session, compound_id: int):
 def get_compound_by_inchi_key(db: Session, inchikey: str):
     return db.query(models.Compound).filter(models.Compound.inchikey == inchikey).first()
 
-def get_compound_by_molhash(db: Session, molhash: str):
-    return db.query(models.Compound).filter(models.Compound.molhash == molhash).first()
+def get_compound_by_hash_mol(db: Session, hash_mol: str):
+    return db.query(models.Compound).filter(models.Compound.hash_mol == hash_mol).first()
 
 def get_compound_by_canonical_smiles(db: Session, canonical_smiles: str):
     return db.query(models.Compound).filter(models.Compound.canonical_smiles == canonical_smiles).first()
@@ -45,29 +44,25 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     # Standardize mol and calculate hashes
 
     standarized_mol = standardize_mol(mol)
-    molhash, mol_layers = generate_molhash(standarized_mol)
-
-
+    mol_layers = generate_hash_layers(standarized_mol)
+    hash_mol = generate_uuid_hash_mol(mol_layers)
     formula = mol_layers[HashLayer.FORMULA]
     canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
-    hash_canonical_smiles = generate_sha1_hash_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
-    hash_tautomer = generate_sha1_hash_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
-    hash_no_stereo_smiles = generate_sha1_hash_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
-    hash_no_stereo_tautomer = generate_sha1_hash_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
+    hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
+    hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
+    hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
+    hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
     sgroup_data = mol_layers[HashLayer.SGROUP_DATA]
 
     
-    # canonical_smiles = Chem.MolToSmiles(standarized_mol, isomericSmiles=True, canonical=True)
-    # Calculate canonical SMILES, InChI, and InChIKey
+    
     inchi = Chem.MolToInchi(standarized_mol)
     inchikey = Chem.InchiToInchiKey(inchi)
     
-    
-    # Check if compound with this InChIKey already exists
 
-    existing_compound = get_compound_by_molhash(db, molhash)
+    existing_compound = get_compound_by_hash_mol(db, hash_mol)
     if existing_compound:
-        raise HTTPException(status_code=400, detail=f"Compound with molhash {molhash} already exists")
+        raise HTTPException(status_code=400, detail=f"Compound with molhash {hash_mol} already exists")
 
     existing_compound = get_compound_by_inchi_key(db, inchikey)
     if existing_compound:
@@ -83,7 +78,7 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     db_compound = models.Compound(
         canonical_smiles=canonical_smiles,
         original_molfile=compound.original_molfile,
-        molhash = molhash,
+        hash_mol = hash_mol,
         formula = formula,
         hash_canonical_smiles = hash_canonical_smiles,
         hash_tautomer = hash_tautomer,

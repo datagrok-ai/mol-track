@@ -1,8 +1,10 @@
+import uuid
+
 import yaml
 from rdkit import Chem
 from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
-import hashlib
+
 
 
 def standardize_mol(
@@ -67,40 +69,53 @@ def apply_standardizer_operation(mol: Chem.Mol, operation_type: str) -> Chem.Mol
     return operation_map[operation_type](mol)
 
 
-def generate_molhash(mol: Chem.Mol) -> tuple:
-    """
-    Generate a molecular hash and corresponding layers for a given molecule.
 
-    This function calculates a molecular hash (MolHash) and its associated layers using
-    the `RegistrationHash` module.
+def generate_hash_layers(mol: Chem.Mol) -> dict:
+    """
+    Generate layers for a given molecule.
+
+    This function calculates the layers using the `RegistrationHash` module.
 
     Args:
-        mol: An RDKit molecule object (`rdkit.Chem.Mol`) for which the MolHash 
-                  and layers will be generated.
+        mol: An RDKit molecule object (`rdkit.Chem.Mol`) for which the layers
+                  will be generated.
 
     Returns:
-        tuple: A tuple containing:
-            - mhash (str): The molecular hash string for the input molecule.
-            - layers (dict): A dictionary containing the layers used to compute the MolHash.
+        dict: A dictionary containing the layers used to compute the MolHash.
     """
     # Generate molecular layers
     layers = RegistrationHash.GetMolLayers(mol, enable_tautomer_hash_v2=True)
-    
-    # Generate the molecular hash based on the layers
-    mhash = RegistrationHash.GetMolHash(layers)
-    
-    return mhash, layers
 
-def generate_sha1_hash_from_string(input_string: str) -> str:
+    return layers
+
+
+def generate_uuid_hash_mol(layers: dict) -> str:
     """
-    Generate a SHA-1 hash for a given input string.
+    Generate a UUID hash for a given molecule's layers.
+
+    Args:
+        layers (dict): The layers of the molecule.
+
+    Returns:
+        str: The UUID hash of the molecule.
+    """
+    # Convert the layers to a string representation
+    sorted_layers = tuple(sorted(layers.items(), key=lambda item: item[0].name))
+    layers_str = str(sorted_layers)
+    # Generate a UUID based on the string representation of the layers
+    uuid_hash = uuid.uuid5(uuid.NAMESPACE_DNS, layers_str)
+    return uuid_hash
+
+
+def generate_uuid_from_string(input_string: str) -> uuid.UUID:
+    """
+    Generate a UUID hash for a given input string, for hashing different molecule layers.
 
     Args:
         input_string (str): The input string to hash.
 
     Returns:
-        str: The SHA-1 hash of the input string.
+        uuid.UUID: The UUID hash of the input string, ready for PostgreSQL UUID type.
     """
-    # Compute the SHA-1 hash of the input string
-    sha1_hash = hashlib.sha1(input_string.encode('utf-8')).hexdigest()
-    return sha1_hash
+    uuid_hash = uuid.uuid5(uuid.NAMESPACE_DNS, input_string)
+    return uuid_hash
