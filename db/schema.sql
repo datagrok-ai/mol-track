@@ -138,7 +138,7 @@ CREATE TABLE moltrack.assay_results (
 CREATE TABLE moltrack.synonym_types (
     id SERIAL PRIMARY KEY,
     synonym_level TEXT NOT NULL,
-    name TEXT NOT NULL UNIQUE,  -- should be unique?
+    name TEXT NOT NULL,
     pattern TEXT NOT NULL,
     description TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -148,8 +148,8 @@ CREATE TABLE moltrack.synonym_types (
 -- Compound synonyms
 CREATE TABLE moltrack.compound_synonyms (
     id SERIAL PRIMARY KEY,
-    compound_id INTEGER NOT NULL,
-    synonym_type_id INTEGER NOT NULL,
+    compound_id INTEGER NOT NULL REFERENCES moltrack.compounds(id),
+    synonym_type_id INTEGER NOT NULL REFERENCES moltrack.synonym_types(id),
     synonym_value TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -158,8 +158,8 @@ CREATE TABLE moltrack.compound_synonyms (
 -- Batch synonyms
 CREATE TABLE moltrack.batch_synonyms (
     id SERIAL PRIMARY KEY,
-    batch_id INTEGER NOT NULL,
-    synonym_type_id INTEGER NOT NULL,
+    batch_id INTEGER NOT NULL moltrack.batches(id),
+    synonym_type_id INTEGER NOT NULL REFERENCES moltrack.synonym_types(id),
     synonym_value TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
