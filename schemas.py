@@ -328,14 +328,14 @@ class SynonymTypeBase(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-class SynonymTypeCreate(SynonymTypeBase):
-    pass
-
 class SynonymType(SynonymTypeBase):
     id: int
 
     class Config:
         from_attributes = True
+
+class SynonymTypeCreate(SynonymTypeBase):
+    pass
 
 # Compound synonym schemas
 class CompoundSynonymBase(BaseModel):
@@ -346,6 +346,12 @@ class CompoundSynonymBase(BaseModel):
     updated_at: Optional[datetime] = None
 
 class CompoundSynonym(CompoundSynonymBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class CompoundSynonymCreate(CompoundSynonymBase):
     pass
 
 class CompoundSynonymUpdate(BaseModel):
@@ -354,12 +360,6 @@ class CompoundSynonymUpdate(BaseModel):
     compound_synonym_value: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
-class CompoundSynonym(CompoundSynonymBase):
-    id: int
-
-    class Config:
-        from_attributes = True
 
 # Batch synonym schemas
 class BatchSynonymBase(BaseModel):
@@ -370,6 +370,12 @@ class BatchSynonymBase(BaseModel):
     updated_at: Optional[datetime] = None
 
 class BatchSynonym(BatchSynonymBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class BatchSynonymCreate(BatchSynonymBase):
     pass
 
 class BatchSynonymUpdate(BaseModel):
@@ -378,9 +384,3 @@ class BatchSynonymUpdate(BaseModel):
     batch_synonym_value: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
-class BatchSynonym(BatchSynonymBase):
-    id: int
-
-    class Config:
-        from_attributes = True
