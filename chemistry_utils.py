@@ -89,24 +89,6 @@ def generate_hash_layers(mol: Chem.Mol) -> dict:
     return layers
 
 
-def generate_uuid_hash_mol(layers: dict) -> str:
-    """
-    Generate a UUID hash for a given molecule's layers.
-
-    Args:
-        layers (dict): The layers of the molecule.
-
-    Returns:
-        str: The UUID hash of the molecule.
-    """
-    # Convert the layers to a string representation
-    sorted_layers = tuple(sorted(layers.items(), key=lambda item: item[0].name))
-    layers_str = str(sorted_layers)
-    # Generate a UUID based on the string representation of the layers
-    uuid_hash = uuid.uuid5(uuid.NAMESPACE_DNS, layers_str)
-    return uuid_hash
-
-
 def generate_uuid_from_string(input_string: str) -> uuid.UUID:
     """
     Generate a UUID hash for a given input string, for hashing different molecule layers.

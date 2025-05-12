@@ -5,7 +5,7 @@ from typing import List, Dict
 from sqlalchemy import text
 from datetime import datetime, timezone
 from chemistry_utils import standardize_mol,generate_hash_layers, generate_uuid_from_string, generate_uuid_hash_mol
-from rdkit.Chem.RegistrationHash import HashLayer 
+from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash 
 
 # Handle both package imports and direct execution
 try:
@@ -45,7 +45,7 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
 
     standarized_mol = standardize_mol(mol)
     mol_layers = generate_hash_layers(standarized_mol)
-    hash_mol = generate_uuid_hash_mol(mol_layers)
+    hash_mol = GetMolHash(mol_layers)
     formula = mol_layers[HashLayer.FORMULA]
     canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
     hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
