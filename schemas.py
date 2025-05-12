@@ -340,7 +340,7 @@ class SynonymType(SynonymTypeBase):
 # Compound synonym schemas
 class CompoundSynonymBase(BaseModel):
     compound_synonym_id: int  # ID of the compound
-    compound_synonym_type_id: int  # 'batch' or 'compound'
+    compound_synonym_type_id: int  # ID of the synonym type
     compound_synonym_value: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -364,7 +364,7 @@ class CompoundSynonym(CompoundSynonymBase):
 # Batch synonym schemas
 class BatchSynonymBase(BaseModel):
     batch_synonym_id: int  # ID of the batch
-    batch_synonym_type_id: int
+    batch_synonym_type_id: int  # ID of the synonym type
     batch_synonym_value: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
