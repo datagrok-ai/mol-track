@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional, Union
 from sqlalchemy import text
 from datetime import datetime, timezone
 import yaml
+import re
 
 # Handle both package imports and direct execution
 try:
@@ -727,8 +728,17 @@ def get_synonym_types(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.SynonymType).offset(skip).limit(limit).all()
 
 # Compound synonym CRUD operations
-def create_compound_synonym(db: Session, synonym: schemas.CompoundSynonymCreate):
-    db_synonym = models.CompoundSynonym(**synonym.dict())
+def create_compound_synonym(db: Session, compound_synonym: schemas.CompoundSynonymCreate):
+    db_synonym = models.CompoundSynonym(**compound_synonym.dict())
+
+    # Validate the synonym_value against the pattern
+    synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == compound_synonym.batch_synonym_type_id).first()
+    if not re.match(synonym_type.pattern, compound_synonym.batch_synonym_value):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Synonym value '{compound_synonym.batch_synonym_value}' does not match the required pattern: {synonym_type.pattern}"
+        )
+
     db.add(db_synonym)
     db.commit()
     db.refresh(db_synonym)
@@ -742,6 +752,14 @@ def update_compound_synonym(db: Session, compound_synonym_id: int, compound_syno
     if not db_compound_synonym:
         raise HTTPException(status_code=404, detail="Compound synonym not found")
 
+    # Validate the synonym_value against the pattern
+    synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == compound_synonym.batch_synonym_type_id).first()
+    if not re.match(synonym_type.pattern, compound_synonym.batch_synonym_value):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Synonym value '{compound_synonym.batch_synonym_value}' does not match the required pattern: {synonym_type.pattern}"
+        )
+
     update_data = compound_synonym.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_compound_synonym, key, value)
@@ -753,8 +771,17 @@ def update_compound_synonym(db: Session, compound_synonym_id: int, compound_syno
     return db_compound_synonym
 
 # Batch synonym CRUD operations
-def create_batch_synonym(db: Session, synonym: schemas.BatchSynonymCreate):
-    db_synonym = models.BatchSynonym(**synonym.dict())
+def create_batch_synonym(db: Session, batch_synonym: schemas.BatchSynonymCreate):
+    db_synonym = models.BatchSynonym(**batch_synonym.dict())
+
+    # Validate the synonym_value against the pattern
+    synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == batch_synonym.batch_synonym_type_id).first()
+    if not re.match(synonym_type.pattern, batch_synonym.batch_synonym_value):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Synonym value '{batch_synonym.batch_synonym_value}' does not match the required pattern: {synonym_type.pattern}"
+        )
+
     db.add(db_synonym)
     db.commit()
     db.refresh(db_synonym)
@@ -767,6 +794,14 @@ def update_batch_synonym(db: Session, batch_synonym_id: int, batch_synonym: sche
     db_batch_synonym = db.query(models.BatchSynonym).filter(models.BatchSynonym.id == batch_synonym_id).first()
     if not db_batch_synonym:
         raise HTTPException(status_code=404, detail="Batch synonym not found")
+
+    # Validate the synonym_value against the pattern
+    synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == batch_synonym.batch_synonym_type_id).first()
+    if not re.match(synonym_type.pattern, batch_synonym.batch_synonym_value):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Synonym value '{batch_synonym.batch_synonym_value}' does not match the required pattern: {synonym_type.pattern}"
+        )
 
     update_data = batch_synonym.dict(exclude_unset=True)
     for key, value in update_data.items():
