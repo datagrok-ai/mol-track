@@ -45,6 +45,7 @@ class Compound(Base):
     
     # Relationships
     batches = relationship("Batch", back_populates="compound")
+    compound_synonyms = relationship("CompoundSynonym", back_populates="compound")
 
 class Batch(Base):
     __tablename__ = "batches"
@@ -65,6 +66,7 @@ class Batch(Base):
     compound = relationship("Compound", back_populates="batches")
     assay_results = relationship("AssayResult", back_populates="batch")
     batch_details = relationship("BatchDetail", back_populates="batch")
+    batch_synonyms = relationship("BatchSynonym", back_populates="batch")
 
 class BatchDetail(Base):
     __tablename__ = "batch_details"
@@ -237,6 +239,10 @@ class SynonymType(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    # Relationships
+    compound_synonyms = relationship("CompoundSynonym", back_populates="synonym_type")
+    batch_synonyms = relationship("BatchSynonym", back_populates="synonym_type")
+
 class CompoundSynonym(Base):
     __tablename__ = "compound_synonyms"
     __table_args__ = {"schema": DB_SCHEMA}
@@ -249,7 +255,7 @@ class CompoundSynonym(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    batch = relationship("Compound", back_populates="compound_synonyms")
+    compound = relationship("Compound", back_populates="compound_synonyms")
     synonym_type = relationship("SynonymType", back_populates="compound_synonyms")
 
 class BatchSynonym(Base):
