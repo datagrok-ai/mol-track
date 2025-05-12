@@ -1,11 +1,11 @@
 
 # Database Readme
 
-## Moltrack schema generation
+## ~~Moltrack schema generation~~
 
-The design is evolved with DBML in [schema.dbml](schema.dbml).  Install `npm install -g @dbml/cli`
+~~The design is evolved with DBML in [schema.dbml](schema.dbml).  Install `npm install -g @dbml/cli`~~
 
-`dbms2sql schema.dbml -o schema.sql`
+~~`dbms2sql schema.dbml -o schema.sql`~~
 
 ## Instantiation
 
@@ -27,3 +27,5 @@ You can directly instatiate with
 
 
 Or you can deploy via the provided [Dockerfile](../Dockerfile)
+
+You can additionally deploy the [moltrack_indexes](moltrack_indexes.sql) to add performance when following foreign key relationships.
