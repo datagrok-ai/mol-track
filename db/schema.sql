@@ -158,7 +158,7 @@ CREATE TABLE moltrack.compound_synonyms (
 -- Batch synonyms
 CREATE TABLE moltrack.batch_synonyms (
     id SERIAL PRIMARY KEY,
-    batch_id INTEGER NOT NULL moltrack.batches(id),
+    batch_id INTEGER NOT NULL REFERENCES moltrack.batches(id),
     synonym_type_id INTEGER NOT NULL REFERENCES moltrack.synonym_types(id),
     synonym_value TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
