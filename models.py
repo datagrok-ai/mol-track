@@ -229,7 +229,7 @@ class SynonymType(Base):
     __tablename__ = "synonym_types"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    id = Column(Integer, primary_key=True, index=True),
+    id = Column(Integer, primary_key=True, index=True)
     synonym_level = Column(Text)
     name = Column(Text)
     pattern = Column(Text)
@@ -241,7 +241,7 @@ class CompoundSynonym(Base):
     __tablename__ = "compound_synonyms"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    id = Column(Integer, primary_key=True, index=True),
+    id = Column(Integer, primary_key=True, index=True)
     batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.compounds.id"), nullable=False)
     synonym_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.synonym_types.id"), nullable=False)
     synonym_value = Column(Text)
@@ -256,7 +256,7 @@ class BatchSynonym(Base):
     __tablename__ = "batch_synonyms"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    id = Column(Integer, primary_key=True, index=True),
+    id = Column(Integer, primary_key=True, index=True)
     batch_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False)
     synonym_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.synonym_types.id"), nullable=False)
     synonym_value = Column(Text)
