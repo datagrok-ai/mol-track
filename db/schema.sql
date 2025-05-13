@@ -139,7 +139,7 @@ CREATE TABLE moltrack.synonym_types (
     id SERIAL PRIMARY KEY,
     synonym_level TEXT NOT NULL,
     name TEXT NOT NULL,
-    pattern TEXT NOT NULL,
+    pattern TEXT,
     description TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

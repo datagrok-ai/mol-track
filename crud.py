@@ -733,7 +733,7 @@ def create_compound_synonym(db: Session, compound_synonym: schemas.CompoundSynon
 
     # Validate the synonym_value against the pattern
     synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == compound_synonym.batch_synonym_type_id).first()
-    if not re.match(synonym_type.pattern, compound_synonym.batch_synonym_value):
+    if synonym_type.pattern and not re.match(synonym_type.pattern, compound_synonym.batch_synonym_value):
         raise HTTPException(
             status_code=400,
             detail=f"Synonym value '{compound_synonym.batch_synonym_value}' does not match the required pattern: {synonym_type.pattern}"
@@ -754,7 +754,7 @@ def update_compound_synonym(db: Session, compound_synonym_id: int, compound_syno
 
     # Validate the synonym_value against the pattern
     synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == compound_synonym.batch_synonym_type_id).first()
-    if not re.match(synonym_type.pattern, compound_synonym.batch_synonym_value):
+    if synonym_type.pattern and not re.match(synonym_type.pattern, compound_synonym.batch_synonym_value):
         raise HTTPException(
             status_code=400,
             detail=f"Synonym value '{compound_synonym.batch_synonym_value}' does not match the required pattern: {synonym_type.pattern}"
@@ -776,7 +776,7 @@ def create_batch_synonym(db: Session, batch_synonym: schemas.BatchSynonymCreate)
 
     # Validate the synonym_value against the pattern
     synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == batch_synonym.batch_synonym_type_id).first()
-    if not re.match(synonym_type.pattern, batch_synonym.batch_synonym_value):
+    if synonym_type.pattern and not re.match(synonym_type.pattern, batch_synonym.batch_synonym_value):
         raise HTTPException(
             status_code=400,
             detail=f"Synonym value '{batch_synonym.batch_synonym_value}' does not match the required pattern: {synonym_type.pattern}"
@@ -797,7 +797,7 @@ def update_batch_synonym(db: Session, batch_synonym_id: int, batch_synonym: sche
 
     # Validate the synonym_value against the pattern
     synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == batch_synonym.batch_synonym_type_id).first()
-    if not re.match(synonym_type.pattern, batch_synonym.batch_synonym_value):
+    if synonym_type.pattern and not re.match(synonym_type.pattern, batch_synonym.batch_synonym_value):
         raise HTTPException(
             status_code=400,
             detail=f"Synonym value '{batch_synonym.batch_synonym_value}' does not match the required pattern: {synonym_type.pattern}"
