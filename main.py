@@ -295,7 +295,7 @@ def read_batch_synonyms(skip: int = 0, limit: int = 100, db: Session = Depends(g
 def update_batch_synonym_endpoint(batch_synonym_id: int, batch_synonym: schemas.BatchSynonymCreate, db: Session = Depends(get_db)):
     return crud.update_batch_synonym(db=db, batch_synonym_id=batch_synonym_id, batch_synonym=batch_synonym)
 
-@app.get("/compounds/search", response_model=List[schemas.Compound])
+@app.get("/compounds/synonym-search", response_model=List[schemas.Compound])
 def search_compounds_by_synonym(synonym_value: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
     Search for compounds by their synonyms.
@@ -306,7 +306,7 @@ def search_compounds_by_synonym(synonym_value: str, skip: int = 0, limit: int = 
     """
     return crud.search_compounds_by_synonym(db, synonym_value, skip, limit)
 
-@app.get("/batches/search", response_model=List[schemas.Batch])
+@app.get("/batches/synonym-search", response_model=List[schemas.Batch])
 def search_batches_by_synonym(synonym_value: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
     Search for compounds by their synonyms.
