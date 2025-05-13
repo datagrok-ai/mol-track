@@ -30,3 +30,7 @@ create trigger compounds_after_insert
 after insert on moltrack.compounds
 for each row
 execute function insert_into_rdk_mols();
+
+GRANT ALL PRIVILEGES ON SCHEMA rdk TO CURRENT_USER;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA rdk TO CURRENT_USER;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA rdk TO CURRENT_USER;
