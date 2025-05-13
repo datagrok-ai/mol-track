@@ -867,3 +867,25 @@ def update_batch_synonym(db: Session, batch_synonym_id: int, batch_synonym: sche
     db.commit()
     db.refresh(db_batch_synonym)
     return db_batch_synonym
+
+def search_compounds_by_synonym(db: Session, synonym_value: str, skip: int = 0, limit: int = 100):
+    """
+    Search compounds by their synonyms.
+
+    Returns:
+        List of compounds matching the synonym
+    """
+    return db.query(models.Compound).join(models.CompoundSynonym).filter(
+        models.CompoundSynonym.synonym_value.ilike(f"%{synonym_value}%")
+    ).offset(skip).limit(limit).all()
+
+def search_batches_by_synonym(db: Session, synonym_value: str, skip: int = 0, limit: int = 100):
+    """
+    Search batches by their synonyms.
+
+    Returns:
+        List of batches matching the synonym
+    """
+    return db.query(models.Batch).join(models.BatchSynonym).filter(
+        models.BatchSynonym.synonym_value.ilike(f"%{synonym_value}%")
+    ).offset(skip).limit(limit).all()
