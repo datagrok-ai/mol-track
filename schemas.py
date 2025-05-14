@@ -327,6 +327,8 @@ class SynonymTypeBase(BaseModel):
     description: str
     created_at: datetime
     updated_at: datetime
+    created_by: int
+    updated_by: int
 
 class SynonymType(SynonymTypeBase):
     id: int
@@ -344,6 +346,8 @@ class CompoundSynonymBase(BaseModel):
     compound_synonym_value: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+    updated_by: Optional[int] = None
 
 class CompoundSynonym(CompoundSynonymBase):
     id: int
@@ -360,6 +364,8 @@ class CompoundSynonymUpdate(BaseModel):
     compound_synonym_value: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+    updated_by: Optional[int] = None
 
 # Batch synonym schemas
 class BatchSynonymBase(BaseModel):
@@ -368,6 +374,8 @@ class BatchSynonymBase(BaseModel):
     batch_synonym_value: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+    updated_by: Optional[int] = None
 
 class BatchSynonym(BatchSynonymBase):
     id: int
