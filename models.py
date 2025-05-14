@@ -238,6 +238,8 @@ class SynonymType(Base):
     description = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_by = Column(Integer, nullable=False)
+    updated_by = Column(Integer, nullable=True)
 
     # Relationships
     compound_synonyms = relationship("CompoundSynonym", back_populates="synonym_type")
@@ -253,6 +255,8 @@ class CompoundSynonym(Base):
     synonym_value = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_by = Column(Integer, nullable=False)
+    updated_by = Column(Integer, nullable=True)
 
     # Relationships
     compound = relationship("Compound", back_populates="compound_synonyms")
@@ -268,6 +272,8 @@ class BatchSynonym(Base):
     synonym_value = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_by = Column(Integer, nullable=False)
+    updated_by = Column(Integer, nullable=True)
 
     # Relationships
     batch = relationship("Batch", back_populates="batch_synonyms")
