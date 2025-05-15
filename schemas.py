@@ -325,10 +325,10 @@ class SynonymTypeBase(BaseModel):
     name: str
     pattern: str
     description: str
-    created_at: datetime
-    updated_at: datetime
-    created_by: int
-    updated_by: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    # created_by: int
+    # updated_by: int
 
 class SynonymType(SynonymTypeBase):
     id: int
@@ -341,13 +341,13 @@ class SynonymTypeCreate(SynonymTypeBase):
 
 # Compound synonym schemas
 class CompoundSynonymBase(BaseModel):
-    compound_synonym_id: int  # ID of the compound
-    compound_synonym_type_id: int  # ID of the synonym type
-    compound_synonym_value: str
+    compound_id: int  # ID of the compound
+    synonym_type_id: int  # ID of the synonym type
+    synonym_value: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    created_by: Optional[int] = None
-    updated_by: Optional[int] = None
+    # created_by: Optional[int] = None
+    # updated_by: Optional[int] = None
 
 class CompoundSynonym(CompoundSynonymBase):
     id: int
@@ -359,19 +359,19 @@ class CompoundSynonymCreate(CompoundSynonymBase):
     pass
 
 class CompoundSynonymUpdate(BaseModel):
-    compound_synonym_id: Optional[int] = None
-    compound_synonym_type_id: Optional[int] = None
-    compound_synonym_value: Optional[str] = None
+    compound_id: Optional[int] = None
+    synonym_type_id: Optional[int] = None
+    synonym_value: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    created_by: Optional[int] = None
-    updated_by: Optional[int] = None
+    # created_by: Optional[int] = None
+    # updated_by: Optional[int] = None
 
 # Batch synonym schemas
 class BatchSynonymBase(BaseModel):
-    batch_synonym_id: int  # ID of the batch
-    batch_synonym_type_id: int  # ID of the synonym type
-    batch_synonym_value: str
+    batch_id: int  # ID of the batch
+    synonym_type_id: int  # ID of the synonym type
+    synonym_value: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     created_by: Optional[int] = None
@@ -387,8 +387,8 @@ class BatchSynonymCreate(BatchSynonymBase):
     pass
 
 class BatchSynonymUpdate(BaseModel):
-    batch_synonym_id: Optional[int] = None
-    batch_synonym_type_id: Optional[int] = None
-    batch_synonym_value: Optional[str] = None
+    batch_id: Optional[int] = None
+    synonym_type_id: Optional[int] = None
+    synonym_value: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
