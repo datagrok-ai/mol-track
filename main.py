@@ -1,8 +1,12 @@
 import logging
 from typing import List
 
+import crud
+from db.init_db import init_db
+from db.session import get_db
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy.orm import Session
+import models as models
+from sqlmodel import Session
 
 from logging_setup import setup_logging
 
@@ -12,31 +16,21 @@ logger = logging.getLogger(__name__)
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
-    from . import crud, schemas
-    from .database import SessionLocal
+    from . import schemas
 except ImportError:
     # When run directly
     import crud
     import schemas
-    from database import SessionLocal
 
-
-# models.Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="MolTrack API",
     description="API for managing chemical compounds and batches",
 )
 
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    logger.info(db.bind.url)
-    logger.info("Database connection successful")
-    try:
-        yield db
-    finally:
-        db.close()
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 
 # Compounds endpoints
@@ -81,18 +75,18 @@ def read_compound(compound_id: int, db: Session = Depends(get_db)):
 
 
 # Batches endpoints
-@app.post("/batches/", response_model=schemas.Batch)
+@app.post("/batches/", response_model=models.Batch)
 def create_batch(batch: schemas.BatchCreate, db: Session = Depends(get_db)):
     return crud.create_batch(db=db, batch=batch)
 
 
-@app.get("/batches/", response_model=List[schemas.Batch])
+@app.get("/batches/", response_model=List[models.Batch])
 def read_batches(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     batches = crud.get_batches(db, skip=skip, limit=limit)
     return batches
 
 
-@app.get("/batches/{batch_id}", response_model=schemas.Batch)
+@app.get("/batches/{batch_id}", response_model=models.Batch)
 def read_batch(batch_id: int, db: Session = Depends(get_db)):
     db_batch = crud.get_batch(db, batch_id=batch_id)
     if db_batch is None:
@@ -121,7 +115,7 @@ def read_property(property_id: int, db: Session = Depends(get_db)):
 
 
 # AssayType endpoints
-@app.post("/assay-types/", response_model=schemas.AssayType)
+@app.post("/assay-types/", response_model=models.AssayType)
 def create_assay_type(assay_type: schemas.AssayTypeCreate, db: Session = Depends(get_db)):
     # Validate that all property IDs exist
     if assay_type.property_ids:
@@ -136,13 +130,13 @@ def create_assay_type(assay_type: schemas.AssayTypeCreate, db: Session = Depends
     return crud.create_assay_type(db=db, assay_type=assay_type)
 
 
-@app.get("/assay-types/", response_model=List[schemas.AssayType])
+@app.get("/assay-types/", response_model=List[models.AssayType])
 def read_assay_types(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     assay_types = crud.get_assay_types(db, skip=skip, limit=limit)
     return assay_types
 
 
-@app.get("/assay-types/{assay_type_id}", response_model=schemas.AssayType)
+@app.get("/assay-types/{assay_type_id}", response_model=models.AssayType)
 def read_assay_type(assay_type_id: int, db: Session = Depends(get_db)):
     db_assay_type = crud.get_assay_type(db, assay_type_id=assay_type_id)
     if db_assay_type is None:
@@ -151,7 +145,7 @@ def read_assay_type(assay_type_id: int, db: Session = Depends(get_db)):
 
 
 # Assay endpoints
-@app.post("/assays/", response_model=schemas.Assay)
+@app.post("/assays/", response_model=models.Assay)
 def create_assay(assay: schemas.AssayCreate, db: Session = Depends(get_db)):
     # Validate that the assay type exists
     db_assay_type = crud.get_assay_type(db, assay_type_id=assay.assay_type_id)
@@ -174,13 +168,13 @@ def create_assay(assay: schemas.AssayCreate, db: Session = Depends(get_db)):
     return crud.create_assay(db=db, assay=assay)
 
 
-@app.get("/assays/", response_model=List[schemas.Assay])
+@app.get("/assays/", response_model=List[models.Assay])
 def read_assays(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     assays = crud.get_assays(db, skip=skip, limit=limit)
     return assays
 
 
-@app.get("/assays/{assay_id}", response_model=schemas.Assay)
+@app.get("/assays/{assay_id}", response_model=models.Assay)
 def read_assay(assay_id: int, db: Session = Depends(get_db)):
     db_assay = crud.get_assay(db, assay_id=assay_id)
     if db_assay is None:
@@ -252,7 +246,7 @@ def read_batch_assay_results(batch_id: int, db: Session = Depends(get_db)):
 
 
 # BatchDetail endpoints
-@app.post("/batch-details/", response_model=schemas.BatchDetail)
+@app.post("/batch-details/", response_model=models.BatchDetail)
 def create_batch_detail(batch_detail: schemas.BatchDetailCreate, db: Session = Depends(get_db)):
     """
     Create a batch detail entry.

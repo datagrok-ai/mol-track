@@ -1,18 +1,15 @@
+import random
+import uuid
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
 from typing import List
 from sqlalchemy import text
 from datetime import datetime, timezone
-
-# Handle both package imports and direct execution
-try:
-    # When imported as a package (for tests)
-    from . import models, schemas
-except ImportError:
-    # When run directly
-    import models
-    import schemas
+import models as models
+import schemas
+import db.init_db as init_db
+from rdkit.Chem.rdMolDescriptors import CalcMolFormula
 
 
 # Compound CRUD operations
@@ -52,6 +49,12 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     if existing_compound:
         raise HTTPException(status_code=400, detail=f"Compound with canonical SMILES {canonical_smiles} already exists")
 
+    hash_mol = uuid.uuid4()
+    hash_tautomer = uuid.uuid4()
+    hash_canonical_smiles = uuid.uuid4()
+    hash_no_stereo_smiles = uuid.uuid4()
+    hash_no_stereo_tautomer = uuid.uuid4()
+
     # Create the compound with calculated values
     db_compound = models.Compound(
         canonical_smiles=canonical_smiles,
@@ -61,6 +64,14 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
         created_at=datetime.now(),
         updated_at=datetime.now(),
         is_archived=compound.is_archived,
+        deleted_by=init_db.admin_user_id,
+        molregno=random.randint(1, 1000000),
+        formula=CalcMolFormula(mol),
+        hash_mol=hash_mol,
+        hash_tautomer=hash_tautomer,
+        hash_canonical_smiles=hash_canonical_smiles,
+        hash_no_stereo_smiles=hash_no_stereo_smiles,
+        hash_no_stereo_tautomer=hash_no_stereo_tautomer,
     )
 
     db.add(db_compound)
@@ -128,6 +139,12 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
             status_code=400, detail=f"Some compounds already exist in the database: {existing_compounds}"
         )
 
+    hash_mol = uuid.uuid4()
+    hash_tautomer = uuid.uuid4()
+    hash_canonical_smiles = uuid.uuid4()
+    hash_no_stereo_smiles = uuid.uuid4()
+    hash_no_stereo_tautomer = uuid.uuid4()
+
     # Create all compounds
     created_compounds = []
     for compound_data in compounds_data:
@@ -138,6 +155,14 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
             created_at=datetime.now(),
             updated_at=datetime.now(),
             is_archived=False,
+            deleted_by=init_db.admin_user_id,
+            molregno=random.randint(1, 1000000),
+            formula=CalcMolFormula(mol),
+            hash_mol=hash_mol,
+            hash_tautomer=hash_tautomer,
+            hash_canonical_smiles=hash_canonical_smiles,
+            hash_no_stereo_smiles=hash_no_stereo_smiles,
+            hash_no_stereo_tautomer=hash_no_stereo_tautomer,
         )
         db.add(db_compound)
         created_compounds.append(db_compound)
