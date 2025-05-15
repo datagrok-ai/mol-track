@@ -6,7 +6,6 @@ from typing import List, Dict, Any, Optional, Union
 from sqlalchemy import text
 from datetime import datetime, timezone
 import yaml
-import re
 
 # Handle both package imports and direct execution
 try:
@@ -726,36 +725,10 @@ def create_synonym_type(db: Session, synonym_type: schemas.SynonymTypeCreate):
 def get_synonym_types(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.SynonymType).offset(skip).limit(limit).all()
 
-# Synonym pattern validation function
-def validate_synonym_value(db: Session, synonym_type_id: int, synonym_value: str):
-    """
-    Validates the synonym_value against the pattern defined in the synonym type.
-
-    Args:
-        db: Database session
-        synonym_type_id: ID of the synonym type
-        synonym_value: Value of the synonym to validate
-
-    Raises:
-        HTTPException: If the synonym type is not found or the value does not match the pattern
-    """
-    synonym_type = db.query(models.SynonymType).filter(models.SynonymType.id == synonym_type_id).first()
-    if not synonym_type:
-        raise HTTPException(status_code=404, detail="Synonym type not found")
-
-    if synonym_type.pattern and not re.match(synonym_type.pattern, synonym_value):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Synonym value '{synonym_value}' does not match the required pattern: {synonym_type.pattern}"
-        )
-
 # Compound synonym CRUD operations
 def create_compound_synonym(db: Session, compound_synonym: schemas.CompoundSynonymCreate):
     # Create a new CompoundSynonym object from the provided data
     db_synonym = models.CompoundSynonym(**compound_synonym.dict())
-
-    # Validate the synonym value against the pattern defined in the synonym type
-    validate_synonym_value(db, compound_synonym.synonym_type_id, compound_synonym.synonym_value)
 
     # Database operations
     db.add(db_synonym)
@@ -772,9 +745,6 @@ def update_compound_synonym(db: Session, synonym_id: int, compound_synonym: sche
     db_compound_synonym = db.query(models.CompoundSynonym).filter(models.CompoundSynonym.id == synonym_id).first()
     if not db_compound_synonym:
         raise HTTPException(status_code=404, detail="Compound synonym not found")
-
-    # Validate the synonym value against the pattern defined in the synonym type
-    validate_synonym_value(db, compound_synonym.synonym_type_id, compound_synonym.synonym_value)
 
     # Update the compound synonym with new values
     update_data = compound_synonym.dict(exclude_unset=True)
@@ -795,9 +765,6 @@ def create_batch_synonym(db: Session, batch_synonym: schemas.BatchSynonymCreate)
     # Create a new BatchSynonym object from the provided data
     db_synonym = models.BatchSynonym(**batch_synonym.dict())
 
-    # Validate the synonym value against the pattern defined in the synonym type
-    validate_synonym_value(db, batch_synonym.synonym_type_id, batch_synonym.synonym_value)
-
     #Database operations
     db.add(db_synonym)
     db.commit()
@@ -814,8 +781,6 @@ def update_batch_synonym(db: Session, synonym_id: int, batch_synonym: schemas.Ba
     if not db_batch_synonym:
         raise HTTPException(status_code=404, detail="Batch synonym not found")
 
-    # Validate the synonym value against the pattern defined in the synonym type
-    validate_synonym_value(db, batch_synonym.synonym_type_id, batch_synonym.synonym_value)
     update_data = batch_synonym.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_batch_synonym, key, value)
