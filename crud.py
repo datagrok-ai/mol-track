@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 from sqlalchemy import text
 from datetime import datetime, timezone
-from chemistry_utils import standardize_mol,generate_hash_layers, generate_uuid_from_string, generate_uuid_hash_mol
+from chemistry_utils import standardize_mol,generate_hash_layers, generate_uuid_from_string
 from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash 
 
 # Handle both package imports and direct execution
@@ -442,6 +442,21 @@ def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
         return get_compounds(db, skip=query_params.skip, limit=query_params.limit)
 
 
+def search_compounds_exact(
+    query_smiles: str, 
+    search_parameters: Optional[Dict[str, Any]], 
+    db: Session
+):
+    """
+    Perform an exact search for compounds.
+    
+    - **query_smiles**: The SMILES string to search against.
+    - **search_parameters**: Parameters for the exact search.
+    """
+    if not search_parameters:
+        raise HTTPException(status_code=400, detail="Search parameters are required for exact search")
+    exact_params = schemas.ExactSearchParameters(**search_parameters)
+    return crud.search_compounds_exact(db=db, query_smiles=query_smiles, fields=exact_params.fields)
 
 # AssayResult CRUD operations
 def get_assay_result(db: Session, assay_result_id: int):

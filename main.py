@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException,APIRouter
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 # Handle both package imports and direct execution
@@ -13,9 +13,12 @@ except ImportError:
     import models, schemas, crud
     from database import SessionLocal, engine
 
+from pydantic import BaseModel
+
 #models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
+router = APIRouter(prefix="/read", tags=["Read"])
 
 # Dependency
 def get_db():
@@ -42,20 +45,25 @@ def create_compounds_batch(batch: schemas.CompoundBatchCreate, db: Session = Dep
     """
     return crud.create_compounds_batch(db=db, smiles_list=batch.compounds)
 
-@app.get("/compounds/", response_model=List[schemas.Compound])
-def read_compounds(
-    query: schemas.CompoundQueryParams = Depends(),
-    db: Session = Depends(get_db)
-):
+
+
+@app.get("/compounds/search/{search_method}/{query_smiles}/{search_parameters}", response_model=List[schemas.Compound])
+def search_compounds(search_method: str, query_smiles: str, search_parameters: str, db: Session = Depends(get_db)):
     """
-    Get a list of compounds with optional filtering by substructure.
+    Search for compounds using different methods.
     
-    - **substructure**: Optional SMILES pattern to search for substructures
-    - **skip**: Number of records to skip (for pagination)
-    - **limit**: Maximum number of records to return (for pagination)
+    - **search_method**: The method to use for searching (e.g., "substructure", "exact").
+    - **query_smiles**: The SMILES string to search against.
+    - **search_parameters**: Additional parameters for the search.
     """
-    compounds = crud.get_compounds_ex(db, query_params=query)
-    return compounds
+    if search_method == schemas.CompoundSearchMethod.exact.value:
+        return crud.search_compounds_exact(db=db, query_smiles=query_smiles, search_parameters=search_parameters)
+    elif search_method == schemas.CompoundSearchMethod.substructure.value:
+        return crud.get_compounds_ex(db=db, query_smiles=query_smiles, search_parameters=search_parameters)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid search method")
+
+
 
 @app.get("/compounds/{compound_id}", response_model=schemas.Compound)
 def read_compound(compound_id: int, db: Session = Depends(get_db)):

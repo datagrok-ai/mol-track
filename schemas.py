@@ -244,13 +244,33 @@ class Compound(CompoundBase):
         orm_mode = True
         from_attributes = True
 
-# Query parameters for compound search
+class SubstructureQuery(BaseModel):
+    pattern: str  # The SMILES pattern to search for
+    limit: Optional[int] = 10  # Pagination limit (optional, defaults to 10)
+    skip: Optional[int] = 0  # Pagination skip (optional, defaults to 0)
+
+
+class ExactQuery(BaseModel):
+    fields: List[str]  
+
 class CompoundQueryParams(BaseModel):
-    substructure: Optional[str] = None
-    # tautomer: Optional[str] = None
+    search_type: str  # Either "substructure" or "exact"
+    substructure: Optional[SubstructureQuery] = None
+    exact: Optional[ExactQuery] = None
+
+class SearchMethod(BaseModel):
+    substructure: Optional[str] = "substructure"
+    exact: Optional[str]  = "exact"
+    similarity: Optional[str] = "similarity"
+
+class CompoundSearchMethod(BaseModel):
+    search_method: SearchMethod
+    query_smiles: str
+
+class SubstructureSearchParameters(BaseModel):
     skip: int = 0
     limit: int = 100
 
-    class Config:
-        from_attributes = True
+class ExactSearchParameters(BaseModel):
+    fields: List[str]
 
