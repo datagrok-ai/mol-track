@@ -1,6 +1,6 @@
 import os
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
@@ -72,10 +72,17 @@ class Compound(Base, SoftDeleteTemplate, table=True):
     # batches: list["Batch"] = Relationship(sa_relationship="Batch", back_populates="compound")
 
 
-class Batch(Base, table=True):
-    __tablename__ = "batches"
-    __table_args__ = {"schema": DB_SCHEMA}
+class CompoundCreate(SQLModel, table=False):
+    smiles: str = Field(nullable=False)
+    original_molfile: Optional[str] = None
+    is_archived: Optional[bool] = Field(default=False)
 
+
+class CompoundBatchCreate(SQLModel, table=False):
+    compounds: List[str] = Field(default_factory=list)  # List of canonical SMILES strings
+
+
+class BatchBase(SQLModel, table=False):
     compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
     batch_number: str = Field(nullable=False)
 
@@ -84,6 +91,11 @@ class Batch(Base, table=True):
     purity: Optional[float] = None
     notes: Optional[str] = None
     expiry_date: Optional[date] = None
+
+
+class Batch(Base, BatchBase, table=True):
+    __tablename__ = "batches"
+    __table_args__ = {"schema": DB_SCHEMA}
 
     # Relationships
     compound: "Compound" = Relationship(sa_relationship="Compound", back_populates="batches")
@@ -141,7 +153,14 @@ class SemanticType(SQLModel, table=True):
     description: Optional[str] = None
 
 
-class Property(Base, table=True):
+class PropertyBase(SQLModel, table=False):
+    name: str = Field(nullable=False)
+    value_type: Optional[str] = None
+    property_class: Optional[str] = None
+    unit: Optional[str] = None
+
+
+class Property(Base, PropertyBase, table=True):
     __tablename__ = "properties"
     __table_args__ = (
         CheckConstraint("value_type IN ('int', 'double', 'bool', 'datetime', 'string')", name="check_value_type"),
@@ -149,11 +168,7 @@ class Property(Base, table=True):
         {"schema": DB_SCHEMA},
     )
 
-    name: str = Field(nullable=False)
-    value_type: Optional[str] = None
     semantic_type_id: Optional[int] = Field(default=None, foreign_key=f"{DB_SCHEMA}.semantic_types.id")
-    property_class: Optional[str] = None
-    unit: Optional[str] = None
 
     # Relationships
     assay_types: List["AssayType"] = Relationship(back_populates="properties", link_model=AssayTypePropertyLink)
@@ -167,18 +182,22 @@ class Property(Base, table=True):
         orm_mode = True
 
 
-class BatchDetail(SQLModel, table=True):
-    __tablename__ = "batch_details"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id: Optional[int] = Field(default=None, primary_key=True)
+class BatchDetailBase(SQLModel, table=False):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
 
     value_datetime: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": func.now()})
+    value_qualifier: int = Field(default=0, nullable=False)
     value_uuid: Optional[UUID] = None
     value_num: Optional[float] = None
     value_string: Optional[str] = None
+
+
+class BatchDetail(BatchDetailBase, table=True):
+    __tablename__ = "batch_details"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
 
     # Relationships
     batch: Optional[Batch] = Relationship(sa_relationship="Batch", back_populates="batch_details")
@@ -227,14 +246,21 @@ class CompoundDetails(CreatedUpdatedDetails, table=True):
     value_string: Optional[str] = None
 
 
-class Assay(CreatedUpdatedDetails, table=True):
+class AssayBase(SQLModel, table=False):
+    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", nullable=False)
+    name: str = Field(nullable=False)
+    description: Optional[str] = None
+
+
+class AssayCreate(AssayBase, table=False):
+    property_ids: List[int] = []
+
+
+class Assay(CreatedUpdatedDetails, AssayBase, table=True):
     __tablename__ = "assays"
     __table_args__ = {"schema": DB_SCHEMA}
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", nullable=False)
-    name: str = Field(nullable=False)
-    description: Optional[str] = None
     properties: List["Property"] = Relationship(
         sa_relationship="Property", back_populates="assays", link_model=AssayPropertyLink
     )
@@ -244,13 +270,22 @@ class Assay(CreatedUpdatedDetails, table=True):
     assay_details = Relationship(sa_relationship="AssayDetail", back_populates="assay")
 
 
-class AssayType(CreatedUpdatedDetails, table=True):
+class AssayTypeBase(SQLModel, table=False):
+    name: str = Field(nullable=False)
+    description: Optional[str] = None
+
+
+class AssayTypeCreate(AssayTypeBase):
+    property_ids: List[int] = Field(default_factory=list)  # List of property IDs to associate with this assay type
+    property_requirements: List[Dict[str, Any]] = Field(default_factory=list)  # List of property requirements
+    property_details: List[Dict[str, Any]] = Field(default_factory=list)  # List of property metadata
+
+
+class AssayType(CreatedUpdatedDetails, AssayTypeBase, table=True):
     __tablename__ = "assay_types"
     __table_args__ = {"schema": DB_SCHEMA}
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(nullable=False)
-    description: Optional[str] = None
 
     properties: List["Property"] = Relationship(back_populates="assay_types", link_model=AssayTypePropertyLink)
 
@@ -310,11 +345,7 @@ class AssayTypeProperty(SQLModel, table=True):
     property = Relationship(sa_relationship="Property")
 
 
-class AssayResult(SQLModel, table=True):
-    __tablename__ = "assay_results"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id: Optional[int] = Field(default=None, primary_key=True)
+class AssayResultBase(SQLModel, table=False):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
     assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", nullable=False)
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
@@ -324,6 +355,35 @@ class AssayResult(SQLModel, table=True):
     value_string: Optional[str] = None
     value_bool: Optional[bool] = None
 
+
+class AssayResult(AssayResultBase, table=True):
+    __tablename__ = "assay_results"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
     batch = Relationship(sa_relationship="Batch", back_populates="assay_results")
     assay = Relationship(sa_relationship="Assay", back_populates="assay_results")
     property = Relationship(sa_relationship="Property", back_populates="assay_results")
+
+
+class CompoundQueryParams(SQLModel, table=False):
+    substructure: Optional[str] = None
+    skip: int = 0
+    limit: int = 100
+
+    class Config:
+        from_attributes = True
+
+
+class BatchAssayResultsBase(SQLModel, table=False):
+    assay_id: int = None
+    batch_id: int = None
+    measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]] = Field(default_factory=dict)
+
+
+class BatchAssayResultsResponse(BatchAssayResultsBase, table=False):
+    assay_name: str = None
+
+    class Config:
+        from_attributes = True

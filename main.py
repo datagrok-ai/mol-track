@@ -34,13 +34,13 @@ def on_startup():
 
 
 # Compounds endpoints
-@app.post("/compounds/", response_model=schemas.Compound)
-def create_compound(compound: schemas.CompoundCreate, db: Session = Depends(get_db)):
+@app.post("/compounds/", response_model=models.Compound)
+def create_compound(compound: models.CompoundCreate, db: Session = Depends(get_db)):
     return crud.create_compound(db=db, compound=compound)
 
 
-@app.post("/compounds/batch/", response_model=List[schemas.Compound])
-def create_compounds_batch(batch: schemas.CompoundBatchCreate, db: Session = Depends(get_db)):
+@app.post("/compounds/batch/", response_model=List[models.Compound])
+def create_compounds_batch(batch: models.CompoundBatchCreate, db: Session = Depends(get_db)):
     """
     Create multiple compounds from a list of SMILES strings.
 
@@ -50,9 +50,9 @@ def create_compounds_batch(batch: schemas.CompoundBatchCreate, db: Session = Dep
     return crud.create_compounds_batch(db=db, smiles_list=batch.compounds)
 
 
-@app.get("/compounds/", response_model=List[schemas.Compound])
+@app.get("/compounds/", response_model=List[models.Compound])
 def read_compounds(
-    query: schemas.CompoundQueryParams = Depends(),
+    query: models.CompoundQueryParams = Depends(),
     db: Session = Depends(get_db),
 ):
     """
@@ -66,7 +66,7 @@ def read_compounds(
     return compounds
 
 
-@app.get("/compounds/{compound_id}", response_model=schemas.Compound)
+@app.get("/compounds/{compound_id}", response_model=models.Compound)
 def read_compound(compound_id: int, db: Session = Depends(get_db)):
     db_compound = crud.get_compound(db, compound_id=compound_id)
     if db_compound is None:
@@ -76,7 +76,7 @@ def read_compound(compound_id: int, db: Session = Depends(get_db)):
 
 # Batches endpoints
 @app.post("/batches/", response_model=models.Batch)
-def create_batch(batch: schemas.BatchCreate, db: Session = Depends(get_db)):
+def create_batch(batch: models.BatchBase, db: Session = Depends(get_db)):
     return crud.create_batch(db=db, batch=batch)
 
 
@@ -95,18 +95,18 @@ def read_batch(batch_id: int, db: Session = Depends(get_db)):
 
 
 # Properties endpoints
-@app.post("/properties/", response_model=schemas.Property)
-def create_property(property: schemas.PropertyCreate, db: Session = Depends(get_db)):
+@app.post("/properties/", response_model=models.Property)
+def create_property(property: models.PropertyBase, db: Session = Depends(get_db)):
     return crud.create_property(db=db, property=property)
 
 
-@app.get("/properties/", response_model=List[schemas.Property])
+@app.get("/properties/", response_model=List[models.Property])
 def read_properties(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     properties = crud.get_properties(db, skip=skip, limit=limit)
     return properties
 
 
-@app.get("/properties/{property_id}", response_model=schemas.Property)
+@app.get("/properties/{property_id}", response_model=models.Property)
 def read_property(property_id: int, db: Session = Depends(get_db)):
     db_property = crud.get_property(db, property_id=property_id)
     if db_property is None:
@@ -114,9 +114,10 @@ def read_property(property_id: int, db: Session = Depends(get_db)):
     return db_property
 
 
+# schemas.AssayTypeCreate is fine, we can transfer it to models.py
 # AssayType endpoints
 @app.post("/assay-types/", response_model=models.AssayType)
-def create_assay_type(assay_type: schemas.AssayTypeCreate, db: Session = Depends(get_db)):
+def create_assay_type(assay_type: models.AssayTypeCreate, db: Session = Depends(get_db)):
     # Validate that all property IDs exist
     if assay_type.property_ids:
         for property_id in assay_type.property_ids:
@@ -146,7 +147,7 @@ def read_assay_type(assay_type_id: int, db: Session = Depends(get_db)):
 
 # Assay endpoints
 @app.post("/assays/", response_model=models.Assay)
-def create_assay(assay: schemas.AssayCreate, db: Session = Depends(get_db)):
+def create_assay(assay: models.AssayCreate, db: Session = Depends(get_db)):
     # Validate that the assay type exists
     db_assay_type = crud.get_assay_type(db, assay_type_id=assay.assay_type_id)
     if db_assay_type is None:
@@ -182,9 +183,10 @@ def read_assay(assay_id: int, db: Session = Depends(get_db)):
     return db_assay
 
 
+# AssayResultResponse to SQLModel -> hard to do from table model create non table model impossible (it cannot inherit from AssayResult we have)
 # AssayResult endpoints
 @app.post("/assay-results/", response_model=schemas.AssayResultResponse)
-def create_assay_result(assay_result: schemas.AssayResultCreate, db: Session = Depends(get_db)):
+def create_assay_result(assay_result: models.AssayResultBase, db: Session = Depends(get_db)):
     """
     Create a single assay result entry for a specific property.
 
@@ -197,9 +199,9 @@ def create_assay_result(assay_result: schemas.AssayResultCreate, db: Session = D
     return crud.create_assay_result(db=db, assay_result=assay_result)
 
 
-@app.post("/batch-assay-results/", response_model=schemas.BatchAssayResultsResponse)
+@app.post("/batch-assay-results/", response_model=models.BatchAssayResultsResponse)
 def create_batch_assay_results(
-    batch_results: schemas.BatchAssayResultsCreate,
+    batch_results: models.BatchAssayResultsBase,
     db: Session = Depends(get_db),
 ):
     """
@@ -236,7 +238,7 @@ def read_assay_result(assay_result_id: int, db: Session = Depends(get_db)):
 
 @app.get(
     "/batches/{batch_id}/assay-results",
-    response_model=List[schemas.BatchAssayResultsResponse],
+    response_model=List[models.BatchAssayResultsResponse],
 )
 def read_batch_assay_results(batch_id: int, db: Session = Depends(get_db)):
     """
@@ -247,7 +249,7 @@ def read_batch_assay_results(batch_id: int, db: Session = Depends(get_db)):
 
 # BatchDetail endpoints
 @app.post("/batch-details/", response_model=models.BatchDetail)
-def create_batch_detail(batch_detail: schemas.BatchDetailCreate, db: Session = Depends(get_db)):
+def create_batch_detail(batch_detail: models.BatchDetailBase, db: Session = Depends(get_db)):
     """
     Create a batch detail entry.
 
@@ -274,7 +276,7 @@ def create_batch_detail(batch_detail: schemas.BatchDetailCreate, db: Session = D
     return crud.create_batch_detail(db=db, batch_detail=batch_detail)
 
 
-@app.get("/batch-details/{batch_detail_id}", response_model=schemas.BatchDetail)
+@app.get("/batch-details/{batch_detail_id}", response_model=models.BatchDetail)
 def read_batch_detail(batch_detail_id: int, db: Session = Depends(get_db)):
     """
     Get a specific batch detail by ID.
@@ -287,7 +289,7 @@ def read_batch_detail(batch_detail_id: int, db: Session = Depends(get_db)):
     return db_batch_detail
 
 
-@app.get("/batches/{batch_id}/details", response_model=List[schemas.BatchDetail])
+@app.get("/batches/{batch_id}/details", response_model=List[models.BatchDetail])
 def read_batch_details(
     batch_id: int,
     skip: int = 0,
