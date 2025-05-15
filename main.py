@@ -274,9 +274,9 @@ def create_compound_synonym(compound_synonym: schemas.CompoundSynonymCreate, db:
 def read_compound_synonyms(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return db.query(models.CompoundSynonym).offset(skip).limit(limit).all()
 
-@app.put("/compound-synonyms/{compound_synonym_id}", response_model=schemas.CompoundSynonym)
-def update_compound_synonym_endpoint(compound_synonym_id: int, compound_synonym: schemas.CompoundSynonymCreate, db: Session = Depends(get_db)):
-    return crud.update_compound_synonym(db=db, compound_synonym_id=compound_synonym_id, compound_synonym=compound_synonym)
+@app.put("/compound-synonyms/{synonym_id}", response_model=schemas.CompoundSynonym)
+def update_compound_synonym_endpoint(synonym_id: int, compound_synonym: schemas.CompoundSynonymCreate, db: Session = Depends(get_db)):
+    return crud.update_compound_synonym(db=db, synonym_id=synonym_id, compound_synonym=compound_synonym)
 
 # Batch synonym endpoints
 @app.post("/batch-synonyms/", response_model=schemas.BatchSynonym)
@@ -291,9 +291,9 @@ def create_batch_synonym(batch_synonym: schemas.BatchSynonymCreate, db: Session 
 def read_batch_synonyms(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return db.query(models.BatchSynonym).offset(skip).limit(limit).all()
 
-@app.put("/batch-synonyms/{batch_synonym_id}", response_model=schemas.BatchSynonym)
-def update_batch_synonym_endpoint(batch_synonym_id: int, batch_synonym: schemas.BatchSynonymCreate, db: Session = Depends(get_db)):
-    return crud.update_batch_synonym(db=db, batch_synonym_id=batch_synonym_id, batch_synonym=batch_synonym)
+@app.put("/batch-synonyms/{synonym_id}", response_model=schemas.BatchSynonym)
+def update_batch_synonym_endpoint(synonym_id: int, batch_synonym: schemas.BatchSynonymCreate, db: Session = Depends(get_db)):
+    return crud.update_batch_synonym(db=db, synonym_id=synonym_id, batch_synonym=batch_synonym)
 
 @app.get("/synonym-search/compounds", response_model=List[schemas.Compound])
 def search_compounds_by_synonym(synonym_value: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
