@@ -330,6 +330,13 @@ class SynonymTypeBase(BaseModel):
     # created_by: int
     # updated_by: int
 
+    @validator('synonym_level')
+    def validate_synonym_level(cls, value):
+        allowed_values = ['BATCH', 'COMPOUND']
+        if value.upper() not in allowed_values:
+            raise ValueError(f"synonym_level must be one of {allowed_values}")
+        return value
+
 class SynonymType(SynonymTypeBase):
     id: int
 
