@@ -195,6 +195,10 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
 def delete_compound(db: Session, compound_id: int):
     db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
     db.delete(db_compound)
+
+    # Delete related compound_synonyms
+    db.query(models.CompoundSynonym).filter(models.CompoundSynonym.compound_id == compound_id).delete(synchronize_session=False)
+
     db.commit()
     return db_compound
 
@@ -245,6 +249,10 @@ def create_batch(db: Session, batch: models.BatchBase):
 def delete_batch(db: Session, batch_id: int):
     db_batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
     db.delete(db_batch)
+
+    # Delete related batch_synonyms
+    db.query(models.BatchSynonym).filter(models.BatchSynonym.batch_id == batch_id).delete(synchronize_session=False)
+
     db.commit()
     return db_batch
 
