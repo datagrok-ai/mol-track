@@ -1,0 +1,32 @@
+{
+    "assay_type": {
+        "name": "Hepatocyte Stability",
+        "details": {
+            "form": "in vitro",
+            "biological_system": "cell"
+        },
+        "properties": [
+            {
+                "name": "Reported CLint",
+                "unit": "uL/min/106 cells",
+                "required": true
+            },
+            {
+                "name": "Mean HTC recovery",
+                "unit": "%",
+                "required": false
+            },
+            {
+                "name": "SD HTC recovery",
+                "unit": "%",
+                "required": false
+            },
+            {
+                "name": "Dosed Concentration",
+                "unit": "uM",
+                "required": true
+            }
+            
+        ]
+    }
+}

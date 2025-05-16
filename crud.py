@@ -11,6 +11,22 @@ import schemas
 import db.init_db as init_db
 from rdkit.Chem.rdMolDescriptors import CalcMolFormula
 
+from rdkit.Chem.MolStandardize import rdMolStandardize
+from rdkit.Chem.rdMolDescriptors import CalcMolFormula
+from typing import List
+from sqlalchemy import text
+from datetime import datetime, timezone
+import yaml
+import uuid
+import random
+import main
+# Handle both package imports and direct execution
+try:
+    # When imported as a package (for tests)
+    from . import models, schemas
+except ImportError:
+    # When run directly
+    import models, schemas
 
 # Compound CRUD operations
 def get_compound(db: Session, compound_id: int):
@@ -49,29 +65,26 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     if existing_compound:
         raise HTTPException(status_code=400, detail=f"Compound with canonical SMILES {canonical_smiles} already exists")
 
-    hash_mol = uuid.uuid4()
-    hash_tautomer = uuid.uuid4()
-    hash_canonical_smiles = uuid.uuid4()
-    hash_no_stereo_smiles = uuid.uuid4()
-    hash_no_stereo_tautomer = uuid.uuid4()
-
     # Create the compound with calculated values
+    # NOTE: The following UUID values are placeholders for hash fields
+    # and will be replaced with actual computed hash values later.
     db_compound = models.Compound(
         canonical_smiles=canonical_smiles,
         original_molfile=compound.original_molfile,
         inchi=inchi,
         inchikey=inchikey,
+        molregno=random.randint(1, 100),
+        formula=CalcMolFormula(mol),
+        hash_mol = uuid.uuid4(),
+        hash_tautomer = uuid.uuid4(),
+        hash_canonical_smiles = uuid.uuid4(),
+        hash_no_stereo_smiles = uuid.uuid4(),
+        hash_no_stereo_tautomer = uuid.uuid4(),
         created_at=datetime.now(),
         updated_at=datetime.now(),
-        is_archived=compound.is_archived,
-        deleted_by=init_db.admin_user_id,
-        molregno=random.randint(1, 1000000),
-        formula=CalcMolFormula(mol),
-        hash_mol=hash_mol,
-        hash_tautomer=hash_tautomer,
-        hash_canonical_smiles=hash_canonical_smiles,
-        hash_no_stereo_smiles=hash_no_stereo_smiles,
-        hash_no_stereo_tautomer=hash_no_stereo_tautomer,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+        is_archived=compound.is_archived
     )
 
     db.add(db_compound)
@@ -146,12 +159,23 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
     hash_no_stereo_tautomer = uuid.uuid4()
 
     # Create all compounds
+    # NOTE: The following UUID values are placeholders for hash fields
+    # and will be replaced with actual computed hash values later.
     created_compounds = []
     for compound_data in compounds_data:
         db_compound = models.Compound(
             canonical_smiles=compound_data["canonical_smiles"],
             inchi=compound_data["inchi"],
             inchikey=compound_data["inchikey"],
+            molregno=random.randint(1, 100),
+            formula=CalcMolFormula(mol),
+            hash_mol = uuid.uuid4(),
+            hash_tautomer = uuid.uuid4(),
+            hash_canonical_smiles = uuid.uuid4(),
+            hash_no_stereo_smiles = uuid.uuid4(),
+            hash_no_stereo_tautomer = uuid.uuid4(),
+            created_by=main.admin_user_id,
+            updated_by=main.admin_user_id,
             created_at=datetime.now(),
             updated_at=datetime.now(),
             is_archived=False,
@@ -213,14 +237,13 @@ def get_batches_by_compound(db: Session, compound_id: int, skip: int = 0, limit:
 def create_batch(db: Session, batch: schemas.BatchCreate):
     db_batch = models.Batch(
         compound_id=batch.compound_id,
-        batch_number=batch.batch_number,
-        amount=batch.amount,
-        amount_unit=batch.amount_unit,
-        purity=batch.purity,
         notes=batch.notes,
-        expiry_date=batch.expiry_date,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
         created_at=datetime.now(),
+        batch_regno=random.randint(1, 100)
     )
+
     db.add(db_batch)
     db.commit()
     db.refresh(db_batch)
@@ -247,6 +270,16 @@ def delete_batch(db: Session, batch_id: int):
     db.commit()
     return db_batch
 
+def create_semantic_type(db: Session, semantic_type: schemas.SemanticTypeCreate):
+    db_semantic_type = models.SemanticType(
+        name=semantic_type.name,
+        description=semantic_type.description
+    )
+
+    db.add(db_semantic_type)
+    db.commit()
+    db.refresh(db_semantic_type)
+    return db_semantic_type
 
 # Property CRUD operations
 def get_property(db: Session, property_id: int):
@@ -263,7 +296,12 @@ def create_property(db: Session, property: schemas.PropertyCreate):
         value_type=property.value_type,
         property_class=property.property_class,
         unit=property.unit,
+        semantic_type_id=property.semantic_type_id,
+        scope=property.scope,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
     )
+
     db.add(db_property)
     db.commit()
     db.refresh(db_property)
@@ -306,8 +344,10 @@ def create_assay_type(db: Session, assay_type: schemas.AssayTypeCreate):
     db_assay_type = models.AssayType(
         name=assay_type.name,
         description=assay_type.description,
-        created_on=current_time,
-        updated_on=current_time,
+        created_at=current_time,
+        updated_at=current_time,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
     )
     db.add(db_assay_type)
     db.commit()
@@ -429,7 +469,9 @@ def create_assay(db: Session, assay: schemas.AssayCreate):
         name=assay.name,
         description=assay.description,
         assay_type_id=assay.assay_type_id,
-        created_at=datetime.now(),
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+        created_at=datetime.now()
     )
     db.add(db_assay)
     db.commit()
@@ -768,6 +810,8 @@ def create_batch_detail(db: Session, batch_detail: schemas.BatchDetailCreate):
         batch_id=batch_detail.batch_id,
         property_id=batch_detail.property_id,
         value_qualifier=batch_detail.value_qualifier,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
     )
 
     # Set the value based on the property type

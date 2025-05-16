@@ -18,12 +18,19 @@ class PropertyClass(str, Enum):
     MEASURED = "MEASURED"
     PREDICTED = "PREDICTED"
 
+class ScopeClass(str, Enum):
+    BATCH  = "BATCH"
+    COMPOUND = "COMPOUND"
+    ASSAY = "ASSAY"
+    SYSTEM = "SYSTEM" 
 
 class PropertyBase(BaseModel):
     name: str
     value_type: ValueType
     property_class: PropertyClass
     unit: Optional[str] = None
+    semantic_type_id: Optional[int]
+    scope: ScopeClass
 
 
 class PropertyCreate(PropertyBase):
@@ -164,8 +171,8 @@ class AssayTypeUpdate(BaseModel):
 
 class AssayType(AssayTypeBase):
     id: int
-    created_on: Optional[datetime] = None
-    updated_on: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     properties: List[Property] = []
     assay_type_details: List[AssayTypeDetail] = []
     property_requirements: List[AssayTypeProperty] = []
@@ -273,13 +280,7 @@ class BatchAssayResultsResponse(BaseModel):
 
 # Batch schemas
 class BatchBase(BaseModel):
-    batch_number: str
-    amount: Optional[float] = None
-    amount_unit: Optional[str] = None
-    purity: Optional[float] = None
     notes: Optional[str] = None
-    expiry_date: Optional[date] = None
-    created_by: Optional[int] = None
 
 
 class BatchCreate(BatchBase):
@@ -299,7 +300,6 @@ class Batch(BatchBase):
     id: int
     compound_id: int
     created_at: datetime
-    created_by: Optional[int] = None
     batch_details: List[BatchDetail] = []
 
     class Config:
@@ -363,4 +363,14 @@ class CompoundQueryParams(BaseModel):
     limit: int = 100
 
     class Config:
-        from_attributes = True
+        from_attributes = True 
+
+class SemanticTypeCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class SemanticType(SemanticTypeCreate):
+    id: int
+
+    class Config:
+        orm_mode = True

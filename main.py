@@ -1,26 +1,17 @@
-import logging
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
 from typing import List
-
-import crud
-from db.init_db import init_db
-from db.session import get_db
-from fastapi import Depends, FastAPI, HTTPException
-import models as models
-from sqlmodel import Session
-
-from logging_setup import setup_logging
-
-setup_logging()
-logger = logging.getLogger(__name__)
+import models
 
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
-    from . import schemas
+    from . import models, schemas, crud
+    from .database import SessionLocal
 except ImportError:
     # When run directly
-    import crud
-    import schemas
+    import models, schemas, crud
+    from database import SessionLocal
 
 app = FastAPI(
     title="MolTrack API",
@@ -28,10 +19,33 @@ app = FastAPI(
 )
 
 
+admin_user_id: str | None = None
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    print(db.bind.url)
+    print("Database connection successful")
+    try:
+        yield db
+    finally:
+        db.close()
+
+def get_admin_user(db: Session):
+    admin = db.query(models.User).filter(models.User.first_name == "Admin").first()
+    if not admin:
+        raise Exception("Admin user not found.")
+
+    global admin_user_id
+    admin_user_id = admin.id
+
 @app.on_event("startup")
 def on_startup():
-    init_db()
-
+    db = SessionLocal()
+    try:
+        get_admin_user(db)
+    finally:
+        db.close()
 
 # Compounds endpoints
 @app.post("/compounds/", response_model=models.Compound)
@@ -93,6 +107,9 @@ def read_batch(batch_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Batch not found")
     return db_batch
 
+@app.post("/semantic-types/", response_model=schemas.SemanticType)
+def create_semantic_type_endpoint(semantic_type: schemas.SemanticTypeCreate, db: Session = Depends(get_db)):
+    return crud.create_semantic_type(db=db, semantic_type=semantic_type)
 
 # Properties endpoints
 @app.post("/properties/", response_model=models.Property)
