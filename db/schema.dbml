@@ -88,37 +88,31 @@ Table moltrack.compounds as Compounds {
         hash_no_stereo_tautomer [unique]
         molregno [unique]
     }
+
+    Note: 'Compounds table - unique chemical structures'
 }
 
 Table moltrack.batches as Batches {
     ~base
     ~created_updated_details
     compound_id int [not null, ref: > Compounds.id]
-    batch_number text [not null]
-    amount real
-    amount_unit text
-    purity real
+    batch_regno text [not null]
     notes text
-    expiry_date date
-
+ 
     indexes {
         compound_id
-        batch_number
+        batch_regno
     }
+    Note: 'Batch is a physical sample of the compound (for instance synthesized or procured).'
 
-    Note: '''
-    need to refactor to identify what should be in details and synonyms
-    I believe that amount, amount_unit, purity shoujld be properties
-    '''
 }
 
 Table moltrack.additions as Additions {
     ~base
     ~created_updated_details
-    name text [not null]
+    name text [not null, unique]
     description text
-    display_name text
-    display_order int
+    code text
     is_active boolean [default: true]
     formula text
     molecular_weight real
@@ -129,16 +123,14 @@ Table moltrack.additions as Additions {
 
     indexes {
         name
-        display_name
-        display_order
+        code
         formula
         role
     }
 
     Note: '''
+    Additions table - for salts and solvates 
         Questions:
-        - how are name, display_name, and descrition used
-        - should we have UI related fields in this table, e.g., display_name, display_order
         - should we do check constraints for role?
     '''
 }
@@ -155,7 +147,7 @@ Table moltrack.batch_additions as BatchAdditions {
     }
 
     Note: '''
-    This allows us to have multiple salt and solvates for a given batch'
+    Batch Addition table - This allows us to have multiple salt and solvates for a given batch'
     '''
 }
 
@@ -163,6 +155,8 @@ Table moltrack.semantic_types as SemanticTypes {
     id serial [pk]
     name text [not null, note: 'e.g., "Molecule", "Cell", ...']
     description text
+
+    Note: 'Explains the meaning of a scalar property.'
 }
 
 Table moltrack.properties as Properties {
@@ -173,7 +167,8 @@ Table moltrack.properties as Properties {
     semantic_type_id int [ref: > SemanticTypes.id]
     property_class text [note: "('CALCULATED', 'MEASURED', 'PREDICTED')"]
     unit text [note: 'future: unit should point to unit ontology']
- 
+    scope text [not null, note: 'check in ["BATCH","COMPOUND","ASSAY","SETTINGS"]']
+    
     indexes {
         name
         value_type
@@ -182,7 +177,16 @@ Table moltrack.properties as Properties {
     }
 
     Note: '''
+    Properties table - for calculated and measured properties
     for validity checking should we have field to specify what entity this should be relevant
+    
+    value_type defines the colummn in the batch_details, assay_details and assay_results 
+    tables that store the property value:
+    * [value_num] for "int" and "double", 
+    * [value_datetime] for "datetime", 
+    * [value_uuid] for "uuid", 
+    * [value_string] for "string"
+    
     future: property should have ontology reference
     '''
 }
@@ -192,6 +196,7 @@ Table moltrack.batch_details as BatchDetails {
     batch_id int [not null, ref: > Batches.id]
     property_id int [not null, ref: > Properties.id]
 
+    value_qualifier smallint [not null, default: 0,  note: 'SMALLINT, 0 for "=", 1 for "<", 2 for ">". Only used for numeric properties.']
     value_datetime timestamp [note: 'with time zone', default: `CURRENT_TIMESTAMP`]
     value_uuid uuid
     value_num float
@@ -202,7 +207,11 @@ Table moltrack.batch_details as BatchDetails {
         property_id
     }
 
-    Note: 'future: batch_details.value_string should have optional ontology reference'
+    Note: '''
+    Batch details table - for calculated and measured properties
+
+    future: batch_details.value_string should have optional ontology reference
+    '''
 }
 
 Table moltrack.synonym_types as SynonymTypes {
@@ -213,7 +222,10 @@ Table moltrack.synonym_types as SynonymTypes {
     pattern text [not null, note: 'regex for identifier: CHEMBL.*']
     description text [not null]
 
-    Note: 'how to address combined uniqueness constraint'
+    Note: '''
+    Synonym types table - for batch and compound synonym types
+    how to address combined uniqueness constraint
+    '''
     indexes {
         (synonym_level, name) [unique]
     }
@@ -230,6 +242,9 @@ Table moltrack.compound_synonyms as CompoundSynonyms {
         compound_id
         synonym_type_id
     }
+
+    Note: 'Compound synonyms table - for compound synonym types: CAS, USAN, INN, tradename, source code'
+
 }
 
 Table moltrack.batch_synonyms as BatchSynonyms {
@@ -243,6 +258,8 @@ Table moltrack.batch_synonyms as BatchSynonyms {
         batch_id
         synonym_type_id
     }
+
+    Note: 'Batch synonyms table - for batch synonym types: CAS, USAN, INN, tradename, source code'
 }
 
 Table moltrack.compound_details as CompoundDetails {
@@ -261,7 +278,10 @@ Table moltrack.compound_details as CompoundDetails {
         property_id
     }
 
-    Note: 'future: compound_details.value_string should have optional ontology reference'
+    Note: '''
+    Compound details table - for calculated and measured properties
+    future: compound_details.value_string should have optional ontology reference
+    '''
 }
 
 Table moltrack.assay_types as AssayTypes {
@@ -269,6 +289,13 @@ Table moltrack.assay_types as AssayTypes {
     ~created_updated_details
     name text [not null]
     description text
+
+    Note: '''
+    -- Assay types table - for assay types: kinase inhibition, cell viability, etc.
+    -- this is the level for the protocol such as hepatocyte stability
+    -- All of the required properties (see assay_type_properties) must be present in the assay results.
+    
+    '''
 }
 
 Table moltrack.assay_type_details as AssayTypeDetails {
@@ -281,7 +308,10 @@ Table moltrack.assay_type_details as AssayTypeDetails {
     value_num float
     value_string text
 
-    Note: 'PK: (assay_type_id, property_id)'
+    Note: '''
+    Assay type details table - example domain: in vivo, in vitro, etc., detection method: fluorescence, etc.
+    PK: (assay_type_id, property_id)
+    '''
     indexes {
         (assay_type_id, property_id) [unique]
     }
@@ -293,6 +323,11 @@ Table moltrack.assays as Assays {
     name text [not null, note: 'e.g., "Kinase Inhibition Assay"']
     description text
     ~created_updated_details
+
+    Note: '''
+    Assays table - for assays: kinase inhibition, cell viability, etc.  
+    This is the level of the experiment executed by the user.
+    '''
 }
 
 Table moltrack.assay_details as AssayDetails {
@@ -304,7 +339,12 @@ Table moltrack.assay_details as AssayDetails {
     value_num float
     value_string text
 
-    Note: 'PK: (assay_id, property_id)'
+    Note: '''
+    -- Assay details table - for calculated and measured properties
+    -- This is the level of the experiment executed by the user.
+    -- Details like assayer, eln reference, calculation date
+    -- experimental conditions like temperature, time, cell lot, protein lot, etc.
+    '''
     indexes {
         (assay_id, property_id) [unique]
     }
@@ -335,12 +375,9 @@ Table moltrack.assay_results as AssayResults {
     value_string text
     value_bool boolean
 
-    indexes {
-        batch_id
-        assay_id
-        property_id
-    }
 
-    Note: 'For performance reasons, only numbers, strings, and booleans are supported for assay results (no datetime or uuid).'
-
+    Note: '''
+    Assay results table - actual measurements: IC50, EC50, etc.
+    For performance reasons, only numbers, strings, and booleans are supported for assay results (no datetime or uuid).'
+    '''
 }
