@@ -19,10 +19,10 @@ begin
   insert into rdk.mols(id, m)
   values (
     new.id,
-    mol_from_smiles(new.canonical_smiles::cstring)
-  )
-  return null
-end
+    public.mol_from_smiles(new.canonical_smiles::cstring)
+  )^
+  return null^
+end^
 $$ language plpgsql;
 
 -- trigger to insert into rdk.mols after a new compound is inserted into moltrack.compounds

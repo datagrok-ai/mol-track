@@ -13,25 +13,33 @@ ic50prop = {
     "name": "IC50",
     "value_type": "double",
     "property_class": "MEASURED",
-    "unit": "nM"
+    "unit": "nM",
+    "scope": "COMPOUND"
 }
 
 solProp = {
     "name": "Solubility",
     "value_type": "double",
     "property_class": "MEASURED",
-    "unit": "mg/mL"
+    "unit": "mg/mL",
+    "scope": "COMPOUND"
 }
 
 activityProp = {
     "name": "Activity Score",
     "value_type": "double",
     "property_class": "CALCULATED",
-    "unit": ""
+    "unit": "",
+    "scope": "COMPOUND"
 }
 
 # Test properties list
 test_properties = [ic50prop, solProp, activityProp]
+
+test_semantic_type_data = {
+    "name": "Absorption",
+    "description": "Describes properties related to compound absorption"
+}
 
 # Helper functions for creating test data
 def create_test_property(client, property_data):
@@ -39,6 +47,13 @@ def create_test_property(client, property_data):
     response = client.post("/properties/", json=property_data)
     assert response.status_code == 200
     return response.json()
+
+def semantic_type_setup(client, prop):
+    """Fixture to create a semantic type and assign its ID to test properties."""
+    response = client.post("/semantic-types/", json=test_semantic_type_data)
+    assert response.status_code == 200
+    semantic_type_id = response.json()["id"]
+    prop["semantic_type_id"] = semantic_type_id
 
 def create_test_properties(client, property_data_list):
     """Helper function to create multiple properties and return their IDs"""
@@ -151,6 +166,7 @@ def create_test_batch_assay_results(client, assay_id, batch_id, measurements):
 def test_create_assay_result(client):
     """Test creating a single assay result"""
     # Create a property
+    semantic_type_setup(client, ic50prop)
     property = create_test_property(client, ic50prop)
     
     # Create an assay type with the property
@@ -177,7 +193,11 @@ def test_create_assay_result(client):
 def test_create_batch_assay_results(client):
     """Test creating multiple assay results for a batch at once"""
     # Create properties
-    properties = [create_test_property(client, prop) for prop in test_properties]
+    properties = []
+    for prop in test_properties:
+        semantic_type_setup(client, prop)
+        properties.append(create_test_property(client, prop))
+
     property_ids = [prop["id"] for prop in properties]
     property_names = [prop["name"] for prop in properties]
     
@@ -210,6 +230,7 @@ def test_create_batch_assay_results(client):
 def test_create_assay_result_with_invalid_property(client):
     """Test creating an assay result with invalid property"""
     # Create a property for the assay type
+    semantic_type_setup(client, ic50prop)
     property1 = create_test_property(client, ic50prop)
     
     # Create a different property that won't be associated with the assay
@@ -217,8 +238,10 @@ def test_create_assay_result_with_invalid_property(client):
         "name": "Unrelated Property",
         "value_type": "double",
         "property_class": "MEASURED",
-        "unit": "units"
+        "unit": "units",
+        "scope": "COMPOUND"
     }
+    semantic_type_setup(client, newProp)
     property2 = create_test_property(client, newProp)
     
     # Create an assay type with property1
@@ -250,7 +273,10 @@ def test_create_assay_result_with_invalid_property(client):
 def test_batch_assay_results_with_invalid_property(client):
     """Test creating batch assay results with invalid property name"""
     # Create properties
-    properties = [create_test_property(client, prop) for prop in test_properties[:1]]
+    properties = []
+    for prop in test_properties[:1]:
+        semantic_type_setup(client, prop)
+        properties.append(create_test_property(client, prop))
     property_ids = [prop["id"] for prop in properties]
     
     # Create an assay type and assay with only one property
@@ -282,6 +308,7 @@ def test_batch_assay_results_with_invalid_property(client):
 def test_get_assay_result(client):
     """Test retrieving a single assay result"""
     # Create a property
+    semantic_type_setup(client, ic50prop)
     property = create_test_property(client, ic50prop)
     
     # Create an assay type with the property
@@ -313,7 +340,11 @@ def test_get_assay_result(client):
 def test_get_batch_assay_results(client):
     """Test retrieving all assay results for a batch"""
     # Create properties
-    properties = [create_test_property(client, prop) for prop in test_properties]
+    properties = []
+    for prop in test_properties:
+        semantic_type_setup(client, prop)
+        properties.append(create_test_property(client, prop))
+
     property_ids = [prop["id"] for prop in properties]
     property_names = [prop["name"] for prop in properties]
     

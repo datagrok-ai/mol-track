@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Float, DateTime, Date, Enum, CheckConstraint, Table, UniqueConstraint
+from sqlalchemy import UUID, Boolean, Column, ForeignKey, Integer, String, Text, Float, DateTime, Date, Enum, CheckConstraint, Table, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -30,6 +30,22 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 # Association table for AssayType-Property many-to-many relationship
 # AssayTypeProperty = Table(
 
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, nullable=False)
+    email = Column(Text, nullable=False)
+    first_name = Column(Text, nullable=False)
+    last_name = Column(Text, nullable=False)
+    has_password = Column(Boolean, nullable=False)
+    is_active = Column(Boolean, default=False, nullable=False)
+    is_service_account = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_by = Column(UUID(as_uuid=True), nullable=False)
+    updated_by = Column(UUID(as_uuid=True), nullable=False)
+
 class Compound(Base):
     __tablename__ = "compounds"
     __table_args__ = {"schema": DB_SCHEMA}
@@ -39,8 +55,19 @@ class Compound(Base):
     original_molfile = Column(Text)  # as sketched by the chemist
     inchi = Column(Text, nullable=False)
     inchikey = Column(Text, nullable=False, unique=True)
+    molregno = Column(Integer, nullable=False)
+    formula = Column(Text, nullable=False)
+    hash_mol = Column(UUID(as_uuid=True), nullable=False)
+    hash_tautomer = Column(UUID(as_uuid=True), nullable=False)
+    hash_canonical_smiles = Column(UUID(as_uuid=True), nullable=False)
+    hash_no_stereo_smiles = Column(UUID(as_uuid=True), nullable=False)
+    hash_no_stereo_tautomer = Column(UUID(as_uuid=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_by = Column(UUID(as_uuid=True), nullable=False)
+    updated_by = Column(UUID(as_uuid=True), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), server_default=func.now())
+    deleted_by = Column(UUID(as_uuid=True), nullable=False)
     is_archived = Column(Boolean, default=False)
     
     # Relationships
@@ -51,15 +78,13 @@ class Batch(Base):
     __table_args__ = {"schema": DB_SCHEMA}
 
     id = Column(Integer, primary_key=True, index=True)
-    compound_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.compounds.id"), nullable=False)
-    batch_number = Column(Text, nullable=False)
-    amount = Column(Float)
-    amount_unit = Column(Text)
-    purity = Column(Float)
-    notes = Column(Text)
-    expiry_date = Column(Date)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    created_by = Column(Integer)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(UUID(as_uuid=True), nullable=False)
+    updated_by = Column(UUID(as_uuid=True), nullable=False)
+    compound_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.compounds.id"), nullable=False)
+    batch_regno = Column(Integer, nullable=False)
+    notes = Column(Text)
     
     # Relationships
     compound = relationship("Compound", back_populates="batches")
@@ -76,9 +101,14 @@ class BatchDetail(Base):
     
     value_qualifier = Column(Integer, nullable=False, default=0)  # 0 for "=", 1 for "<", 2 for ">"
     value_datetime = Column(DateTime(timezone=True))
-    value_uuid = Column(String(36))
+    value_uuid = Column(UUID(as_uuid=True))
     value_num = Column(Float)
     value_string = Column(Text)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(UUID(as_uuid=True), nullable=False)
+    updated_by = Column(UUID(as_uuid=True), nullable=False)
     
     # Relationships
     batch = relationship("Batch", back_populates="batch_details")
@@ -101,22 +131,31 @@ class Property(Base):
     __table_args__ = (
         CheckConstraint(
             "value_type IN ('int', 'double', 'bool', 'datetime', 'string')",
-            name="check_value_type"
+            name="properties_value_type_check"
         ),
         CheckConstraint(
             "property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')",
-            name="check_property_class"
+            name="properties_property_class_check"
+        ),
+        CheckConstraint(
+            "scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')",
+            name="properties_scope_check"
         ),
         {"schema": DB_SCHEMA}
     )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(Text, nullable=False)
-    value_type = Column(Text)
-    property_class = Column(Text)
+    value_type = Column(Text, nullable=False)
+    property_class = Column(Text, nullable=False)
     unit = Column(Text)
+    scope = Column(Text, nullable=False)
+    semantic_type_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.semantic_types.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+    updated_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(UUID(as_uuid=True), nullable=False)
+    updated_by = Column(UUID(as_uuid=True), nullable=False)
+
     # Relationship to assay results
     assay_results = relationship("AssayResult", back_populates="property")
     batch_details = relationship("BatchDetail", back_populates="property")
@@ -129,7 +168,7 @@ class AssayTypeDetail(Base):
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True)
     
     value_datetime = Column(DateTime(timezone=True))
-    value_uuid = Column(String(36))
+    value_uuid = Column(UUID(as_uuid=True))
     value_num = Column(Float)
     value_string = Column(Text)
     
@@ -145,7 +184,7 @@ class AssayDetail(Base):
     property_id = Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True)
     
     value_datetime = Column(DateTime(timezone=True))
-    value_uuid = Column(String(36))
+    value_uuid = Column(UUID(as_uuid=True))
     value_num = Column(Float)
     value_string = Column(Text)
     
@@ -173,8 +212,10 @@ class AssayType(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(Text, nullable=False)
     description = Column(Text)
-    created_on = Column(DateTime, server_default=func.now())
-    updated_on = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_by = Column(UUID(as_uuid=True), nullable=False)
+    updated_by = Column(UUID(as_uuid=True), nullable=False)
     
     # Relationships - use secondary join for many-to-many
     properties = relationship(
@@ -197,6 +238,9 @@ class Assay(Base):
     name = Column(Text, nullable=False)
     description = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(UUID(as_uuid=True), nullable=False)
+    updated_by = Column(UUID(as_uuid=True), nullable=False)
     
     # Relationships - use assay_type_properties via assay_type to get list of expected properties
     # No direct properties relationship as assay_properties table no longer exists
@@ -223,4 +267,11 @@ class AssayResult(Base):
     batch = relationship("Batch", back_populates="assay_results")
     assay = relationship("Assay", back_populates="assay_results")
     property = relationship("Property", back_populates="assay_results")
-    
+
+class SemanticType(Base):
+    __tablename__ = 'semantic_types'
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    name = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)

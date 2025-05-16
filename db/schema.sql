@@ -14,9 +14,25 @@ CREATE TABLE moltrack.users (
   is_service_account boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
   updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-  created_by uuid NOT NULL REFERENCES moltrack.users (id),
-  updated_by uuid NOT NULL REFERENCES moltrack.users (id)
+  created_by uuid NOT NULL REFERENCES moltrack.users (id) DEFERRABLE INITIALLY DEFERRED,
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id) DEFERRABLE INITIALLY DEFERRED
 );
+
+BEGIN;
+
+INSERT INTO moltrack.users (
+  id, email, first_name, last_name,
+  has_password, is_active, is_service_account,
+  created_by, updated_by
+) VALUES (
+  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d',
+  'admin@datagrok.ai', 'Admin', 'Admin',
+  true, true, true,
+  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d',
+  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d'
+);
+
+COMMIT;
 
 -- Explains the meaning of a scalar property.
 CREATE TABLE moltrack.semantic_types (
