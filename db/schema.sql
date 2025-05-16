@@ -1,173 +1,294 @@
+-- SQL dump generated using DBML (dbml.dbdiagram.io)
+-- Database: PostgreSQL
+-- Generated at: 2025-05-12T17:56:08.275Z
+
 CREATE SCHEMA moltrack;
 
--- Unique chemical structures
-CREATE TABLE moltrack.compounds (
-    id SERIAL PRIMARY KEY,
-    canonical_smiles TEXT NOT NULL,  -- RDKit canonical SMILES
-    original_molfile TEXT,           -- as sketched by the chemist
-    inchi TEXT NOT NULL,             -- IUPAC InChI
-    inchikey TEXT NOT NULL UNIQUE,   -- IUPAC InChIKey
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    is_archived BOOLEAN DEFAULT FALSE
+CREATE TABLE moltrack.users (
+  id uuid PRIMARY KEY NOT NULL,
+  email text UNIQUE NOT NULL,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  has_password boolean NOT NULL,
+  is_active boolean NOT NULL DEFAULT false,
+  is_service_account boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id) DEFERRABLE INITIALLY DEFERRED,
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id) DEFERRABLE INITIALLY DEFERRED
 );
 
--- Batch is a physical sample of the compound (for instance synthesized or procured).
-CREATE TABLE moltrack.batches (
-    id SERIAL PRIMARY KEY,
-    compound_id INTEGER NOT NULL REFERENCES moltrack.compounds(id),
-    batch_number TEXT NOT NULL,
-    amount REAL,
-    amount_unit TEXT,
-    purity REAL,
-    notes TEXT,
-    expiry_date DATE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by INTEGER
+BEGIN;
+
+INSERT INTO moltrack.users (
+  id, email, first_name, last_name,
+  has_password, is_active, is_service_account,
+  created_by, updated_by
+) VALUES (
+  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d',
+  'admin@datagrok.ai', 'Admin', 'Admin',
+  true, true, true,
+  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d',
+  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d'
 );
 
--- Explains the meaning of a scalar property. 
+COMMIT;
+
+-- Explains the meaning of a scalar property.
 CREATE TABLE moltrack.semantic_types (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,    -- e.g., "Molecule", "Cell", "Tissue", "Organism", "Treatment", "Drug", "Image"
-    description TEXT
+  id serial PRIMARY KEY,
+  name text NOT NULL, -- e.g., Molecule, Cell, Tissue, Organism, Treatment, Drug, Image...
+  description text
 );
 
 -- Properties table - for calculated and measured properties
 CREATE TABLE moltrack.properties (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  name text NOT NULL,
 
-    -- value_type defines the colummn in the batch_details, assay_details and assay_results 
-    -- tables that store the property value:
-    -- * [value_num] for "int" and "double", 
-    -- * [value_datetime] for "datetime", 
-    -- * [value_uuid] for "uuid", 
-    -- * [value_string] for "string"
-    value_type TEXT CHECK (value_type IN ('int', 'double', 'bool', 'datetime', 'uuid', 'string')),
-    semantic_type_id INTEGER REFERENCES moltrack.semantic_types(id),
-    property_class TEXT CHECK (property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')),
-    unit TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  -- value_type defines the colummn in the batch_details, assay_details and assay_results 
+  -- tables that store the property value:
+  -- * [value_num] for "int" and "double", 
+  -- * [value_datetime] for "datetime", 
+  -- * [value_uuid] for "uuid", 
+  -- * [value_string] for "string"
+  value_type text check (value_type in ('int', 'double', 'datetime', 'uuid', 'string')) NOT NULL,
+  semantic_type_id INTEGER REFERENCES moltrack.semantic_types (id),
+  property_class text check (property_class in ('CALCULATED', 'MEASURED', 'PREDICTED')) NOT NULL,
+  unit text,
+  scope text check (scope in ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')) NOT NULL
 );
 
--- User-defined batch details
-create table moltrack.batch_details (
-    id SERIAL PRIMARY KEY,
-    batch_id INTEGER NOT NULL REFERENCES moltrack.batches(id),
-    property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
-
-    value_qualifier SMALLINT NOT NULL DEFAULT 0,  -- 0 for "=", 1 for "<", 2 for ">". Only used for numeric properties.
-    value_datetime TIMESTAMP WITH TIME ZONE,
-    value_uuid uuid,
-    value_num REAL,
-    value_string TEXT
+-- System settings like compound standardization rules, compound uniqueness rules, compound identification rules and synonym generation rules.
+CREATE TABLE moltrack.settings (
+  id serial PRIMARY KEY,
+  name text NOT NULL,
+  value text NOT NULL,
+  description text NOT NULL
 );
 
--- Assay type defines what properties are measured in an assay.
+-- Synonym types table - for batch and compound synonym types
+CREATE TABLE moltrack.synonym_types (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  synonym_level text check (synonym_level in ('BATCH', 'COMPOUND')) NOT NULL,
+  name text NOT NULL, -- e.g., CAS, USAN, INN, tradename ,source code
+  pattern text, -- regex for identifier: CHEMBL.*
+  description text NOT NULL
+);
+
+-- Compounds table - unique chemical structures
+CREATE TABLE moltrack.compounds (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  canonical_smiles text NOT NULL,               -- RDKit canonical SMILES
+  original_molfile text,                        -- as sketched by the chemist
+  molregno int UNIQUE NOT NULL,                 -- generated by the system based on business rules
+  inchi text NOT NULL,                          -- IUPAC InChI
+  inchikey text UNIQUE NOT NULL,                -- IUPAC InChIKey
+  formula text NOT NULL,                        -- e.g., C10H16N2O2
+  hash_mol uuid UNIQUE NOT NULL,                -- hash of the canonical SMILES
+  hash_tautomer uuid UNIQUE NOT NULL,           -- hash of the tautomer
+  hash_canonical_smiles uuid UNIQUE NOT NULL,   -- hash of the canonical SMILES
+  hash_no_stereo_smiles uuid UNIQUE NOT NULL,   -- hash of the no stereo SMILES
+  hash_no_stereo_tautomer uuid UNIQUE NOT NULL, -- hash of the no stereo tautomer
+  is_archived boolean DEFAULT false,            -- soft delete
+  deleted_at timestamp with time zone,          -- should use current_timestamp
+  deleted_by uuid REFERENCES moltrack.users (id) -- can this hand
+);
+
+-- Compound synonyms table - for compound synonym types: CAS, USAN, INN, tradename, source code
+CREATE TABLE moltrack.compound_synonyms (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  compound_id int NOT NULL REFERENCES moltrack.compounds (id),
+  synonym_type_id int NOT NULL REFERENCES moltrack.synonym_types (id),
+  synonym_value text NOT NULL
+);
+
+-- Compound details table - for calculated and measured properties
+CREATE TABLE moltrack.compound_details (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  compound_id int NOT NULL REFERENCES moltrack.compounds (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id),
+  value_datetime timestamp with time zone DEFAULT (CURRENT_TIMESTAMP),
+  value_uuid uuid,
+  value_num float,
+  value_string text
+);
+
+-- Additions table - for salts and solvates 
+CREATE TABLE moltrack.additions (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  name text UNIQUE NOT NULL, -- ex. HCl
+  description text,          -- ex. Hydrochloric acid
+  code text,                 -- ex. AAC
+  is_active boolean DEFAULT true,
+  formula text,              -- ex. HCl
+  molecular_weight real,     -- ex. 36.46
+  smiles text,               -- ex. ClH
+  molfile text,
+  role text check (role in ('SALT', 'SOLVATE')),
+  is_archived boolean DEFAULT false,
+  deleted_at timestamp with time zone,
+  deleted_by uuid REFERENCES moltrack.users (id) -- can this handle null?
+);
+
+-- Batch is a physical sample of the compound (for instance synthesized or procured).
+CREATE TABLE moltrack.batches (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  compound_id int NOT NULL REFERENCES moltrack.compounds (id),
+  batch_regno int UNIQUE NOT NULL, -- ex. 123456 auto-generated by the system following business rules
+  notes text                       -- ex. "Batch of 100 mg of compound"
+);
+
+-- Batch additions table - for salts and solvates
+CREATE TABLE moltrack.batch_additions (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  batch_id int NOT NULL REFERENCES moltrack.batches (id),
+  addition_id int NOT NULL REFERENCES moltrack.additions (id),
+  addition_equivalent real NOT NULL DEFAULT 1, -- relative to parent compound ex. 1.0 for 1:1 salt
+  unique (batch_id, addition_id)
+);
+
+-- Batch details table - for calculated and measured properties
+CREATE TABLE moltrack.batch_details (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  batch_id int NOT NULL REFERENCES moltrack.batches (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id),
+
+  value_qualifier smallint NOT NULL DEFAULT 0 check (value_qualifier in (0, 1, 2)), -- 0 for =, 1 for <, 2 for >
+  value_datetime timestamp with time zone DEFAULT (CURRENT_TIMESTAMP),
+  value_uuid uuid,
+  value_num float,
+  value_string text
+);
+
+-- Batch synonyms table - for batch synonym types: CAS, USAN, INN, tradename, source code
+CREATE TABLE moltrack.batch_synonyms (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  batch_id int NOT NULL REFERENCES moltrack.batches (id),
+  synonym_type_id int NOT NULL REFERENCES moltrack.synonym_types (id),
+  synonym_value text NOT NULL
+);
+
+-- Assay types table - for assay types: kinase inhibition, cell viability, etc.
+-- this is the level for the protocol such as hepatocyte stability
 -- All of the required properties (see assay_type_properties) must be present in the assay results.
 CREATE TABLE moltrack.assay_types (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    --author_id uuid references moltrack.users(id),
-    created_on timestamp without time zone,
-    updated_on timestamp without time zone
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  name text NOT NULL,
+  description text
+  -- author_id uuid references moltrack.users (id)
 );
 
--- Assay type metadata
+-- Assay type details table - example domain: in vivo, in vitro, etc., detection method: fluorescence, etc. 
 CREATE TABLE moltrack.assay_type_details (
-    assay_type_id INTEGER NOT NULL REFERENCES moltrack.assay_types(id),
-    property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
+  assay_type_id int NOT NULL REFERENCES moltrack.assay_types (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id),
+  required boolean NOT NULL DEFAULT false,
 
-    value_datetime TIMESTAMP WITH TIME ZONE,
-    value_uuid uuid,
-    value_num REAL,
-    value_string TEXT,
-
-    PRIMARY KEY (assay_type_id, property_id)
+  value_datetime timestamp with time zone,
+  value_uuid uuid,
+  value_num real,
+  value_string text
 );
 
--- An experiment where one or more properties were measured for one or more batches.
+-- Assays table - for assays: kinase inhibition, cell viability, etc.  
+-- This is the level of the experiment executed by the user.
 CREATE TABLE moltrack.assays (
-    id SERIAL PRIMARY KEY,
-    assay_type_id INTEGER NOT NULL REFERENCES moltrack.assay_types(id),
-    name TEXT NOT NULL,      -- e.g., "Kinase Inhibition Assay"
-    description TEXT,        -- Detailed description of the assay
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  id serial PRIMARY KEY,
+  assay_type_id int NOT NULL REFERENCES moltrack.assay_types (id),
+  name text NOT NULL,
+  description text,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id)
 );
 
--- User-defined assay details 
--- (like when the assay was performed, where, by whom, etc.)
+-- Assay details table - for calculated and measured properties
+-- This is the level of the experiment executed by the user.
+-- Details like assayer, eln reference, calculation date
+-- experimental conditions like temperature, time, cell lot, protein lot, etc.
 CREATE TABLE moltrack.assay_details (
-    assay_id INTEGER NOT NULL REFERENCES moltrack.assays(id),
-    property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
+  assay_id int NOT NULL REFERENCES moltrack.assays (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id),
 
-    value_datetime TIMESTAMP WITH TIME ZONE,
-    value_uuid uuid,
-    value_num REAL,
-    value_string TEXT,
-
-    PRIMARY KEY (assay_id, property_id)
+  value_datetime timestamp with time zone DEFAULT (CURRENT_TIMESTAMP),
+  value_uuid uuid,
+  value_num float,
+  value_string text,
+  unique (assay_id, property_id)
 );
 
--- A set of measurement types for a given assay type.
--- This will be used to validate the data submitted for an assay.
+-- Assay type properties table - for assay type properties
+-- This should detail the required and optional result types for a given assay type.
+-- This is used to validate the data submitted for an assay.
 CREATE TABLE moltrack.assay_type_properties (
-    assay_type_id INTEGER NOT NULL REFERENCES moltrack.assay_types(id),
-    property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),
-    required BOOLEAN NOT NULL DEFAULT FALSE,   -- if true, used for validation of the submitted data
-    PRIMARY KEY (assay_type_id, property_id)
+  assay_type_id int NOT NULL REFERENCES moltrack.assay_types (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id),
+  required bool NOT NULL DEFAULT false,
+  PRIMARY KEY (assay_type_id, property_id)
 );
 
--- Actual measurements.
+-- Assay results table - actual measurements: IC50, EC50, etc.
 CREATE TABLE moltrack.assay_results (
-    id SERIAL PRIMARY KEY,
-    batch_id INTEGER NOT NULL REFERENCES moltrack.batches(id),
-    assay_id INTEGER NOT NULL REFERENCES moltrack.assays(id),  
-    property_id INTEGER NOT NULL REFERENCES moltrack.properties(id),  -- should also be in the corresponding assay_type
-    
-    -- For performance reasons, only numbers, strings, and booleans are supported for assay results (no datetime or uuid).
-    value_qualifier SMALLINT NOT NULL DEFAULT 0,  -- 0 for "=", 1 for "<", 2 for ">". Only used for numeric properties.
-    value_num REAL,
-    value_string TEXT,
-    value_bool BOOLEAN
+  id serial PRIMARY KEY,
+  batch_id int NOT NULL REFERENCES moltrack.batches (id),
+  assay_id int NOT NULL REFERENCES moltrack.assays (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id), -- should appear in assay_type_properties
+
+  -- For performance reasons, only numbers, strings, and booleans are supported for assay results (no datetime or uuid).
+  value_qualifier smallint NOT NULL DEFAULT 0 check (value_qualifier in (0, 1, 2)), -- 0 for =, 1 for <, 2 for >
+  value_num float,
+  value_string text,
+  value_bool boolean
 );
+
+
 
 GRANT ALL PRIVILEGES ON SCHEMA moltrack TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA moltrack TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA moltrack TO CURRENT_USER;
-
-
--- Maintaining RDKit cartrige data in the rdk schema
-create extension if not exists rdkit;
-drop schema if exists rdk cascade;
-create schema rdk;
-drop table if exists rdk.mols;
-
--- rdk.mols contains ids and molecules in RDKit Mol format
-select * into rdk.mols 
-from (select id, mol_from_smiles(canonical_smiles::cstring) m from moltrack.compounds) tmp;
-
-create index molidx on rdk.mols using gist(m);
-
--- trigger to insert into rdk.mols after a new compound is inserted into moltrack.compounds
--- Note that we have the "^" symbol in the body below instead of the semicolon because we
--- split the file by semicolon when executing commands (and convert back after splitting)
-create or replace function insert_into_rdk_mols()
-returns trigger as $$
-begin
-  insert into rdk.mols(id, m)
-  values (
-    new.id,
-    mol_from_smiles(new.canonical_smiles::cstring)
-  )^
-  return null^
-end^
-$$ language plpgsql;
-
--- trigger to insert into rdk.mols after a new compound is inserted into moltrack.compounds
-create trigger compounds_after_insert
-after insert on moltrack.compounds
-for each row
-execute function insert_into_rdk_mols();

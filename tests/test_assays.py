@@ -7,31 +7,38 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Fixtures are automatically available from conftest.py
-
 # Define individual property test data
 ic50prop = {
     "name": "IC50",
     "value_type": "double",
     "property_class": "MEASURED",
-    "unit": "nM"
+    "unit": "nM",
+    "scope": "COMPOUND"
 }
 
 solProp = {
     "name": "Solubility",
     "value_type": "double",
     "property_class": "MEASURED",
-    "unit": "mg/mL"
+    "unit": "mg/mL",
+    "scope": "COMPOUND"
 }
 
 activityProp = {
     "name": "Activity Score",
     "value_type": "double",
     "property_class": "CALCULATED",
-    "unit": ""
+    "unit": "",
+    "scope": "COMPOUND"
 }
 
 # Test properties list
 test_properties = [ic50prop, solProp, activityProp]
+
+test_semantic_type_data = {
+    "name": "Absorption",
+    "description": "Describes properties related to compound absorption"
+}
 
 # Test data for assay types
 test_assay_type_data = {
@@ -58,6 +65,11 @@ test_assay_update_data = {
 def create_test_property(client, property_data):
     """Helper function to create a property and return its data"""
     response = client.post("/properties/", json=property_data)
+    assert response.status_code == 200
+    return response.json()
+
+def create_test_semantic_type(client, semantic_type_data):
+    response = client.post("/semantic-types/", json=semantic_type_data)
     assert response.status_code == 200
     return response.json()
 
@@ -95,6 +107,16 @@ def create_test_assay(client, name, description, assay_type_id, property_ids=Non
     response = client.post("/assays/", json=assay_data)
     assert response.status_code == 200
     return response.json()
+
+def test_create_semantic_type(client):
+    """Test creating a semantic type"""
+    data = create_test_semantic_type(client, test_semantic_type_data)
+    assert data["name"] == test_semantic_type_data["name"]
+    assert data["description"] == test_semantic_type_data["description"]
+    assert "id" in data
+
+    for prop in test_properties:
+        prop["semantic_type_id"] = data["id"]
 
 def test_create_property(client):
     """Test creating a property"""
