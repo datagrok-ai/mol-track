@@ -8,18 +8,9 @@ from sqlalchemy import text
 from datetime import datetime, timezone
 import models as models
 import schemas
-import db.init_db as init_db
 from rdkit.Chem.rdMolDescriptors import CalcMolFormula
-
-from rdkit.Chem.MolStandardize import rdMolStandardize
-from rdkit.Chem.rdMolDescriptors import CalcMolFormula
-from typing import List
-from sqlalchemy import text
-from datetime import datetime, timezone
-import yaml
-import uuid
-import random
 import main
+
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
@@ -45,7 +36,7 @@ def get_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).options(joinedload(models.Compound.batches)).offset(skip).limit(limit).all()
 
 
-def create_compound(db: Session, compound: schemas.CompoundCreate):
+def create_compound(db: Session, compound: models.CompoundCreate):
     # Create RDKit molecule from SMILES
     mol = Chem.MolFromSmiles(compound.smiles)
     if mol is None:
@@ -152,12 +143,6 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
             status_code=400, detail=f"Some compounds already exist in the database: {existing_compounds}"
         )
 
-    hash_mol = uuid.uuid4()
-    hash_tautomer = uuid.uuid4()
-    hash_canonical_smiles = uuid.uuid4()
-    hash_no_stereo_smiles = uuid.uuid4()
-    hash_no_stereo_tautomer = uuid.uuid4()
-
     # Create all compounds
     # NOTE: The following UUID values are placeholders for hash fields
     # and will be replaced with actual computed hash values later.
@@ -178,15 +163,7 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
             updated_by=main.admin_user_id,
             created_at=datetime.now(),
             updated_at=datetime.now(),
-            is_archived=False,
-            deleted_by=init_db.admin_user_id,
-            molregno=random.randint(1, 1000000),
-            formula=CalcMolFormula(mol),
-            hash_mol=hash_mol,
-            hash_tautomer=hash_tautomer,
-            hash_canonical_smiles=hash_canonical_smiles,
-            hash_no_stereo_smiles=hash_no_stereo_smiles,
-            hash_no_stereo_tautomer=hash_no_stereo_tautomer,
+            is_archived=False
         )
         db.add(db_compound)
         created_compounds.append(db_compound)
@@ -234,7 +211,7 @@ def get_batches_by_compound(db: Session, compound_id: int, skip: int = 0, limit:
     return db.query(models.Batch).filter(models.Batch.compound_id == compound_id).offset(skip).limit(limit).all()
 
 
-def create_batch(db: Session, batch: schemas.BatchCreate):
+def create_batch(db: Session, batch: models.BatchBase):
     db_batch = models.Batch(
         compound_id=batch.compound_id,
         notes=batch.notes,
@@ -270,7 +247,7 @@ def delete_batch(db: Session, batch_id: int):
     db.commit()
     return db_batch
 
-def create_semantic_type(db: Session, semantic_type: schemas.SemanticTypeCreate):
+def create_semantic_type(db: Session, semantic_type: models.SemanticTypeBase):
     db_semantic_type = models.SemanticType(
         name=semantic_type.name,
         description=semantic_type.description
@@ -290,7 +267,7 @@ def get_properties(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Property).offset(skip).limit(limit).all()
 
 
-def create_property(db: Session, property: schemas.PropertyCreate):
+def create_property(db: Session, property: models.PropertyBase):
     db_property = models.Property(
         name=property.name,
         value_type=property.value_type,
@@ -463,7 +440,7 @@ def get_assays(db: Session, skip: int = 0, limit: int = 100):
     return assays
 
 
-def create_assay(db: Session, assay: schemas.AssayCreate):
+def create_assay(db: Session, assay: models.AssayCreate):
     # Create the assay
     db_assay = models.Assay(
         name=assay.name,

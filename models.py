@@ -1,389 +1,378 @@
-import os
-from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Union
-from uuid import UUID
-from sqlmodel import SQLModel, Field, Relationship
+from typing import List, Optional, Union
+from sqlalchemy import UUID, Boolean, Column, ForeignKey, Integer, String, Text, Float, DateTime, Date, Enum, CheckConstraint, Table, UniqueConstraint
+from sqlmodel import SQLModel, Field, func, Relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy import CheckConstraint
+import enum
+import os
+from datetime import datetime
+import uuid
 
+# # Handle both package imports and direct execution
+# try:
+#     # When imported as a package (for tests)
+#     from .database import Base
+# except ImportError:
+#     # When run directly
+#     from database import Base
+
+# Get the schema name from environment variable or use default
 DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 
+# This association table is no longer needed since assay_properties isn't in the schema
+# Association table for Assay-Property many-to-many relationship
+# AssayProperty = Table(
+#     "assay_properties",
+#     Base.metadata,
+#     Column("assay_id", Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), primary_key=True),
+#     Column("property_id", Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True),
+#     schema=DB_SCHEMA
+# )
 
-class CreatedUpdatedDetails(SQLModel, table=False):
-    created_at: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": func.now()})
-    updated_at: Optional[datetime] = Field(
-        default=None, sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()}
-    )
-    created_by: Optional[UUID] = Field(default=None, foreign_key=f"{DB_SCHEMA}.users.id", nullable=True)
-    updated_by: Optional[UUID] = Field(default=None, foreign_key=f"{DB_SCHEMA}.users.id", nullable=True)
+# No longer needed as we've converted to an ORM class
+# Association table for AssayType-Property many-to-many relationship
+# AssayTypeProperty = Table(
 
-
-class Base(CreatedUpdatedDetails, table=False):
-    id: int = Field(default=None, primary_key=True)
-
-
-class SoftDeleteTemplate(SQLModel, table=False):
-    is_archived: bool = Field(default=False)
-    deleted_at: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": func.now()})
-    deleted_by: UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id")
-
-
-class User(CreatedUpdatedDetails, table=True):
+class User(SQLModel, table=True):
     __tablename__ = "users"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    id: UUID = Field(primary_key=True)
-    email: str = Field(nullable=False, unique=True)
-    first_name: str = Field(nullable=False)
-    last_name: str = Field(nullable=False)
-    has_password: bool = Field(nullable=False)
-    is_active: bool = Field(default=False, nullable=False)
-    is_service_account: bool = Field(default=False, nullable=False)
+    id: uuid.UUID = Field(sa_column = Column(UUID(as_uuid=True), primary_key=True, nullable=False))
+    email: str = Field(sa_column=Column(Text, nullable=False))
+    first_name: str = Field(sa_column = Column(Text, nullable=False))
+    last_name: str = Field(sa_column = Column(Text, nullable=False))
+    has_password: bool = Field(sa_column=Column(Boolean, nullable=False))
+    is_active: bool = Field(sa_column=Column(Boolean, default=False, nullable=False))
+    is_service_account: bool = Field(sa_column=Column(Boolean, default=False, nullable=False))
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    updated_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
 
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
 
-class Settings(SQLModel, table=True):
-    __tablename__ = "settings"
-    __table_args__ = {"schema": DB_SCHEMA}
+class CompoundBase(SQLModel):
+    canonical_smiles: str = Field(sa_column=Column(Text, nullable=False))
+    original_molfile: Optional[str] = Field(sa_column=Column(Text))  # as sketched by the chemist
+    inchi: str = Field(sa_column=Column(Text, nullable=False))
+    inchikey: str = Field(sa_column=Column(Text, nullable=False, unique=True))
+    is_archived: Optional[bool] = Field(sa_column=Column(Boolean, default=False))
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(nullable=False)
-    value: str = Field(nullable=False)
-    description: str = Field(nullable=False)
+    # @validator("inchi", "inchikey", always=True)
+    # def set_inchi(cls, v, values):
+    #     if v is not None:
+    #         return v
+    #     # In a real implementation, these would be calculated
+    #     # based on canonical_smiles
+    #     if "canonical_smiles" in values and values["canonical_smiles"] is not None:
+    #         # Placeholder logic
+    #         if "inchi" in values:
+    #             return "InChI=1S/" + values["canonical_smiles"]
+    #         else:
+    #             return "INCHIKEY" + values["canonical_smiles"]
+    #     return v
 
+class CompoundCreate(CompoundBase):
+    smiles: str
 
-class Compound(Base, SoftDeleteTemplate, table=True):
+class CompoundPublic(CompoundBase):
+    molregno: int = Field(sa_column=Column(Integer, nullable=False))
+    formula: str = Field(sa_column=Column(Text, nullable=False))
+    hash_mol: uuid.UUID  = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    hash_tautomer: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    hash_canonical_smiles: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    hash_no_stereo_smiles: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    hash_no_stereo_tautomer: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now()))
+
+class CompoundPublicWithBatches(CompoundPublic):
+    pass
+    # batches: List[Batch] = []
+
+class Compound(CompoundPublic, table=True):
     __tablename__ = "compounds"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    canonical_smiles: str = Field(nullable=False)
-    original_molfile: Optional[str] = None
-    molregno: int = Field(nullable=False, unique=True)
-    inchi: str = Field(nullable=False)
-    inchikey: str = Field(nullable=False, unique=True)
-    formula: str = Field(nullable=False)
-
-    hash_mol: UUID = Field(nullable=False, unique=True)
-    hash_tautomer: UUID = Field(nullable=False, unique=True)
-    hash_canonical_smiles: UUID = Field(nullable=False, unique=True)
-    hash_no_stereo_smiles: UUID = Field(nullable=False, unique=True)
-    hash_no_stereo_tautomer: UUID = Field(nullable=False, unique=True)
-
+    id: int = Field(sa_column=Column(Integer, primary_key=True, index=True))
+    created_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    updated_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    deleted_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    deleted_by: Optional[uuid.UUID] = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    
     # Relationships
-    # batches: list["Batch"] = Relationship(sa_relationship="Batch", back_populates="compound")
+    batches: List["Batch"] = Relationship(sa_relationship="Batch", back_populates="compound")
 
+    class Config:
+        from_attributes = True
+        orm_mode=True
 
-class CompoundCreate(SQLModel, table=False):
-    smiles: str = Field(nullable=False)
-    original_molfile: Optional[str] = None
-    is_archived: Optional[bool] = Field(default=False)
+class BatchBase(SQLModel):
+    notes: Optional[str] = Field(sa_column=Column(Text))
+    compound_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.compounds.id"), nullable=False))
 
+class BatchPublic(BatchBase):
+    id: int = Field(sa_column=Column(Integer, primary_key=True, index=True))
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
 
-class CompoundBatchCreate(SQLModel, table=False):
-    compounds: List[str] = Field(default_factory=list)  # List of canonical SMILES strings
+class BatchPublicWithDetails(BatchPublic):
+    pass
+    # batch_details: List["BatchDetail"] = []
 
+    # class Config:
+    #     from_attributes = True
 
-class BatchBase(SQLModel, table=False):
-    compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
-    batch_number: str = Field(nullable=False)
-
-    amount: Optional[float] = None
-    amount_unit: Optional[str] = None
-    purity: Optional[float] = None
-    notes: Optional[str] = None
-    expiry_date: Optional[date] = None
-
-
-class Batch(Base, BatchBase, table=True):
+class Batch(BatchPublic, table=True):
     __tablename__ = "batches"
     __table_args__ = {"schema": DB_SCHEMA}
 
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    updated_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    batch_regno: int = Field(sa_column=Column(Integer, nullable=False))
+    
     # Relationships
-    compound: "Compound" = Relationship(sa_relationship="Compound", back_populates="batches")
-    assay_results: list["AssayResult"] = Relationship(sa_relationship="AssayResult", back_populates="batch")
-    batch_details: list["BatchDetail"] = Relationship(sa_relationship="BatchDetail", back_populates="batch")
-
-
-class Addition(Base, SoftDeleteTemplate, table=True):
-    __tablename__ = "additions"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    name: str = Field(nullable=False)
-    description: Optional[str] = None
-    display_name: Optional[str] = None
-    display_order: Optional[int] = None
-    is_active: bool = Field(default=True, nullable=False)
-
-    formula: Optional[str] = None
-    molecular_weight: Optional[float] = None
-    smiles: Optional[str] = None
-    molfile: Optional[str] = None
-    role: Optional[str] = None
-
-
-class BatchAddition(Base, table=True):
-    __tablename__ = "batch_additions"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", primary_key=True)
-    addition_id: int = Field(foreign_key=f"{DB_SCHEMA}.additions.id", primary_key=True)
-    addition_equivalent: float = Field(default=1.0, nullable=False)
-
-
-class AssayPropertyLink(SQLModel, table=True):
-    __tablename__ = "assay_properties"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", primary_key=True)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
-
-
-class AssayTypePropertyLink(SQLModel, table=True):
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", primary_key=True)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
-
-
-class SemanticType(SQLModel, table=True):
-    __tablename__ = "semantic_types"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(nullable=False)
-    description: Optional[str] = None
-
-
-class PropertyBase(SQLModel, table=False):
-    name: str = Field(nullable=False)
-    value_type: Optional[str] = None
-    property_class: Optional[str] = None
-    unit: Optional[str] = None
-
-
-class Property(Base, PropertyBase, table=True):
-    __tablename__ = "properties"
-    __table_args__ = (
-        CheckConstraint("value_type IN ('int', 'double', 'bool', 'datetime', 'string')", name="check_value_type"),
-        CheckConstraint("property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')", name="check_property_class"),
-        {"schema": DB_SCHEMA},
-    )
-
-    semantic_type_id: Optional[int] = Field(default=None, foreign_key=f"{DB_SCHEMA}.semantic_types.id")
-
-    # Relationships
-    assay_types: List["AssayType"] = Relationship(back_populates="properties", link_model=AssayTypePropertyLink)
-    assays: List["Assay"] = Relationship(
-        sa_relationship="Assay", back_populates="properties", link_model=AssayPropertyLink
-    )
-    assay_results = Relationship(sa_relationship="AssayResult", back_populates="property")
-    batch_details = Relationship(sa_relationship="BatchDetail", back_populates="property")
+    compound = Relationship(sa_relationship="Compound", back_populates="batches")
+    assay_results = Relationship(sa_relationship="AssayResult", back_populates="batch")
+    batch_details = Relationship(sa_relationship="BatchDetail", back_populates="batch")
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+        orm_mode=True
 
+class BatchDetailBase(SQLModel):
+    batch_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False))
+    property_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), nullable=False))
+    
+    value_qualifier: int = Field(sa_column=Column(Integer, nullable=False, default=0))  # 0 for "=", 1 for "<", 2 for ">"
+    value_datetime: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
+    value_uuid: Optional[uuid.UUID] = Field(sa_column=Column(UUID(as_uuid=True)))
+    value_num: Optional[float] = Field(sa_column=Column(Float))
+    value_string: Optional[str] = Field(sa_column=Column(Text))
 
-class BatchDetailBase(SQLModel, table=False):
-    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
+class BatchDetailPublic(BatchDetailBase):
+    id: int = Field(sa_column=Column(Integer, primary_key=True, index=True))
 
-    value_datetime: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": func.now()})
-    value_qualifier: int = Field(default=0, nullable=False)
-    value_uuid: Optional[UUID] = None
-    value_num: Optional[float] = None
-    value_string: Optional[str] = None
-
-
-class BatchDetail(BatchDetailBase, table=True):
+class BatchDetail(BatchDetailPublic, table=True):
     __tablename__ = "batch_details"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    updated_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
 
     # Relationships
-    batch: Optional[Batch] = Relationship(sa_relationship="Batch", back_populates="batch_details")
-    property: Optional[Property] = Relationship(sa_relationship="Property", back_populates="batch_details")
+    batch = Relationship(sa_relationship="Batch", back_populates="batch_details")
+    property = Relationship(sa_relationship="Property", back_populates="batch_details")
 
 
-class SynonymType(Base, table=True):
-    __tablename__ = "synonym_types"
+class ValueType(str, enum.Enum):
+    int = "int"
+    double = "double"
+    bool = "bool"
+    datetime = "datetime"
+    string = "string"
+
+
+class PropertyClass(str, enum.Enum):
+    CALCULATED = "CALCULATED"
+    MEASURED = "MEASURED"
+    PREDICTED = "PREDICTED"
+
+class ScopeClass(str, enum.Enum):
+    BATCH  = "BATCH"
+    COMPOUND = "COMPOUND"
+    ASSAY = "ASSAY"
+    SYSTEM = "SYSTEM" 
+
+class PropertyBase(SQLModel):
+    name: str = Field(sa_column=Column(Text, nullable=False))
+    value_type: ValueType = Field(sa_column=Column(Enum(ValueType), nullable=False))
+    property_class: PropertyClass = Field(sa_column=Column(Enum(PropertyClass), nullable=False))
+    unit: Optional[str] = Field(sa_column=Column(Text))
+    scope: ScopeClass = Field(sa_column=Column(Enum(ScopeClass), nullable=False)) #define the scope
+    semantic_type_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.semantic_types.id")))
+
+class PropertyResponse(PropertyBase):
+    id: int = Field(sa_column=Column(Integer, primary_key=True, index=True))
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+
+# Redefining AssayTypeProperty which was previously just a Table
+class AssayTypeProperty(SQLModel, table=True):
+    __tablename__ = "assay_type_properties"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    synonym_level: str = Field(nullable=False)
-    name: str = Field(nullable=False)
-    pattern: str = Field(nullable=False)
-    description: str = Field(nullable=False)
+    assay_type_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.assay_types.id"), primary_key=True))
+    property_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True))
+    required: bool = Field(sa_column=Column(Boolean, default=False))
+    
+    # Relationships
+    assay_type = Relationship(sa_relationship="AssayType", back_populates="property_requirements")
+    property = Relationship(sa_relationship="Property")
 
-
-class CompoundSynonym(Base, table=True):
-    __tablename__ = "compound_synonyms"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
-    synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
-    synonym_value: str = Field(nullable=False)
-
-
-class BatchSynonym(Base, table=True):
-    __tablename__ = "batch_synonyms"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
-    synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
-    synonym_value: str = Field(nullable=False)
-
-
-class CompoundDetails(CreatedUpdatedDetails, table=True):
-    __tablename__ = "compound_details"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
-
-    value_datetime: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": func.now()})
-    value_uuid: Optional[UUID] = None
-    value_num: Optional[float] = None
-    value_string: Optional[str] = None
-
-
-class AssayBase(SQLModel, table=False):
-    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", nullable=False)
-    name: str = Field(nullable=False)
-    description: Optional[str] = None
-
-
-class AssayCreate(AssayBase, table=False):
-    property_ids: List[int] = []
-
-
-class Assay(CreatedUpdatedDetails, AssayBase, table=True):
-    __tablename__ = "assays"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    properties: List["Property"] = Relationship(
-        sa_relationship="Property", back_populates="assays", link_model=AssayPropertyLink
+class Property(PropertyResponse, table=True):
+    __tablename__ = "properties"
+    __table_args__ = (
+        CheckConstraint(
+            "value_type IN ('int', 'double', 'bool', 'datetime', 'string')",
+            name="properties_value_type_check"
+        ),
+        CheckConstraint(
+            "property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')",
+            name="properties_property_class_check"
+        ),
+        CheckConstraint(
+            "scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')",
+            name="properties_scope_check"
+        ),
+        {"schema": DB_SCHEMA}
     )
+    
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    created_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    updated_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
 
-    assay_type = Relationship(sa_relationship="AssayType", back_populates="assays")
-    assay_results = Relationship(sa_relationship="AssayResult", back_populates="assay")
-    assay_details = Relationship(sa_relationship="AssayDetail", back_populates="assay")
-
-
-class AssayTypeBase(SQLModel, table=False):
-    name: str = Field(nullable=False)
-    description: Optional[str] = None
-
-
-class AssayTypeCreate(AssayTypeBase):
-    property_ids: List[int] = Field(default_factory=list)  # List of property IDs to associate with this assay type
-    property_requirements: List[Dict[str, Any]] = Field(default_factory=list)  # List of property requirements
-    property_details: List[Dict[str, Any]] = Field(default_factory=list)  # List of property metadata
+    # Relationship to assay results
+    assay_results = Relationship(sa_relationship="AssayResult", back_populates="property")
+    batch_details = Relationship(sa_relationship="BatchDetail", back_populates="property")
+    assay_types: List["AssayType"] = Relationship(back_populates="properties", link_model=AssayTypeProperty)
 
 
-class AssayType(CreatedUpdatedDetails, AssayTypeBase, table=True):
-    __tablename__ = "assay_types"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-
-    properties: List["Property"] = Relationship(back_populates="assay_types", link_model=AssayTypePropertyLink)
-
-    assays = Relationship(sa_relationship="Assay", back_populates="assay_type")
-    assay_type_details = Relationship(sa_relationship="AssayTypeDetails", back_populates="assay_type")
-    property_requirements = Relationship(sa_relationship="AssayTypeProperty", back_populates="assay_type")
-
-    class Config:
-        orm_mode = True
-
-
-class AssayTypeDetails(SQLModel, table=True):
+class AssayTypeDetail(SQLModel, table=True):
     __tablename__ = "assay_type_details"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", primary_key=True)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
-    required: bool = Field(default=False, nullable=False)
+    assay_type_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.assay_types.id"), primary_key=True))
+    property_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True))
+    
+    value_datetime: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
+    value_uuid: Optional[uuid.UUID] = Field(sa_column=Column(UUID(as_uuid=True)))
+    value_num: Optional[float] = Field(sa_column=Column(Float))
+    value_string: Optional[str] = Field(sa_column=Column(Text))
 
-    value_datetime: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": func.now()})
-    value_uuid: Optional[UUID] = None
-    value_num: Optional[float] = None
-    value_string: Optional[str] = None
-
+    # Relationships
     assay_type = Relationship(sa_relationship="AssayType", back_populates="assay_type_details")
     property = Relationship(sa_relationship="Property")
-
 
 class AssayDetail(SQLModel, table=True):
     __tablename__ = "assay_details"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", primary_key=True)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
+    assay_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), primary_key=True))
+    property_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), primary_key=True))
+    
+    value_datetime: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
+    value_uuid: Optional[uuid.UUID] = Field(sa_column=Column(UUID(as_uuid=True)))
+    value_num: Optional[float] = Field(sa_column=Column(Float))
+    value_string: Optional[str] = Field(sa_column=Column(Text))
 
-    value_datetime: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": func.now()})
-    value_uuid: Optional[UUID] = None
-    value_num: Optional[float] = None
-    value_string: Optional[str] = None
-
-    class Config:
-        orm_mode = True
-
+    # Relationships
     assay = Relationship(sa_relationship="Assay", back_populates="assay_details")
     property = Relationship(sa_relationship="Property")
 
-
-class AssayTypeProperty(SQLModel, table=True):
-    __tablename__ = "assay_type_properties"
+class AssayType(SQLModel, table=True):
+    __tablename__ = "assay_types"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", primary_key=True)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
-    required: bool = Field(default=False, nullable=False)
+    id: int = Field(sa_column=Column(Integer, primary_key=True, index=True))
+    name: str = Field(sa_column=Column(Text, nullable=False))
+    description: Optional[str] = Field(sa_column=Column(Text))
+    created_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now()))
+    updated_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now()))
+    created_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    updated_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    
+    # Relationships - use secondary join for many-to-many
+    properties: List["Property"] = Relationship(
+        back_populates="assay_types",
+        link_model=AssayTypeProperty
+    )
 
-    assay_type = Relationship(sa_relationship="AssayType", back_populates="property_requirements")
-    property = Relationship(sa_relationship="Property")
+    assays = Relationship(sa_relationship="Assay", back_populates="assay_type")
+    assay_type_details = Relationship(sa_relationship="AssayTypeDetail", back_populates="assay_type")
+    property_requirements = Relationship(sa_relationship="AssayTypeProperty", back_populates="assay_type")
 
+class AssayBase(SQLModel):
+    name: str = Field(sa_column=Column(Text, nullable=False))
+    description: Optional[str] = Field(sa_column=Column(Text))
+    assay_type_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.assay_types.id"), nullable=False))
 
-class AssayResultBase(SQLModel, table=False):
-    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
-    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", nullable=False)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
+class AssayPublic(AssayBase):
+    id: int = Field(sa_column=Column(Integer, primary_key=True, index=True))
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
-    value_qualifier: int = Field(default=0, nullable=False)
-    value_num: Optional[float] = None
-    value_string: Optional[str] = None
-    value_bool: Optional[bool] = None
+class AssayPublicWithProperties(AssayPublic):
+    assay_type: Optional["AssayType"] = None
+    assay_details: List["AssayDetail"] = []
+    properties: List["Property"] = []
+    # pass
 
+class AssayCreate(AssayBase):
+    property_ids: List[int] = []  # List of property IDs to associate with this assay
 
-class AssayResult(AssayResultBase, table=True):
+class Assay(AssayPublic, table=True):
+    __tablename__ = "assays"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    created_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    updated_by: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
+    
+    # Relationships - use assay_type_properties via assay_type to get list of expected properties
+    # No direct properties relationship as assay_properties table no longer exists
+    assay_type = Relationship(sa_relationship="AssayType", back_populates="assays")
+    assay_results = Relationship(sa_relationship="AssayResult", back_populates="assay")
+    assay_details = Relationship(sa_relationship="AssayDetail", back_populates="assay")
+
+# AssayResult schemas
+class AssayResultBase(SQLModel):
+    batch_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.batches.id"), nullable=False))
+    assay_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.assays.id"), nullable=False))
+    property_id: int = Field(sa_column=Column(Integer, ForeignKey(f"{DB_SCHEMA}.properties.id"), nullable=False))
+    
+    # Value fields
+    value_qualifier: int = Field(sa_column=Column(Integer, nullable=False, default=0))  # 0 for "=", 1 for "<", 2 for ">"
+    value_num: Optional[float] = Field(sa_column=Column(Float))
+    value_string: Optional[str] = Field(sa_column=Column(Text))
+    value_bool: Optional[bool] = Field(sa_column=Column(Boolean))
+
+class AssayResultPublic(AssayResultBase):
+    id: int = Field(sa_column=Column(Integer, primary_key=True, index=True))
+
+# Extended response model with backward compatibility field
+class AssayResultResponse(AssayResultPublic):
+    # Add a computed field for backward compatibility
+    result_value: Optional[Union[float, str, bool]] = None
+
+    # @validator("result_value", always=True)
+    # def compute_result_value(cls, v, values):
+    #     """Compute result_value from the appropriate typed value field"""
+    #     if "value_num" in values and values["value_num"] is not None:
+    #         return values["value_num"]
+    #     elif "value_string" in values and values["value_string"] is not None:
+    #         return values["value_string"]
+    #     elif "value_bool" in values and values["value_bool"] is not None:
+    #         return values["value_bool"]
+    #     return None
+
+class AssayResult(AssayResultPublic, table=True):
     __tablename__ = "assay_results"
     __table_args__ = {"schema": DB_SCHEMA}
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-
+    
+    # Relationships
     batch = Relationship(sa_relationship="Batch", back_populates="assay_results")
     assay = Relationship(sa_relationship="Assay", back_populates="assay_results")
     property = Relationship(sa_relationship="Property", back_populates="assay_results")
 
+class SemanticTypeBase(SQLModel):
+    name: str = Field(sa_column=Column(Text, nullable=False))
+    description: Optional[str] = Field(sa_column=Column(Text, nullable=True))
 
-class CompoundQueryParams(SQLModel, table=False):
-    substructure: Optional[str] = None
-    skip: int = 0
-    limit: int = 100
+class SemanticType(SemanticTypeBase, table=True):
+    __tablename__ = 'semantic_types'
+    __table_args__ = {"schema": DB_SCHEMA}
 
-    class Config:
-        from_attributes = True
-
-
-class BatchAssayResultsBase(SQLModel, table=False):
-    assay_id: int = None
-    batch_id: int = None
-    measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]] = Field(default_factory=dict)
-
-
-class BatchAssayResultsResponse(BatchAssayResultsBase, table=False):
-    assay_name: str = None
-
-    class Config:
-        from_attributes = True
+    id: int = Field(sa_column=Column(Integer, primary_key=True, nullable=False))
