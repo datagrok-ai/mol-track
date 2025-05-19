@@ -7,7 +7,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # Fixtures are automatically available from conftest.py
 
 # Define individual property test data
-ic50prop = {"name": "IC50", "value_type": "double", "property_class": "MEASURED", "unit": "nM", "scope": "COMPOUND"}
+ic50prop = {
+    "name": "IC50",
+    "value_type": "double",
+    "property_class": "MEASURED",
+    "unit": "nM",
+    "scope": "COMPOUND",
+}
 
 solProp = {
     "name": "Solubility",
@@ -28,7 +34,10 @@ activityProp = {
 # Test properties list
 test_properties = [ic50prop, solProp, activityProp]
 
-test_semantic_type_data = {"name": "Absorption", "description": "Describes properties related to compound absorption"}
+test_semantic_type_data = {
+    "name": "Absorption",
+    "description": "Describes properties related to compound absorption",
+}
 
 
 # Helper functions for creating test data
@@ -83,7 +92,10 @@ def create_test_assay(client, name, description, assay_type_id, property_ids=Non
 
 def create_test_compound(client, smiles="CC(=O)OC1=CC=CC=C1C(=O)O"):
     """Helper function to create a test compound"""
-    compound_data = {"smiles": smiles, "original_molfile": ""}
+    compound_data = {
+        "smiles": smiles,
+        "original_molfile": "",
+    }
     response = client.post("/compounds/", json=compound_data)
     assert response.status_code == 200
     return response.json()
@@ -145,7 +157,11 @@ def create_test_assay_result(client, assay_id, batch_id, property_id, result_val
 
 def create_test_batch_assay_results(client, assay_id, batch_id, measurements):
     """Helper function to create multiple assay results for a batch"""
-    batch_results_data = {"assay_id": assay_id, "batch_id": batch_id, "measurements": measurements}
+    batch_results_data = {
+        "assay_id": assay_id,
+        "batch_id": batch_id,
+        "measurements": measurements,
+    }
     response = client.post("/batch-assay-results/", json=batch_results_data)
     assert response.status_code == 200
     return response.json()
@@ -201,7 +217,11 @@ def test_create_batch_assay_results(client):
     batch = create_test_batch(client, compound["id"])
 
     # Create measurements for all properties
-    measurements = {property_names[0]: 5.2, property_names[1]: 0.89, property_names[2]: 75}
+    measurements = {
+        property_names[0]: 5.2,
+        property_names[1]: 0.89,
+        property_names[2]: 75,
+    }
 
     # Create batch assay results
     results = create_test_batch_assay_results(client, assay["id"], batch["id"], measurements)
@@ -278,7 +298,11 @@ def test_batch_assay_results_with_invalid_property(client):
     measurements = {"InvalidProperty": 5.2}
 
     # Try to create batch assay results
-    batch_results_data = {"assay_id": assay["id"], "batch_id": batch["id"], "measurements": measurements}
+    batch_results_data = {
+        "assay_id": assay["id"],
+        "batch_id": batch["id"],
+        "measurements": measurements,
+    }
 
     response = client.post("/batch-assay-results/", json=batch_results_data)
 
@@ -342,7 +366,11 @@ def test_get_batch_assay_results(client):
     batch = create_test_batch(client, compound["id"])
 
     # Create measurements for all properties
-    measurements = {property_names[0]: 5.2, property_names[1]: 0.89, property_names[2]: 75}
+    measurements = {
+        property_names[0]: 5.2,
+        property_names[1]: 0.89,
+        property_names[2]: 75,
+    }
 
     # Create batch assay results
     create_test_batch_assay_results(client, assay["id"], batch["id"], measurements)
