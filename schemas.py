@@ -327,8 +327,6 @@ class SynonymTypeBase(BaseModel):
     description: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    # created_by: int
-    # updated_by: int
 
     @validator('synonym_level')
     def validate_synonym_level(cls, value):
@@ -353,8 +351,6 @@ class CompoundSynonymBase(BaseModel):
     synonym_value: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    # created_by: Optional[int] = None
-    # updated_by: Optional[int] = None
 
 class CompoundSynonym(CompoundSynonymBase):
     id: int
@@ -371,8 +367,6 @@ class CompoundSynonymUpdate(BaseModel):
     synonym_value: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    # created_by: Optional[int] = None
-    # updated_by: Optional[int] = None
 
 # Batch synonym schemas
 class BatchSynonymBase(BaseModel):
@@ -381,8 +375,6 @@ class BatchSynonymBase(BaseModel):
     synonym_value: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    created_by: Optional[int] = None
-    updated_by: Optional[int] = None
 
 class BatchSynonym(BatchSynonymBase):
     id: int
