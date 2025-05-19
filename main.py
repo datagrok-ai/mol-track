@@ -66,19 +66,48 @@ def create_compounds_batch(batch: schemas.CompoundBatchCreate, db: Session = Dep
 
 
 
-@app.get("/compounds/search/{search_method}/{query_smiles}/{search_parameters}", response_model=List[schemas.Compound])
-def search_compounds(search_method: str, query_smiles: str, search_parameters: str, db: Session = Depends(get_db)):
-    """
-    Search for compounds using different methods.
+# @app.get("/compounds/search/{search_method}/{query_smiles}/{search_parameters}", response_model=List[schemas.Compound])
+# def search_compounds(search_method: str, query_smiles: str, search_parameters: str, db: Session = Depends(get_db)):
+#     """
+#     Search for compounds using different methods.
     
-    - **search_method**: The method to use for searching (e.g., "substructure", "exact").
-    - **query_smiles**: The SMILES string to search against.
-    - **search_parameters**: Additional parameters for the search.
-    """
-    if search_method == schemas.CompoundSearchMethod.exact.value:
-        return crud.search_compounds_exact(db=db, query_smiles=query_smiles, search_parameters=search_parameters)
-    elif search_method == schemas.CompoundSearchMethod.substructure.value:
-        return crud.get_compounds_ex(db=db, query_smiles=query_smiles, search_parameters=search_parameters)
+#     - **search_method**: The method to use for searching (e.g., "substructure", "exact").
+#     - **query_smiles**: The SMILES string to search against.
+#     - **search_parameters**: Additional parameters for the search.
+#     """
+#     if search_method == 'exact':
+#         return crud.search_compounds_exact(db=db, query_smiles=query_smiles, search_parameters=search_parameters)
+#     elif search_method == 'substructure':
+#         return crud.get_compounds_ex(db=db, query_smiles=query_smiles, search_parameters=search_parameters)
+#     else:
+#         raise HTTPException(status_code=400, detail="Invalid search method")
+
+@app.post("/compounds/search/", response_model=List[schemas.Compound])
+def search_compounds(
+    request: schemas.CompoundSearchRequest,
+    db: Session = Depends(get_db)
+):
+    if request.search_method == "exact":
+        try:
+            # Validate search_parameters using the appropriate Pydantic model
+            exact_params = schemas.ExactSearchParameters(**(request.search_parameters or {}))
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=e.errors())
+        return crud.search_compounds_exact(
+            db=db,
+            query_smiles=request.query_smiles,
+            search_parameters=exact_params.dict()
+        )
+    elif request.search_method == "substructure":
+        try:
+            sub_params = schemas.SubstructureSearchParameters(**(request.search_parameters or {}))
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=e.errors())
+        return crud.search_compounds_substructure(
+            db=db,
+            query_smiles=request.query_smiles,
+            search_parameters=sub_params.dict()
+        )
     else:
         raise HTTPException(status_code=400, detail="Invalid search method")
 

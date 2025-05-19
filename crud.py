@@ -554,7 +554,7 @@ def search_compounds_exact(
     if not search_parameters:
         raise HTTPException(status_code=400, detail="Search parameters are required for exact search")
     exact_params = schemas.ExactSearchParameters(**search_parameters)
-    return crud.search_compounds_exact(db=db, query_smiles=query_smiles, fields=exact_params.fields)
+    return db.query(db=db, query_smiles=query_smiles, fields=exact_params.field)
 
 # AssayResult CRUD operations
 def get_assay_result(db: Session, assay_result_id: int):

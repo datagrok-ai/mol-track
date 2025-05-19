@@ -368,3 +368,13 @@ class SemanticType(SemanticTypeCreate):
 
     class Config:
         orm_mode = True
+
+class ExactSearchParameters(BaseModel):
+    field: str
+    value: Optional[str] = None
+
+
+class CompoundSearchRequest(BaseModel):
+    search_method: str  # or use an Enum for validation
+    query_smiles: str
+    search_parameters: Optional[Dict[str, Any]] = None
