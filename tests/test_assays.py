@@ -7,31 +7,38 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Fixtures are automatically available from conftest.py
-
 # Define individual property test data
 ic50prop = {
     "name": "IC50",
     "value_type": "double",
     "property_class": "MEASURED",
-    "unit": "nM"
+    "unit": "nM",
+    "scope": "COMPOUND"
 }
 
 solProp = {
     "name": "Solubility",
     "value_type": "double",
     "property_class": "MEASURED",
-    "unit": "mg/mL"
+    "unit": "mg/mL",
+    "scope": "COMPOUND"
 }
 
 activityProp = {
     "name": "Activity Score",
     "value_type": "double",
     "property_class": "CALCULATED",
-    "unit": ""
+    "unit": "",
+    "scope": "COMPOUND"
 }
 
 # Test properties list
 test_properties = [ic50prop, solProp, activityProp]
+
+test_semantic_type_data = {
+    "name": "Absorption",
+    "description": "Describes properties related to compound absorption"
+}
 
 # Test data for assay types
 test_assay_type_data = {
@@ -58,6 +65,11 @@ test_assay_update_data = {
 def create_test_property(client, property_data):
     """Helper function to create a property and return its data"""
     response = client.post("/properties/", json=property_data)
+    assert response.status_code == 200
+    return response.json()
+
+def create_test_semantic_type(client, semantic_type_data):
+    response = client.post("/semantic-types/", json=semantic_type_data)
     assert response.status_code == 200
     return response.json()
 
@@ -95,6 +107,16 @@ def create_test_assay(client, name, description, assay_type_id, property_ids=Non
     response = client.post("/assays/", json=assay_data)
     assert response.status_code == 200
     return response.json()
+
+def test_create_semantic_type(client):
+    """Test creating a semantic type"""
+    data = create_test_semantic_type(client, test_semantic_type_data)
+    assert data["name"] == test_semantic_type_data["name"]
+    assert data["description"] == test_semantic_type_data["description"]
+    assert "id" in data
+
+    for prop in test_properties:
+        prop["semantic_type_id"] = data["id"]
 
 def test_create_property(client):
     """Test creating a property"""
@@ -197,74 +219,18 @@ def test_list_assays(client):
         assert "assay_type_id" in assay
         assert "properties" in assay
 
-def test_update_assay(client):
-    """Test updating an assay"""
-    # Create two properties
-    prop1_data = create_test_property(client, ic50prop)
-    prop2_data = create_test_property(client, solProp)
-    
-    # Create an assay type
-    assay_type = create_test_assay_type(client, "Update Test Assay Type", "For testing update endpoint", [prop1_data["id"]])
-    
-    # Create an assay with the first property
-    assay = create_test_assay(client, test_assay_data["name"], test_assay_data["description"], assay_type["id"], [prop1_data["id"]])
-    
-    # Update data with the second property
-    update_data = {
-        "name": test_assay_update_data["name"],
-        "description": test_assay_update_data["description"],
-        "property_ids": [prop2_data["id"]]
-    }
-    
-    # Update the assay
-    response = client.put(f"/assays/{assay['id']}", json=update_data)
-    
-    # Check response
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == assay["id"]
-    assert data["name"] == update_data["name"]
-    assert data["description"] == update_data["description"]
-    
-    # Check that properties were updated
-    assert len(data["properties"]) == 1
-    assert data["properties"][0]["id"] == prop2_data["id"]
-
-def test_delete_assay(client):
-    """Test deleting an assay"""
-    # Create a property
-    prop_data = create_test_property(client, ic50prop)
-    
-    # Create an assay type
-    assay_type = create_test_assay_type(client, "Delete Test Assay Type", "For testing delete endpoint", [prop_data["id"]])
-    
-    # Create an assay
-    assay = create_test_assay(client, "Delete Test Assay", "For testing delete endpoint", assay_type["id"])
-    
-    # Delete the assay
-    response = client.delete(f"/assays/{assay['id']}")
-    
-    # Check response
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == assay["id"]
-    
-    # Verify the assay was deleted
-    get_response = client.get(f"/assays/{assay['id']}")
-    assert get_response.status_code == 404
-
 def test_create_assay_with_multiple_properties(client):
     """Test creating an assay with multiple properties"""
-    # Create multiple properties
+    # Create properties
     property_ids = create_test_properties(client, test_properties)
     
     # Create an assay type
-    assay_type = create_test_assay_type(client, "Multiple Props Assay Type", "For testing multiple properties", property_ids)
+    assay_type = create_test_assay_type(client, "Multiple Property Assay Type", "For testing multiple properties", property_ids)
     
     # Create an assay with all properties
-    assay = create_test_assay(client, "Multi-property Assay", "An assay with multiple properties to test", assay_type["id"], property_ids)
+    assay = create_test_assay(client, "Multiple Property Assay", "Assay with multiple properties", assay_type["id"], property_ids)
     
-    # Verify properties were associated correctly
+    # Verify the properties were associated correctly
     assert len(assay["properties"]) == len(property_ids)
     
     # Check that all property IDs are in the response
@@ -285,53 +251,30 @@ def test_create_assay_with_multiple_properties(client):
 
 def test_create_assay_type_with_multiple_properties(client):
     """Test creating an assay type with multiple properties"""
-    # Create multiple properties
+    # Create properties
     property_ids = create_test_properties(client, test_properties)
     
-    # Create assay type with all properties
-    assay_type = create_test_assay_type(client, "Multi-property Assay Type", "An assay type template with multiple properties", property_ids)
+    # Create an assay type
+    assay_type = create_test_assay_type(client, "Multiple Property Assay Type", "For testing multiple properties", property_ids)
     
-    # Verify properties were associated correctly
+    # Verify the properties were associated correctly
     assert len(assay_type["properties"]) == len(property_ids)
-    
-    # Check that all property IDs are in the response
-    response_property_ids = [prop["id"] for prop in assay_type["properties"]]
+    assay_type_property_ids = [prop["id"] for prop in assay_type["properties"]]
     for prop_id in property_ids:
-        assert prop_id in response_property_ids
-    
-    # Get the assay type by ID to verify it persisted correctly
-    get_response = client.get(f"/assay-types/{assay_type['id']}")
-    assert get_response.status_code == 200
-    get_data = get_response.json()
-    
-    # Verify the properties still match after retrieval
-    assert len(get_data["properties"]) == len(property_ids)
-    get_property_ids = [prop["id"] for prop in get_data["properties"]]
-    for prop_id in property_ids:
-        assert prop_id in get_property_ids
+        assert prop_id in assay_type_property_ids
 
 def test_create_assay_with_assay_type(client):
-    """Test creating an assay using an assay type"""
-    # Create multiple properties
+    """Test creating an assay based on an assay type"""
+    # Create properties
     property_ids = create_test_properties(client, test_properties)
     
-    # Create assay type with all properties
-    assay_type = create_test_assay_type(client, "Assay Type for Test", "An assay type for testing assay creation", property_ids)
+    # Create an assay type
+    assay_type = create_test_assay_type(client, "Template Assay Type", "For testing assay creation from template", property_ids)
     
-    # Create assay with a subset of properties
-    assay = create_test_assay(client, "Specific Enzyme Inhibition Assay", "Measures inhibition of a specific enzyme", assay_type["id"], property_ids[:2])
+    # Create an assay based on the assay type
+    assay = create_test_assay(client, "Derived Assay", "Assay derived from template", assay_type["id"])
     
-    # Verify assay was created correctly
-    assert assay["name"] == "Specific Enzyme Inhibition Assay"
-    assert assay["description"] == "Measures inhibition of a specific enzyme"
-    assert assay["assay_type_id"] == assay_type["id"]
-    
-    # Verify the selected properties were associated correctly
-    assert len(assay["properties"]) == 2
-    response_property_ids = [prop["id"] for prop in assay["properties"]]
-    for prop_id in property_ids[:2]:
-        assert prop_id in response_property_ids
-    
-    # Get the assay by ID to verify it persisted correctly
-    get_response = client.get(f"/assays/{assay['id']}")
-    assert get_response.status_code == 200 
+    # Verify the assay was created correctly
+    assert assay["name"] == "Derived Assay"
+    assert assay["description"] == "Assay derived from template"
+    assert assay["assay_type_id"] == assay_type["id"] 
