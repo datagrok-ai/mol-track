@@ -81,6 +81,7 @@ def create_compound(db: Session, compound: models.CompoundCreate):
     db.add(db_compound)
     db.commit()
     db.refresh(db_compound)
+
     return db_compound
 
 
@@ -315,7 +316,7 @@ def get_assay_types(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.AssayType).offset(skip).limit(limit).all()
 
 
-def create_assay_type(db: Session, assay_type: schemas.AssayTypeCreate):
+def create_assay_type(db: Session, assay_type: models.AssayTypeCreate):
     # Create the assay type
     current_time = datetime.now(timezone.utc)
     db_assay_type = models.AssayType(
@@ -493,7 +494,7 @@ def create_assay(db: Session, assay: models.AssayCreate):
     return db_assay
 
 
-def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
+def get_compounds_ex(db: Session, query_params: models.CompoundQueryParams):
     """
     Get compounds with optional filtering parameters.
 
@@ -589,7 +590,7 @@ def get_batch_assay_results(db: Session, batch_id: int):
     return list(grouped_results.values())
 
 
-def create_assay_result(db: Session, assay_result: schemas.AssayResultCreate):
+def create_assay_result(db: Session, assay_result: models.AssayResultBase):
     """Create a single assay result entry for a specific property"""
     # Validate assay exists
     assay = db.query(models.Assay).filter(models.Assay.id == assay_result.assay_id).first()
@@ -663,7 +664,7 @@ def create_assay_result(db: Session, assay_result: schemas.AssayResultCreate):
     return db_assay_result
 
 
-def create_batch_assay_results(db: Session, batch_results: schemas.BatchAssayResultsCreate):
+def create_batch_assay_results(db: Session, batch_results: models.BatchAssayResultsCreate):
     """Create multiple assay results for a batch in a single transaction"""
     # Validate assay exists
     assay = db.query(models.Assay).filter(models.Assay.id == batch_results.assay_id).first()
@@ -777,7 +778,7 @@ def get_batch_details_by_batch(db: Session, batch_id: int, skip: int = 0, limit:
     return db.query(models.BatchDetail).filter(models.BatchDetail.batch_id == batch_id).offset(skip).limit(limit).all()
 
 
-def create_batch_detail(db: Session, batch_detail: schemas.BatchDetailCreate):
+def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     # Get the property to determine its value type
     property = db.query(models.Property).filter(models.Property.id == batch_detail.property_id).first()
     if not property:

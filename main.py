@@ -46,12 +46,11 @@ def on_startup():
         db.close()
 
 # Compounds endpoints
-@app.post("/compounds/", response_model=models.CompoundPublicWithBatches)
+@app.post("/compounds/", response_model=models.CompoundResponse)
 def create_compound(compound: models.CompoundCreate, db: Session = Depends(get_db)):
     return crud.create_compound(db=db, compound=compound)
 
-@app.post("/compounds/batch/", response_model=List[models.CompoundPublicWithBatches])
-# def create_compounds_batch(batch: schemas.CompoundBatchCreate, db: Session = Depends(get_db)):
+@app.post("/compounds/batch/", response_model=List[models.CompoundResponse])
 def create_compounds_batch(compounds: List[str] = Body(..., embed=True), db: Session = Depends(get_db)):
     """
     Create multiple compounds from a list of SMILES strings.
@@ -62,22 +61,22 @@ def create_compounds_batch(compounds: List[str] = Body(..., embed=True), db: Ses
     return crud.create_compounds_batch(db=db, smiles_list=compounds)
 
 # Think of removing the schema at all and use as params
-# @app.get("/compounds/", response_model=List[models.CompoundPublicWithBatches])
-# def read_compounds(
-#     query: schemas.CompoundQueryParams = Depends(),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Get a list of compounds with optional filtering by substructure.
+@app.get("/compounds/", response_model=List[models.CompoundResponse])
+def read_compounds(
+    query: models.CompoundQueryParams = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a list of compounds with optional filtering by substructure.
     
-#     - **substructure**: Optional SMILES pattern to search for substructures
-#     - **skip**: Number of records to skip (for pagination)
-#     - **limit**: Maximum number of records to return (for pagination)
-#     """
-#     compounds = crud.get_compounds_ex(db, query_params=query)
-#     return compounds
+    - **substructure**: Optional SMILES pattern to search for substructures
+    - **skip**: Number of records to skip (for pagination)
+    - **limit**: Maximum number of records to return (for pagination)
+    """
+    compounds = crud.get_compounds_ex(db, query_params=query)
+    return compounds
 
-@app.get("/compounds/{compound_id}", response_model=models.CompoundPublicWithBatches)
+@app.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
 def read_compound(compound_id: int, db: Session = Depends(get_db)):
     db_compound = crud.get_compound(db, compound_id=compound_id)
     if db_compound is None:
@@ -85,16 +84,16 @@ def read_compound(compound_id: int, db: Session = Depends(get_db)):
     return db_compound
 
 # Batches endpoints
-@app.post("/batches/", response_model=models.BatchPublicWithDetails)
+@app.post("/batches/", response_model=models.BatchResponse)
 def create_batch(batch: models.BatchBase, db: Session = Depends(get_db)):
     return crud.create_batch(db=db, batch=batch)
 
-@app.get("/batches/", response_model=List[models.BatchPublicWithDetails])
+@app.get("/batches/", response_model=List[models.BatchResponse])
 def read_batches(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     batches = crud.get_batches(db, skip=skip, limit=limit)
     return batches
 
-@app.get("/batches/{batch_id}", response_model=models.BatchPublicWithDetails)
+@app.get("/batches/{batch_id}", response_model=models.BatchResponse)
 def read_batch(batch_id: int, db: Session = Depends(get_db)):
     db_batch = crud.get_batch(db, batch_id=batch_id)
     if db_batch is None:
@@ -123,59 +122,60 @@ def read_property(property_id: int, db: Session = Depends(get_db)):
     return db_property
 
 # AssayType endpoints
-# @app.post("/assay-types/", response_model=schemas.AssayType)
-# def create_assay_type(assay_type: schemas.AssayTypeCreate, db: Session = Depends(get_db)):
-#     # Validate that all property IDs exist
-#     if assay_type.property_ids:
-#         for property_id in assay_type.property_ids:
-#             db_property = crud.get_property(db, property_id=property_id)
-#             if db_property is None:
-#                 raise HTTPException(status_code=404, detail=f"Property with ID {property_id} not found")
+@app.post("/assay-types/", response_model=models.AssayTypeResponse)
+def create_assay_type(assay_type: models.AssayTypeCreate, db: Session = Depends(get_db)):
+    # Validate that all property IDs exist
+    if assay_type.property_ids:
+        for property_id in assay_type.property_ids:
+            db_property = crud.get_property(db, property_id=property_id)
+            if db_property is None:
+                raise HTTPException(status_code=404, detail=f"Property with ID {property_id} not found")
     
-#     return crud.create_assay_type(db=db, assay_type=assay_type)
+    return crud.create_assay_type(db=db, assay_type=assay_type)
 
-# @app.get("/assay-types/", response_model=List[schemas.AssayType])
-# def read_assay_types(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-#     assay_types = crud.get_assay_types(db, skip=skip, limit=limit)
-#     return assay_types
+@app.get("/assay-types/", response_model=List[models.AssayTypeResponse])
+def read_assay_types(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    assay_types = crud.get_assay_types(db, skip=skip, limit=limit)
+    return assay_types
 
-# @app.get("/assay-types/{assay_type_id}", response_model=schemas.AssayType)
-# def read_assay_type(assay_type_id: int, db: Session = Depends(get_db)):
-#     db_assay_type = crud.get_assay_type(db, assay_type_id=assay_type_id)
-#     if db_assay_type is None:
-#         raise HTTPException(status_code=404, detail="Assay type not found")
-#     return db_assay_type
+@app.get("/assay-types/{assay_type_id}", response_model=models.AssayTypeResponse)
+def read_assay_type(assay_type_id: int, db: Session = Depends(get_db)):
+    db_assay_type = crud.get_assay_type(db, assay_type_id=assay_type_id)
+    if db_assay_type is None:
+        raise HTTPException(status_code=404, detail="Assay type not found")
+    return db_assay_type
 
-# # Assay endpoints
-# @app.post("/assays/", response_model=models.AssayPublicWithProperties)
-# def create_assay(assay: models.AssayCreate, db: Session = Depends(get_db)):
-#     # Validate that the assay type exists
-#     db_assay_type = crud.get_assay_type(db, assay_type_id=assay.assay_type_id)
-#     if db_assay_type is None:
-#         raise HTTPException(status_code=404, detail=f"Assay type with ID {assay.assay_type_id} not found")
+# Assay endpoints
+@app.post("/assays/", response_model=models.AssayResponse)
+def create_assay(assay: models.AssayCreate, db: Session = Depends(get_db)):
+    # Validate that the assay type exists
+    db_assay_type = crud.get_assay_type(db, assay_type_id=assay.assay_type_id)
+    if db_assay_type is None:
+        raise HTTPException(status_code=404, detail=f"Assay type with ID {assay.assay_type_id} not found")
     
-#     # Validate that all property IDs exist
-#     if assay.property_ids:
-#         for property_id in assay.property_ids:
-#             db_property = crud.get_property(db, property_id=property_id)
-#             if db_property is None:
-#                 raise HTTPException(status_code=404, detail=f"Property with ID {property_id} not found")
+    # Validate that all property IDs exist
+    if assay.property_ids:
+        for property_id in assay.property_ids:
+            db_property = crud.get_property(db, property_id=property_id)
+            if db_property is None:
+                raise HTTPException(status_code=404, detail=f"Property with ID {property_id} not found")
     
-#     return crud.create_assay(db=db, assay=assay)
+    return crud.create_assay(db=db, assay=assay)
 
-# @app.get("/assays/", response_model=List[models.AssayPublicWithProperties])
-# def read_assays(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-#     assays = crud.get_assays(db, skip=skip, limit=limit)
-#     return assays
+@app.get("/assays/", response_model=List[models.AssayResponse])
+def read_assays(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    assays = crud.get_assays(db, skip=skip, limit=limit)
+    return assays
 
-# @app.get("/assays/{assay_id}", response_model=models.AssayPublicWithProperties)
-# def read_assay(assay_id: int, db: Session = Depends(get_db)):
-#     db_assay = crud.get_assay(db, assay_id=assay_id)
-#     if db_assay is None:
-#         raise HTTPException(status_code=404, detail="Assay not found")
-#     return db_assay
+@app.get("/assays/{assay_id}", response_model=models.AssayResponse)
+def read_assay(assay_id: int, db: Session = Depends(get_db)):
+    db_assay = crud.get_assay(db, assay_id=assay_id)
+    if db_assay is None:
+        raise HTTPException(status_code=404, detail="Assay not found")
+    return db_assay
 
 # AssayResult endpoints
+# a bit different response
 @app.post("/assay-results/", response_model=models.AssayResultResponse)
 def create_assay_result(assay_result: models.AssayResultBase, db: Session = Depends(get_db)):
     """
@@ -188,16 +188,16 @@ def create_assay_result(assay_result: models.AssayResultBase, db: Session = Depe
     """
     return crud.create_assay_result(db=db, assay_result=assay_result)
 
-# @app.post("/batch-assay-results/", response_model=schemas.BatchAssayResultsResponse)
-# def create_batch_assay_results(batch_results: schemas.BatchAssayResultsCreate, db: Session = Depends(get_db)):
-#     """
-#     Register multiple measurements for a batch against an assay at once.
+@app.post("/batch-assay-results/", response_model=models.BatchAssayResultsResponse)
+def create_batch_assay_results(batch_results: models.BatchAssayResultsCreate, db: Session = Depends(get_db)):
+    """
+    Register multiple measurements for a batch against an assay at once.
     
-#     - **assay_id**: The ID of the assay
-#     - **batch_id**: The ID of the batch
-#     - **measurements**: A dictionary mapping property names to their values
-#     """
-#     return crud.create_batch_assay_results(db=db, batch_results=batch_results)
+    - **assay_id**: The ID of the assay
+    - **batch_id**: The ID of the batch
+    - **measurements**: A dictionary mapping property names to their values
+    """
+    return crud.create_batch_assay_results(db=db, batch_results=batch_results)
 
 @app.get("/assay-results/", response_model=List[models.AssayResultResponse])
 def read_assay_results(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -216,15 +216,15 @@ def read_assay_result(assay_result_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Assay result not found")
     return db_assay_result
 
-# @app.get("/batches/{batch_id}/assay-results", response_model=List[schemas.BatchAssayResultsResponse])
-# def read_batch_assay_results(batch_id: int, db: Session = Depends(get_db)):
-#     """
-#     Get all assay results for a specific batch, grouped by assay.
-#     """
-#     return crud.get_batch_assay_results(db, batch_id=batch_id)
+@app.get("/batches/{batch_id}/assay-results", response_model=List[models.BatchAssayResultsResponse])
+def read_batch_assay_results(batch_id: int, db: Session = Depends(get_db)):
+    """
+    Get all assay results for a specific batch, grouped by assay.
+    """
+    return crud.get_batch_assay_results(db, batch_id=batch_id)
 
 # BatchDetail endpoints
-@app.post("/batch-details/", response_model=models.BatchDetailPublic)
+@app.post("/batch-details/", response_model=models.BatchDetailResponse)
 def create_batch_detail(batch_detail: models.BatchDetailBase, db: Session = Depends(get_db)):
     """
     Create a batch detail entry.
@@ -245,7 +245,7 @@ def create_batch_detail(batch_detail: models.BatchDetailBase, db: Session = Depe
     
     return crud.create_batch_detail(db=db, batch_detail=batch_detail)
 
-@app.get("/batch-details/{batch_detail_id}", response_model=models.BatchDetailPublic)
+@app.get("/batch-details/{batch_detail_id}", response_model=models.BatchDetailResponse)
 def read_batch_detail(batch_detail_id: int, db: Session = Depends(get_db)):
     """
     Get a specific batch detail by ID.
@@ -257,7 +257,7 @@ def read_batch_detail(batch_detail_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Batch detail not found")
     return db_batch_detail
 
-@app.get("/batches/{batch_id}/details", response_model=List[models.BatchDetailPublic])
+@app.get("/batches/{batch_id}/details", response_model=List[models.BatchDetailResponse])
 def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
     Get all details for a specific batch.
