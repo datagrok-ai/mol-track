@@ -274,3 +274,4 @@ class SemanticType(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     name = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
+

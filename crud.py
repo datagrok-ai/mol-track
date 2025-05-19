@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from rdkit import Chem
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.rdMolDescriptors import CalcMolFormula
+from rdkit.Chem.RegistrationHash import GetMolHash, HashLayer
 from typing import List
 from sqlalchemy import text
 from datetime import datetime, timezone
@@ -10,6 +11,12 @@ import yaml
 import uuid
 import random
 import main
+from chemistry_utils import (
+    standardize_mol,
+    generate_hash_layers,
+    generate_uuid_from_string,
+    generate_uuid_hash_mol)
+
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
@@ -48,14 +55,14 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
 
     standarized_mol = standardize_mol(mol)
     mol_layers = generate_hash_layers(standarized_mol)
-    hash_mol = GetMolHash(mol_layers)
-    formula = mol_layers[HashLayer.FORMULA]
+    hash_mol = generate_uuid_hash_mol(mol_layers)
+    formula = CalcMolFormula(standarized_mol)
     canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
     hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
     hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
     hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
     hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
-    sgroup_data = mol_layers[HashLayer.SGROUP_DATA]
+    # sgroup_data = mol_layers[HashLayer.SGROUP_DATA]
 
     
     
@@ -83,22 +90,15 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
     db_compound = models.Compound(
         canonical_smiles=canonical_smiles,
         original_molfile=compound.original_molfile,
-        hash_mol = hash_mol,
-        formula = formula,
-        hash_canonical_smiles = hash_canonical_smiles,
-        hash_tautomer = hash_tautomer,
-        hash_no_stereo_smiles = hash_no_stereo_smiles,
-        hash_no_stereo_tautomer = hash_no_stereo_tautomer,
-        sgroup_data = sgroup_data, 
         inchi=inchi,
         inchikey=inchikey,
         molregno=random.randint(1, 100),
-        formula=CalcMolFormula(mol),
-        hash_mol = uuid.uuid4(),
-        hash_tautomer = uuid.uuid4(),
-        hash_canonical_smiles = uuid.uuid4(),
-        hash_no_stereo_smiles = uuid.uuid4(),
-        hash_no_stereo_tautomer = uuid.uuid4(),
+        formula=formula,
+        hash_mol = hash_mol,
+        hash_tautomer = hash_tautomer,
+        hash_canonical_smiles = hash_canonical_smiles,
+        hash_no_stereo_smiles = hash_no_stereo_smiles,
+        hash_no_stereo_tautomer = hash_no_stereo_tautomer,
         created_at=datetime.now(),
         updated_at=datetime.now(),
         created_by=main.admin_user_id,
@@ -542,7 +542,7 @@ def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
 
 def search_compounds_exact(
     query_smiles: str, 
-    search_parameters: Optional[Dict[str, Any]], 
+    search_parameters: schemas.ExactSearchParameters, 
     db: Session
 ):
     """

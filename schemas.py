@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator
-from typing import Optional, List, Dict,Union
+from typing import Optional, List, Dict,Union, Any
 from datetime import datetime, date
 from enum import Enum
 import uuid
@@ -359,3 +359,12 @@ class SubstructureSearchParameters(BaseModel):
 class ExactSearchParameters(BaseModel):
     fields: List[str]
 
+class SemanticTypeCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class SemanticType(SemanticTypeCreate):
+    id: int
+
+    class Config:
+        orm_mode = True
