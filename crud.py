@@ -7,17 +7,17 @@ from typing import List
 from sqlalchemy import text
 from datetime import datetime, timezone
 import models as models
-import schemas
 from rdkit.Chem.rdMolDescriptors import CalcMolFormula
 import main
 
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
-    from . import models, schemas
+    from . import models
 except ImportError:
     # When run directly
-    import models, schemas
+    import models
+
 
 # Compound CRUD operations
 def get_compound(db: Session, compound_id: int):
@@ -66,16 +66,16 @@ def create_compound(db: Session, compound: models.CompoundCreate):
         inchikey=inchikey,
         molregno=random.randint(1, 100),
         formula=CalcMolFormula(mol),
-        hash_mol = uuid.uuid4(),
-        hash_tautomer = uuid.uuid4(),
-        hash_canonical_smiles = uuid.uuid4(),
-        hash_no_stereo_smiles = uuid.uuid4(),
-        hash_no_stereo_tautomer = uuid.uuid4(),
+        hash_mol=uuid.uuid4(),
+        hash_tautomer=uuid.uuid4(),
+        hash_canonical_smiles=uuid.uuid4(),
+        hash_no_stereo_smiles=uuid.uuid4(),
+        hash_no_stereo_tautomer=uuid.uuid4(),
         created_at=datetime.now(),
         updated_at=datetime.now(),
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
-        is_archived=compound.is_archived
+        is_archived=compound.is_archived,
     )
 
     db.add(db_compound)
@@ -155,16 +155,16 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
             inchikey=compound_data["inchikey"],
             molregno=random.randint(1, 100),
             formula=CalcMolFormula(mol),
-            hash_mol = uuid.uuid4(),
-            hash_tautomer = uuid.uuid4(),
-            hash_canonical_smiles = uuid.uuid4(),
-            hash_no_stereo_smiles = uuid.uuid4(),
-            hash_no_stereo_tautomer = uuid.uuid4(),
+            hash_mol=uuid.uuid4(),
+            hash_tautomer=uuid.uuid4(),
+            hash_canonical_smiles=uuid.uuid4(),
+            hash_no_stereo_smiles=uuid.uuid4(),
+            hash_no_stereo_tautomer=uuid.uuid4(),
             created_by=main.admin_user_id,
             updated_by=main.admin_user_id,
             created_at=datetime.now(),
             updated_at=datetime.now(),
-            is_archived=False
+            is_archived=False,
         )
         db.add(db_compound)
         created_compounds.append(db_compound)
@@ -178,18 +178,18 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
     return created_compounds
 
 
-def update_compound(db: Session, compound_id: int, compound: schemas.CompoundUpdate):
-    db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
+# def update_compound(db: Session, compound_id: int, compound: schemas.CompoundUpdate):
+#     db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
 
-    update_data = compound.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_compound, key, value)
+#     update_data = compound.model_dump(exclude_unset=True)
+#     for key, value in update_data.items():
+#         setattr(db_compound, key, value)
 
-    db_compound.updated_at = datetime.now()
-    db.add(db_compound)
-    db.commit()
-    db.refresh(db_compound)
-    return db_compound
+#     db_compound.updated_at = datetime.now()
+#     db.add(db_compound)
+#     db.commit()
+#     db.refresh(db_compound)
+#     return db_compound
 
 
 def delete_compound(db: Session, compound_id: int):
@@ -219,7 +219,7 @@ def create_batch(db: Session, batch: models.BatchBase):
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
         created_at=datetime.now(),
-        batch_regno=random.randint(1, 100)
+        batch_regno=random.randint(1, 100),
     )
 
     db.add(db_batch)
@@ -228,18 +228,18 @@ def create_batch(db: Session, batch: models.BatchBase):
     return db_batch
 
 
-def update_batch(db: Session, batch_id: int, batch: schemas.BatchUpdate):
-    db_batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
+# def update_batch(db: Session, batch_id: int, batch: schemas.BatchUpdate):
+#     db_batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
 
-    update_data = batch.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_batch, key, value)
+#     update_data = batch.model_dump(exclude_unset=True)
+#     for key, value in update_data.items():
+#         setattr(db_batch, key, value)
 
-    db_batch.updated_at = datetime.now()
-    db.add(db_batch)
-    db.commit()
-    db.refresh(db_batch)
-    return db_batch
+#     db_batch.updated_at = datetime.now()
+#     db.add(db_batch)
+#     db.commit()
+#     db.refresh(db_batch)
+#     return db_batch
 
 
 def delete_batch(db: Session, batch_id: int):
@@ -248,16 +248,15 @@ def delete_batch(db: Session, batch_id: int):
     db.commit()
     return db_batch
 
+
 def create_semantic_type(db: Session, semantic_type: models.SemanticTypeBase):
-    db_semantic_type = models.SemanticType(
-        name=semantic_type.name,
-        description=semantic_type.description
-    )
+    db_semantic_type = models.SemanticType(name=semantic_type.name, description=semantic_type.description)
 
     db.add(db_semantic_type)
     db.commit()
     db.refresh(db_semantic_type)
     return db_semantic_type
+
 
 # Property CRUD operations
 def get_property(db: Session, property_id: int):
@@ -286,18 +285,18 @@ def create_property(db: Session, property: models.PropertyBase):
     return db_property
 
 
-def update_property(db: Session, property_id: int, property: schemas.PropertyUpdate):
-    db_property = db.query(models.Property).filter(models.Property.id == property_id).first()
+# def update_property(db: Session, property_id: int, property: schemas.PropertyUpdate):
+#     db_property = db.query(models.Property).filter(models.Property.id == property_id).first()
 
-    update_data = property.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_property, key, value)
+#     update_data = property.model_dump(exclude_unset=True)
+#     for key, value in update_data.items():
+#         setattr(db_property, key, value)
 
-    db_property.updated_at = datetime.now()
-    db.add(db_property)
-    db.commit()
-    db.refresh(db_property)
-    return db_property
+#     db_property.updated_at = datetime.now()
+#     db.add(db_property)
+#     db.commit()
+#     db.refresh(db_property)
+#     return db_property
 
 
 def delete_property(db: Session, property_id: int):
@@ -449,7 +448,7 @@ def create_assay(db: Session, assay: models.AssayCreate):
         assay_type_id=assay.assay_type_id,
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
     db.add(db_assay)
     db.commit()
