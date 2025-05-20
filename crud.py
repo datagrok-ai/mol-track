@@ -1,13 +1,11 @@
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
-from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.rdMolDescriptors import CalcMolFormula
-from rdkit.Chem.RegistrationHash import GetMolHash, HashLayer
-from typing import List
+from rdkit.Chem.RegistrationHash import HashLayer
+from typing import List, Dict, Any
 from sqlalchemy import text
 from datetime import datetime, timezone
-import yaml
 import uuid
 import random
 import main
@@ -811,3 +809,42 @@ def create_batch_detail(db: Session, batch_detail: schemas.BatchDetailCreate):
     db.commit()
     db.refresh(db_batch_detail)
     return db_batch_detail
+
+
+def search_compounds_by_hash(db: Session, hash_mol: uuid.UUID):
+    """
+    Search for compounds in the database by hash_mol.
+    """
+    # Fix the db schema and use GetMolHash function from rdkit
+    return db.query(models.Compound).filter(models.Compound.hash_mol == hash_mol).all()
+
+
+def search_compounds_substructure(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Placeholder for substructure search.
+    """
+    raise NotImplementedError("Substructure search is not implemented yet.")
+
+
+def search_compounds_similarity(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Placeholder for similarity search.
+    """
+    raise NotImplementedError("Similarity search is not implemented yet.")
+
+
+def search_compounds_tautomer(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Perform a tautomer search for compounds.
+    """
+
+    raise NotImplementedError("Tautomer search is not implemented yet.")
+
+
+def search_compounds_stereo(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Perform a stereo search for compounds.
+    """
+    
+    raise NotImplementedError("Stereo search is not implemented yet.")
+
