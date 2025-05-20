@@ -40,21 +40,27 @@ Work in progress:
 
 ## Setup
 
-1. Create a virtual environment:
+1. Install `uv`:
    ```
-   python -m venv venv
+   pip install uv
+   ```
+   *For other installation methods, refer to the [official docs](https://docs.astral.sh/uv/guides/install-python/#getting-started).*
+
+2. Create a virtual environment:
+   ```
+   uv venv
    ```
 
-2. Activate the virtual environment:
-   - Windows: `venv\Scripts\activate`
-   - Linux/Mac: `source venv/bin/activate`
+3. Activate the virtual environment:
+   * **Windows**: `.venv\Scripts\activate`
+   * **macOS/Linux**: `source .venv/bin/activate`
 
-3. Install dependencies:
+4. Install dependencies:
    ```
-   pip install -r requirements.txt
+   uv sync
    ```
 
-4. Configure the database connection:
+5. Configure the database connection:
    - Open `database.py` and update the `SQLALCHEMY_DATABASE_URL` with your PostgreSQL connection details.
 
 ## Running the Server
