@@ -21,7 +21,16 @@ except ImportError:
 
 # Compound CRUD operations
 def get_compound(db: Session, compound_id: int):
-    return db.query(models.Compound).filter(models.Compound.id == compound_id).first()
+    return (
+        db.query(models.Compound)
+        .options(
+            joinedload(models.Compound.batches),
+            joinedload(models.Compound.compound_synonyms),
+            joinedload(models.Compound.properties),
+        )
+        .filter(models.Compound.id == compound_id)
+        .first()
+    )
 
 
 def get_compound_by_inchi_key(db: Session, inchikey: str):
@@ -34,6 +43,20 @@ def get_compound_by_canonical_smiles(db: Session, canonical_smiles: str):
 
 def get_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).options(joinedload(models.Compound.batches)).offset(skip).limit(limit).all()
+
+
+def get_compounds_v1(db: Session, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Compound)
+        .options(
+            joinedload(models.Compound.batches),
+            joinedload(models.Compound.compound_synonyms),
+            joinedload(models.Compound.properties),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def create_compound(db: Session, compound: models.CompoundCreate):
