@@ -86,6 +86,7 @@ class Compound(CompoundResponseBase, table=True):
     deleted_by: Optional[uuid.UUID] = Field(default=None)
 
     batches: List["Batch"] = Relationship(back_populates="compound")
+    compound_synonyms: List["CompoundSynonym"] = Relationship(back_populates="compound")
 
 
 class BatchBase(SQLModel):
@@ -114,6 +115,7 @@ class Batch(BatchResponseBase, table=True):
     compound: "Compound" = Relationship(back_populates="batches")
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
+    batch_synonyms: List["BatchSynonym"] = Relationship(back_populates="batch")
 
 
 class SemanticTypeBase(SQLModel):
@@ -394,7 +396,7 @@ class SynonymType(SynonymTypeResponse, table=True):
 
     # Relationships
     compound_synonyms: "CompoundSynonym" = Relationship(back_populates="synonym_type")
-    batch_synonyms: "BatchSynonym" = Relationship("BatchSynonym", back_populates="synonym_type")
+    batch_synonyms: "BatchSynonym" = Relationship(back_populates="synonym_type")
 
 class CompoundSynonymBase(SQLModel):
     synonym_value: str = Field(nullable=False)
