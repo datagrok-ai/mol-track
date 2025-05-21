@@ -813,9 +813,8 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     return db_batch_detail
 
 # SynonymType CRUD operations
-def create_synonym_type(db: Session, synonym_type: schemas.SynonymTypeCreate):
+def create_synonym_type(db: Session, synonym_type: models.SynonymTypeCreate):
     db_synonym_type = models.SynonymType(**synonym_type.dict())
-    # TODO: add synonym verification based on pattern
     db.add(db_synonym_type)
     db.commit()
     db.refresh(db_synonym_type)
@@ -825,7 +824,7 @@ def get_synonym_types(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.SynonymType).offset(skip).limit(limit).all()
 
 # Compound synonym CRUD operations
-def create_compound_synonym(db: Session, synonym: schemas.CompoundSynonymCreate):
+def create_compound_synonym(db: Session, synonym: models.CompoundSynonymCreate):
     db_synonym = models.CompoundSynonym(**synonym.dict())
     db.add(db_synonym)
     db.commit()
@@ -835,7 +834,7 @@ def create_compound_synonym(db: Session, synonym: schemas.CompoundSynonymCreate)
 def get_compound_synonyms(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.CompoundSynonym).offset(skip).limit(limit).all()
 
-def update_compound_synonym(db: Session, compound_synonym_id: int, compound_synonym: schemas.CompoundSynonymCreate):
+def update_compound_synonym(db: Session, compound_synonym_id: int, compound_synonym: models.CompoundSynonymCreate):
     db_compound_synonym = db.query(models.CompoundSynonym).filter(models.CompoundSynonym.id == compound_synonym_id).first()
     if not db_compound_synonym:
         raise HTTPException(status_code=404, detail="Compound synonym not found")
@@ -851,7 +850,7 @@ def update_compound_synonym(db: Session, compound_synonym_id: int, compound_syno
     return db_compound_synonym
 
 # Batch synonym CRUD operations
-def create_batch_synonym(db: Session, synonym: schemas.BatchSynonymCreate):
+def create_batch_synonym(db: Session, synonym: models.BatchSynonymCreate):
     db_synonym = models.BatchSynonym(**synonym.dict())
     db.add(db_synonym)
     db.commit()
@@ -861,7 +860,7 @@ def create_batch_synonym(db: Session, synonym: schemas.BatchSynonymCreate):
 def get_batch_synonyms(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.BatchSynonym).offset(skip).limit(limit).all()
 
-def update_batch_synonym(db: Session, batch_synonym_id: int, batch_synonym: schemas.BatchSynonymCreate):
+def update_batch_synonym(db: Session, batch_synonym_id: int, batch_synonym: models.BatchSynonymCreate):
     db_batch_synonym = db.query(models.BatchSynonym).filter(models.BatchSynonym.id == batch_synonym_id).first()
     if not db_batch_synonym:
         raise HTTPException(status_code=404, detail="Batch synonym not found")
