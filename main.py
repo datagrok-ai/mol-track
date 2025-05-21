@@ -397,3 +397,29 @@ def search_batches_by_synonym(synonym_value: str, skip: int = 0, limit: int = 10
     - **limit**: Maximum number of records to return (for pagination)
     """
     return crud.search_batches_by_synonym(db, synonym_value, skip, limit)
+
+@app.get("/compounds/{compound_id}/synonyms", response_model=List[models.CompoundSynonymResponse])
+def read_compound_synonyms_by_compound_id(compound_id: int, db: Session = Depends(get_db)):
+    """
+    Get all synonyms for a specific compound.
+
+    - **compound_id**: The ID of the compound
+    """
+    # Query the database for synonyms related to the compound
+    synonyms = db.query(models.CompoundSynonym).filter(models.CompoundSynonym.compound_id == compound_id).all()
+    if not synonyms:
+        raise HTTPException(status_code=404, detail="No synonyms found for the specified compound")
+    return synonyms
+
+@app.get("/batches/{batch_id}/synonyms", response_model=List[models.BatchSynonymResponse])
+def read_batch_synonyms_by_batch_id(batch_id: int, db: Session = Depends(get_db)):
+    """
+    Get all synonyms for a specific batch.
+
+    - **batch_id**: The ID of the batch
+    """
+    # Query the database for synonyms related to the batch
+    synonyms = db.query(models.BatchSynonym).filter(models.BatchSynonym.batch_id == batch_id).all()
+    if not synonyms:
+        raise HTTPException(status_code=404, detail="No synonyms found for the specified batch")
+    return synonyms
