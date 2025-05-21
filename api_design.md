@@ -33,7 +33,9 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
 
    ```json
    {
-       "property_types": [],
+       "properties": [
+         {"name": "MolLogP", "scope": "compound", "property_class": "calculated", "value_type": "double", "unit": ""}
+       ],
        "synonym_types": [
             {"name": "batch_corporate_id", "level": "batch", "pattern": ""},
             {"name": "corporate_id", "level": "compound", "pattern": ""},
