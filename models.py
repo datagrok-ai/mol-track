@@ -412,7 +412,13 @@ class BatchAddition(SQLModel, table=True):
     addition_equivalent: float = Field(default=1)
 
 
-class SynonymType(SQLModel, table=True):
+class SynonymTypeBase(SQLModel):
+    synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
+    name: str = Field(nullable=False)
+    pattern: Optional[str] = None
+
+
+class SynonymType(SynonymTypeBase, table=True):
     __tablename__ = "synonym_types"
     __table_args__ = (
         CheckConstraint("synonym_level IN ('BATCH', 'COMPOUND')", name="synonym_types_synonym_level_check"),
@@ -420,19 +426,22 @@ class SynonymType(SQLModel, table=True):
     )
 
     id: int = Field(primary_key=True, index=True)
+    description: str = Field(nullable=False)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
-    name: str = Field(nullable=False)
-    pattern: Optional[str]
-    description: str = Field(nullable=False)
 
 
-class CompoundSynonym(SQLModel, table=True):
+class CompoundSynonymBase(SQLModel):
+    compound_id: int = Field(foreign_key="moltrack.compounds.id", nullable=False)
+    synonym_type_id: int = Field(foreign_key="moltrack.synonym_types.id", nullable=False)
+    synonym_value: str = Field(nullable=False)
+
+
+class CompoundSynonym(CompoundSynonymBase, table=True):
     __tablename__ = "compound_synonyms"
     __table_args__ = {"schema": DB_SCHEMA}
 
@@ -443,9 +452,6 @@ class CompoundSynonym(SQLModel, table=True):
     )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    compound_id: int = Field(foreign_key="moltrack.compounds.id", nullable=False)
-    synonym_type_id: int = Field(foreign_key="moltrack.synonym_types.id", nullable=False)
-    synonym_value: str = Field(nullable=False)
 
 
 class BatchSynonym(SQLModel, table=True):
@@ -482,3 +488,8 @@ class CompoundDetails(SQLModel, table=True):
     value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
     value_num: Optional[float]
     value_string: Optional[str]
+
+
+class SchemaPayload(SQLModel):
+    # property_types: List[Dict[str, Any]] = []
+    synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)

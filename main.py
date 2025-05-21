@@ -1,7 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException, Body
+import csv
+import io
+import json
+from fastapi import FastAPI, Depends, File, Form, HTTPException, Body, UploadFile
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing import List
+from typing import Dict, List, Optional
 import models
+import enums
 
 # Handle both package imports and direct execution
 try:
@@ -298,3 +303,112 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
         raise HTTPException(status_code=404, detail=f"Batch with ID {batch_id} not found")
 
     return crud.get_batch_details_by_batch(db, batch_id=batch_id, skip=skip, limit=limit)
+
+
+@app.post("/schema")
+def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
+    created_synonyms = []
+
+    for s in payload.synonym_types:
+        exists = db.query(models.SynonymType).filter_by(name=s.name, synonym_level=s.synonym_level).first()
+
+        if not exists:
+            try:
+                synonym = models.SynonymType(
+                    name=s.name,
+                    synonym_level=s.synonym_level,
+                    pattern=s.pattern or "",
+                    description=s.name,
+                    created_by=admin_user_id,
+                    updated_by=admin_user_id,
+                )
+                db.add(synonym)
+                db.commit()
+                db.refresh(synonym)
+                created_synonyms.append(s.name)
+            except Exception as e:
+                db.rollback()
+                raise e
+
+    return {"status": "success", "created": {"synonym_types": created_synonyms, "property_types": []}}
+
+
+def parse_csv_to_dicts(data_csv: str) -> List[Dict[str, str]]:
+    reader = csv.DictReader(io.StringIO(data_csv.strip()))
+    return list(reader)
+
+
+@app.post("/register-csv")
+def register_csv(
+    csv_file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    error_handling: str = Form("reject_all"),
+    db: Session = Depends(get_db),
+):
+    csv_content = csv_file.file.read().decode("utf-8")
+    rows = list(csv.DictReader(io.StringIO(csv_content)))
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="CSV file is empty or invalid")
+
+    try:
+        user_mapping = json.loads(mapping) if mapping else None
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON for mapping")
+
+    normalized_mapping = user_mapping or {k: k for k in rows[0].keys()}
+
+    synonym_types = db.execute(select(models.SynonymType)).all()
+    synonym_type_map = {st.name: st.id for (st,) in synonym_types}
+
+    successful_rows = 0
+    failed_rows = 0
+    error_messages = []
+
+    for idx, row in enumerate(rows):
+        try:
+            grouped_data = {}
+
+            for src_key, mapped_key in normalized_mapping.items():
+                value = row.get(src_key)
+                table, field = mapped_key.split(".", 1) if "." in mapped_key else ("compounds", mapped_key)
+                grouped_data.setdefault(table, {})[field] = value
+
+            compound_data = grouped_data.get("compounds", {})
+            compound = crud.create_compound(db, compound=models.CompoundCreate(**compound_data))
+
+            synonyms_data = grouped_data.get("compounds_synonyms", {})
+            for synonym_name, synonym_value in synonyms_data.items():
+                synonym_type_id = synonym_type_map.get(synonym_name)
+                if synonym_type_id is None:
+                    synonym_type_input = models.SynonymTypeBase(
+                        name=synonym_name, synonym_level=enums.SynonymLevel.COMPOUND
+                    )
+                    synonym_type = crud.create_synonym_type(db, synonym_type=synonym_type_input)
+                    synonym_type_id = synonym_type.id
+                    synonym_type_map[synonym_name] = synonym_type_id
+
+                compound_synonym_input = models.CompoundSynonymBase(
+                    compound_id=compound.id, synonym_type_id=synonym_type_id, synonym_value=synonym_value
+                )
+                crud.create_compound_synonym(db, compound_synonym=compound_synonym_input)
+
+            successful_rows += 1
+
+        except Exception as row_e:
+            db.rollback()
+            failed_rows += 1
+            error_msg = f"Row {idx + 1} failed: {str(row_e)}"
+            error_messages.append(error_msg)
+
+            if error_handling == "reject_all":
+                raise HTTPException(status_code=400, detail=error_msg)
+
+    db.commit()
+
+    return {
+        "status_message": "Partial success" if failed_rows else "Success",
+        "successful_rows": successful_rows,
+        "failed_rows": failed_rows,
+        "errors": error_messages if failed_rows else [],
+    }
