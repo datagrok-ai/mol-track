@@ -301,7 +301,7 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
     return crud.get_batch_details_by_batch(db, batch_id=batch_id, skip=skip, limit=limit)
 
 
-@app.post("/schema")
+@app.post("/schema/")
 def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
     def create_if_not_exists(model_cls, base_cls, values, create_fn, created_list):
         for item in values:
