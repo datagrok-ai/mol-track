@@ -67,6 +67,7 @@ class CompoundResponseBase(CompoundBase):
 
 class CompoundResponse(CompoundResponseBase):
     batches: List["Batch"] = []
+    compound_synonyms: List["CompoundSynonym"] = []
 
 
 class Compound(CompoundResponseBase, table=True):
@@ -101,6 +102,7 @@ class BatchResponseBase(BatchBase):
 
 class BatchResponse(BatchResponseBase):
     batch_details: List["BatchDetail"] = []
+    batch_synonyms: List["BatchSynonym"] = []
 
 
 class Batch(BatchResponseBase, table=True):
