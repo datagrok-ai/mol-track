@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from compound_registrar import CompoundRegistrar
 import models
+import enums
 
 # Handle both package imports and direct execution
 try:
@@ -345,7 +346,7 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
 def register_compounds(
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
-    error_handling: str = Form("reject_all"),
+    error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     db: Session = Depends(get_db),
 ):
     csv_content = csv_file.file.read().decode("utf-8")

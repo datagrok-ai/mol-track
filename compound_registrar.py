@@ -7,9 +7,7 @@ from pytest import Session
 from sqlalchemy import select
 
 import crud
-import enums
 import models
-import main
 
 
 class CompoundRegistrar:
@@ -23,6 +21,9 @@ class CompoundRegistrar:
         self.failed_rows = 0
         self.error_messages = []
 
+    def normalize_key(self, name: str) -> str:
+        return name.strip().lower().replace(" ", "_")
+
     def parse_mapping(self, mapping: Optional[str]) -> Dict[str, str]:
         try:
             return json.loads(mapping) if mapping else {}
@@ -31,11 +32,11 @@ class CompoundRegistrar:
 
     def load_synonym_types(self) -> Dict[str, int]:
         result = self.db.execute(select(models.SynonymType)).all()
-        return {st.name: st.id for (st,) in result}
+        return {self.normalize_key(st.name): st.id for (st,) in result}
 
     def load_properties(self) -> Dict[str, int]:
         result = self.db.execute(select(models.Property)).all()
-        return {p.name: p.id for (p,) in result}
+        return {self.normalize_key(p.name): p.id for (p,) in result}
 
     def process_csv(self, csv_content: str) -> List[Dict[str, Any]]:
         rows = list(csv.DictReader(io.StringIO(csv_content)))
@@ -63,49 +64,27 @@ class CompoundRegistrar:
 
     def create_synonyms(self, compound_id: int, synonyms: Dict[str, str]):
         for synonym_name, value in synonyms.items():
-            type_id = self.synonym_type_map.get(synonym_name)
+            # TODO: Improve lookup
+            norm_synonym_name = self.normalize_key(synonym_name)
+            type_id = self.synonym_type_map.get(norm_synonym_name)
             if type_id is None:
-                synonym_type = crud.create_synonym_type(
-                    self.db,
-                    synonym_type=models.SynonymTypeBase(name=synonym_name, synonym_level=enums.SynonymLevel.COMPOUND),
-                )
-                type_id = synonym_type.id
-                self.synonym_type_map[synonym_name] = type_id
-
+                raise HTTPException(status_code=400, detail=f"Unknown synonym type: {synonym_name}")
             synonym_input = models.CompoundSynonymBase(
                 compound_id=compound_id, synonym_type_id=type_id, synonym_value=value
             )
             crud.create_compound_synonym(self.db, compound_synonym=synonym_input)
 
     def create_properties(self, compound_id: int, props: Dict[str, Any]):
-        for name, value in props.items():
-            prop_id = self.property_records_map.get(name)
+        for property_name, value in props.items():
+            norm_property_name = self.normalize_key(property_name)
+            prop_id = self.property_records_map.get(norm_property_name)
             if prop_id is None:
-                prop = crud.create_property(
-                    self.db,
-                    property=models.PropertyBase(
-                        name=name,
-                        value_type=enums.ValueType.double,
-                        property_class=enums.PropertyClass.MEASURED,
-                        scope=enums.ScopeClass.COMPOUND,
-                        unit="test",
-                        created_by=main.admin_user_id,
-                        updated_by=main.admin_user_id,
-                    ),
-                )
-                prop_id = prop.id
-                self.property_records_map[name] = prop_id
+                raise HTTPException(status_code=400, detail=f"Unknown property: {property_name}")
 
-            detail = models.CompoundDetail(
-                compound_id=compound_id,
-                property_id=prop_id,
-                value=value,
-                created_by=main.admin_user_id,
-                updated_by=main.admin_user_id,
+            compound_detail_input = models.CompoundDetailCreate(
+                compound_id=compound_id, property_id=prop_id, value=value
             )
-            self.db.add(detail)
-            self.db.commit()
-            self.db.refresh(detail)
+            crud.create_compound_detail(self.db, compound_detail=compound_detail_input)
 
     def register_all(self, rows: List[Dict[str, Any]]):
         for idx, row in enumerate(rows):

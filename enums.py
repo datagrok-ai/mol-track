@@ -30,3 +30,8 @@ class AdditionsRole(str, enum.Enum):
 class SynonymLevel(str, enum.Enum):
     BATCH = "BATCH"
     COMPOUND = "COMPOUND"
+
+
+class ErrorHandlingOptions(str, enum.Enum):
+    reject_all = "reject_all"
+    reject_row = "reject_row"

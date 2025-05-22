@@ -71,7 +71,16 @@ class CompoundResponse(CompoundResponseBase):
     properties: List["Property"] = []
 
 
-class CompoundDetail(SQLModel, table=True):
+class CompoundDetailBase(SQLModel):
+    compound_id: int = Field(foreign_key="moltrack.compounds.id", nullable=False)
+    property_id: int = Field(foreign_key="moltrack.properties.id", nullable=False)
+
+
+class CompoundDetailCreate(CompoundDetailBase):
+    value: Any
+
+
+class CompoundDetail(CompoundDetailBase, table=True):
     __tablename__ = "compound_details"
     __table_args__ = {"schema": DB_SCHEMA}
 
@@ -82,8 +91,6 @@ class CompoundDetail(SQLModel, table=True):
     )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    compound_id: int = Field(foreign_key="moltrack.compounds.id", nullable=False)
-    property_id: int = Field(foreign_key="moltrack.properties.id", nullable=False)
 
     value_datetime: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
     value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)

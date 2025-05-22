@@ -854,3 +854,28 @@ def create_compound_synonym(db: Session, compound_synonym: models.CompoundSynony
     db.commit()
     db.refresh(synonym)
     return synonym
+
+
+def create_compound_detail(db: Session, compound_detail: models.CompoundDetailCreate) -> models.CompoundDetail:
+    property = db.query(models.Property).filter(models.Property.id == compound_detail.property_id).first()
+    if not property:
+        raise HTTPException(status_code=404, detail=f"Property with ID {compound_detail.property_id} not found")
+
+    detail = models.CompoundDetail(
+        compound_id=compound_detail.compound_id,
+        property_id=compound_detail.property_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+
+    value_type_map = {"datetime": "value_datetime", "int": "value_num", "double": "value_num", "string": "value_string"}
+
+    attr = value_type_map.get(property.value_type)
+    if attr:
+        if compound_detail.value is not None:
+            setattr(detail, attr, compound_detail.value)
+
+    db.add(detail)
+    db.commit()
+    db.refresh(detail)
+    return detail
