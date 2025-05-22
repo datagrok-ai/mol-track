@@ -832,7 +832,7 @@ def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase) -> mo
     synonym_type = models.SynonymType(
         synonym_level=synonym_type.synonym_level,
         name=synonym_type.name,
-        description=synonym_type.name,
+        description=synonym_type.description,
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
     )

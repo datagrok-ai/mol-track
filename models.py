@@ -446,6 +446,8 @@ class BatchAddition(SQLModel, table=True):
 class SynonymTypeBase(SQLModel):
     synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
     name: str = Field(nullable=False)
+    # TODO: Confirm if the 'description' field should be absent
+    description: str = Field(nullable=False, default="")
     pattern: Optional[str] = None
 
 
@@ -457,7 +459,6 @@ class SynonymType(SynonymTypeBase, table=True):
     )
 
     id: int = Field(primary_key=True, index=True)
-    description: str = Field(nullable=False)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -504,5 +505,5 @@ class BatchSynonym(SQLModel, table=True):
 
 
 class SchemaPayload(SQLModel):
-    properties: List["Property"] = Field(default_factory=list)
+    properties: List["PropertyBase"] = Field(default_factory=list)
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)

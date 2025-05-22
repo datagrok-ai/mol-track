@@ -303,41 +303,42 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
 
 @app.post("/schema")
 def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
+    def create_if_not_exists(model_cls, base_cls, values, create_fn, created_list):
+        for item in values:
+            if not db.query(model_cls).filter_by(**item.dict()).first():
+                try:
+                    instance = create_fn(db, base_cls(**item.dict()))
+                    created_list.append(instance.name)
+                except Exception as e:
+                    db.rollback()
+                    raise HTTPException(status_code=500, detail=f"Error creating {model_cls.__name__}: {str(e)}")
+
     created_synonyms = []
     created_properties = []
 
-    for s in payload.synonym_types:
-        exists = db.query(models.SynonymType).filter_by(name=s.name, synonym_level=s.synonym_level).first()
+    create_if_not_exists(
+        model_cls=models.SynonymType,
+        base_cls=models.SynonymTypeBase,
+        values=payload.synonym_types,
+        create_fn=crud.create_synonym_type,
+        created_list=created_synonyms,
+    )
 
-        if not exists:
-            try:
-                synonym = models.SynonymType(
-                    name=s.name,
-                    synonym_level=s.synonym_level,
-                    pattern=s.pattern or "",
-                    description=s.name,
-                    created_by=admin_user_id,
-                    updated_by=admin_user_id,
-                )
-                db.add(synonym)
-                db.commit()
-                db.refresh(synonym)
-                created_synonyms.append(s.name)
-            except Exception as e:
-                db.rollback()
-                raise e
+    create_if_not_exists(
+        model_cls=models.Property,
+        base_cls=models.PropertyBase,
+        values=payload.properties,
+        create_fn=crud.create_property,
+        created_list=created_properties,
+    )
 
-    for p in payload.properties:
-        exists = db.query(models.Property).filter_by(name=p.name, scope=p.scope).first()
-        if not exists:
-            try:
-                property = crud.create_property(db, property=models.PropertyBase(**p.dict()))
-                created_properties.append(property.name)
-            except Exception as e:
-                db.rollback
-                raise e
-
-    return {"status": "success", "created": {"synonym_types": created_synonyms, "property_types": []}}
+    return {
+        "status": "success",
+        "created": {
+            "synonym_types": created_synonyms,
+            "property_types": created_properties,
+        },
+    }
 
 
 @app.post("/compounds/")
