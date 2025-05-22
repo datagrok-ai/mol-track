@@ -858,6 +858,10 @@ def get_compound_synonyms(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.CompoundSynonym).offset(skip).limit(limit).all()
 
 
+def get_compound_synonym(db: Session, synonym_id: int):
+    return db.query(models.CompoundSynonym).filter(models.CompoundSynonym.id == synonym_id).first()
+
+
 def update_compound_synonym(db: Session, compound_synonym_id: int, compound_synonym: models.CompoundSynonym):
     db_compound_synonym = (
         db.query(models.CompoundSynonym).filter(models.CompoundSynonym.id == compound_synonym_id).first()
@@ -878,7 +882,13 @@ def update_compound_synonym(db: Session, compound_synonym_id: int, compound_syno
 
 # Batch synonym CRUD operations
 def create_batch_synonym(db: Session, synonym: models.BatchSynonymBase):
-    db_synonym = models.BatchSynonym(**synonym.dict())
+    db_synonym = models.BatchSynonym(
+        synonym_value=synonym.synonym_value,
+        batch_id=synonym.batch_id,
+        synonym_type_id=synonym.synonym_type_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
     db.add(db_synonym)
     db.commit()
     db.refresh(db_synonym)
@@ -887,6 +897,10 @@ def create_batch_synonym(db: Session, synonym: models.BatchSynonymBase):
 
 def get_batch_synonyms(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.BatchSynonym).offset(skip).limit(limit).all()
+
+
+def get_batch_synonym(db: Session, synonym_id: int):
+    return db.query(models.BatchSynonym).filter(models.BatchSynonym.id == synonym_id).first()
 
 
 def update_batch_synonym(db: Session, batch_synonym_id: int, batch_synonym: models.BatchSynonym):
