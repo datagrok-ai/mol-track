@@ -174,15 +174,7 @@ def batch(client, compound):
 
 @pytest.fixture
 def synonym_type(client):
-    response = client.post(
-        "/synonym-types/",
-        json={
-            "name": "Batch Code",
-            "synonym_level": "BATCH",
-            "pattern": r"[A-Z]{3}-\d{4}",
-            "description": "Description",
-        },
-    )
+    response = client.post("/synonym-types/", json=synonym_type_data)
     assert response.status_code == 200, f"Failed to create synonym_type: {response.text}"
     return response.json()
 
@@ -191,3 +183,9 @@ def synonym_type(client):
 aspirin_smiles = "CC(=O)OC1=CC=CC=C1C(=O)O"
 aspirin_smiles_noncanonical = "CC(Oc1c(C(O)=O)cccc1)=O"
 caffeine_smiles = "CN1C=NC2=C1C(=O)N(C(=O)N2C)C"
+synonym_type_data = {
+    "name": "Batch Code",
+    "synonym_level": "BATCH",
+    "pattern": r"[A-Z]{3}-\d{4}",
+    "description": "Description",
+}
