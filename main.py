@@ -303,18 +303,20 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
 # SynonymType endpoints
 @app.post("/synonym-types/", response_model=models.SynonymTypeResponse)
 def create_synonym_type(synonym_type: models.SynonymTypeBase, db: Session = Depends(get_db)):
-    db_synonym_type = models.SynonymType(**synonym_type.dict())
-    db.add(db_synonym_type)
-    db.commit()
-    db.refresh(db_synonym_type)
-    return db_synonym_type
+    return crud.create_synonym_type(db=db, synonym_type=synonym_type)
 
 @app.get("/synonym-types/", response_model=List[models.SynonymTypeResponse])
 def read_synonym_types(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.SynonymType).offset(skip).limit(limit).all()
+    return crud.get_synonym_types(db, skip=skip, limit=limit)
 
-# Compound synonym endpoints
+@app.get("/synonym-types/{type_id}", response_model=models.SynonymTypeResponse)
+def read_synonym_type(type_id: int, db: Session = Depends(get_db)):
+    synonym_type = crud.get_synonym_type(db, type_id=type_id)
+    if not synonym_type:
+        raise HTTPException(status_code=404, detail="Synonym type not found")
+    return synonym_type
 
+# Synonym validation function
 def validate_synonym_value(db: Session, synonym_type_id: int, synonym_value: str):
     """
     Validate the synonym value against the pattern defined in the synonym type.
@@ -339,43 +341,51 @@ def validate_synonym_value(db: Session, synonym_type_id: int, synonym_value: str
             detail=f"Synonym value '{synonym_value}' does not match the required pattern: {synonym_type.pattern}"
         )
 
+# Compound synonym endpoints
 @app.post("/compound-synonyms/", response_model=models.CompoundSynonymResponse)
 def create_compound_synonym(compound_synonym: models.CompoundSynonymBase, db: Session = Depends(get_db)):
     validate_synonym_value(db, compound_synonym.synonym_type_id, compound_synonym.synonym_value)
-    db_compound_synonym = models.CompoundSynonym(**compound_synonym.dict())
-    db.add(db_compound_synonym)
-    db.commit()
-    db.refresh(db_compound_synonym)
-    return db_compound_synonym
+    return crud.create_compound_synonym(db=db, synonym=compound_synonym)
 
 @app.get("/compound-synonyms/", response_model=List[models.CompoundSynonymResponse])
 def read_compound_synonyms(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.CompoundSynonym).offset(skip).limit(limit).all()
+    return crud.get_compound_synonyms(db, skip=skip, limit=limit)
 
-# @app.put("/compound-synonyms/{synonym_id}", response_model=schemas.CompoundSynonym)
-# def update_compound_synonym_endpoint(synonym_id: int, compound_synonym: schemas.CompoundSynonymCreate, db: Session = Depends(get_db)):
+@app.get("/compound-synonyms/{synonym_id}", response_model=models.CompoundSynonymResponse)
+def read_compound_synonym(synonym_id: int, db: Session = Depends(get_db)):
+    synonym = crud.get_compound_synonym(db, synonym_id=synonym_id)
+    if not synonym:
+        raise HTTPException(status_code=404, detail="Compound synonym not found")
+    return synonym
+
+# @app.put("/compound-synonyms/{synonym_id}", response_model=models.CompoundSynonymResponse)
+# def update_compound_synonym(synonym_id: int, compound_synonym: models.CompoundSynonym, db: Session = Depends(get_db)):
 #     validate_synonym_value(db, compound_synonym.synonym_type_id, compound_synonym.synonym_value)
-#     return crud.update_compound_synonym(db=db, synonym_id=synonym_id, compound_synonym=compound_synonym)
+#     return crud.update_compound_synonym(db=db, compound_synonym_id=synonym_id, compound_synonym=compound_synonym)
 
 # Batch synonym endpoints
 @app.post("/batch-synonyms/", response_model=models.BatchSynonymResponse)
 def create_batch_synonym(batch_synonym: models.BatchSynonymBase, db: Session = Depends(get_db)):
     validate_synonym_value(db, batch_synonym.synonym_type_id, batch_synonym.synonym_value)
-    db_batch_synonym = models.BatchSynonym(**batch_synonym.dict())
-    db.add(db_batch_synonym)
-    db.commit()
-    db.refresh(db_batch_synonym)
-    return db_batch_synonym
+    return crud.create_batch_synonym(db=db, synonym=batch_synonym)
 
 @app.get("/batch-synonyms/", response_model=List[models.BatchSynonymResponse])
 def read_batch_synonyms(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.BatchSynonym).offset(skip).limit(limit).all()
+    return crud.get_batch_synonyms(db, skip=skip, limit=limit)
 
-# @app.put("/batch-synonyms/{synonym_id}", response_model=schemas.BatchSynonym)
-# def update_batch_synonym_endpoint(synonym_id: int, batch_synonym: schemas.BatchSynonymCreate, db: Session = Depends(get_db)):
+@app.get("/batch-synonyms/{synonym_id}", response_model=models.BatchSynonymResponse)
+def read_batch_synonym(synonym_id: int, db: Session = Depends(get_db)):
+    synonym = crud.get_batch_synonym(db, synonym_id=synonym_id)
+    if not synonym:
+        raise HTTPException(status_code=404, detail="Batch synonym not found")
+    return synonym
+
+# @app.put("/batch-synonyms/{synonym_id}", response_model=models.BatchSynonymResponse)
+# def update_batch_synonym(synonym_id: int, batch_synonym: models.BatchSynonym, db: Session = Depends(get_db)):
 #     validate_synonym_value(db, batch_synonym.synonym_type_id, batch_synonym.synonym_value)
-#     return crud.update_batch_synonym(db=db, synonym_id=synonym_id, batch_synonym=batch_synonym)
+#     return crud.update_batch_synonym(db=db, batch_synonym_id=synonym_id, batch_synonym=batch_synonym)
 
+# Synonym Search
 @app.get("/synonym-search/compounds", response_model=List[models.CompoundResponse])
 def search_compounds_by_synonym(synonym_value: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
@@ -398,6 +408,7 @@ def search_batches_by_synonym(synonym_value: str, skip: int = 0, limit: int = 10
     """
     return crud.search_batches_by_synonym(db, synonym_value, skip, limit)
 
+# Synonym retrieval by compound or batch ID
 @app.get("/compounds/{compound_id}/synonyms", response_model=List[models.CompoundSynonymResponse])
 def read_compound_synonyms_by_compound_id(compound_id: int, db: Session = Depends(get_db)):
     """
