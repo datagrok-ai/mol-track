@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 import crud
 import models
+import enums
 
 
 class CompoundRegistrar:
@@ -97,7 +98,7 @@ class CompoundRegistrar:
                 msg = f"Row {idx + 1} failed: {str(e)}"
                 self.error_messages.append(msg)
 
-                if self.error_handling == "reject_all":
+                if self.error_handling == enums.ErrorHandlingOptions.reject_all:
                     raise HTTPException(status_code=400, detail=msg)
 
         self.db.commit()
