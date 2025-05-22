@@ -18,7 +18,33 @@ We have a number of intents.
 
 ## Schema - WIP ##
 
-- `POST /schema`
+When a user wants to register data into [Moltrack](https://github.com/datagrok-ai/mol-track), they typically want to register main entities like batches, compounds, or assay data.  The data set will typically have suppementary data like properties and synonyms that add context.  Moltrack was designed to handle this data in a controlled way.  To do that we need to allow the user to register the definitions of that context data.  We call this definition a schema.  The contract of this schema definition is to ensure that the appropriate definitions exist, to reuse previously defined definitions where possible, and to reject definitions that are incomplete.  The 'schema' is used in the definition of a set of resources but **not** a resource in and of itself.
+
+*We will be developing this by example to understand its breath and depth.*  We know that we need to be able to define basic entities like properties and synonyms and associations.  The immediate need is for creations of these definitions.  Later we will think about the design for updates and (logical) deletions.
+
+- Semantic Types: name, description
+- Properties: name, value_type, semantic_type, property_class, unit, scope
+- Synonym Types: synonym_level, name, pattern, description
+- Additions: name, description, code, is_active, formula, molecular_weight, smiles, molfile, role
+
+- `POST /schema` - used to define/ensure that a set of context definitions exist.
+
+   For the [Black demo data set](./demo-data/black)  to register compounds and batches we need the following:
+
+   ```json
+   {
+       "properties": [
+         {"name": "MolLogP", "scope": "compound", "property_class": "calculated", "value_type": "double", "unit": ""}
+       ],
+       "synonym_types": [
+            {"name": "batch_corporate_id", "level": "batch", "pattern": ""},
+            {"name": "corporate_id", "level": "compound", "pattern": ""},
+            {"name": "CAS number", "level": "compound", "pattern": r"\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b"},
+            {"name": "common name", "level": "compound", "pattern": ""},
+            {"name": "USAN", "level": "compound", "pattern": ""}
+            ]
+   }
+   ```
 
 ## Register Batches ##
 
@@ -26,15 +52,17 @@ Batch registration will be performed as singletons or in bulk, by the chemist or
 
 Registrations could executed synchronously or asynchronously.  In general, registration should be performed asynchronously to accommmodate multiple scenarios where processing would be require a lot of time, including molecules with complex ring structure or a collection that contains many entries.  *For the MVP, we have decided to go with synchronous registration.*
 
+Mapping is optional, but assumes that the field names map to the database concepts.
+
 - `POST /batches` - synchronous registration endpoint for CSV input
   - Input
     - query parameters
-      - `input_format=csv`  [default csv, optionally mol-v3000]
+      - ~~`input_format=csv`  [default csv, optionally mol-v3000]~~
       - `output_format=csv` [default csv, optional mol-v3000]
     - example in csv
 
       ```text
-      "batch_corporate_id", smiles, common_name, cas, usan
+      "batch_corporate_id", structure, common_name, cas, usan
       "EPA-001-001","OC(=O)c1cc2c(cc1)c(=O)O","1,3-benezenedicarboxylic acid","121-91-5"
       "EPA-120-001","c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N",,"169590-42-5","celecoxib"
       ```
@@ -45,7 +73,7 @@ Registrations could executed synchronously or asynchronously.  In general, regis
       {
          "data": "\"batch_corporate_id\", smiles, common_name, cas, usan\n\"EPA-001-001\",\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",     \"121-91-5\"\n\"EPA-120-001\",\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\"\n",
          "mapping": {
-            "smiles": "compounds.smiles",
+            "structure": "compounds.smiles",
             "batch_corporate_id": "batches.synonyms.batch_corporate_id",
             "common_name": "compounds.synonyms.common_name",
             "cas": "compounds.synonyms.cas",
@@ -78,36 +106,53 @@ Registrations could executed synchronously or asynchronously.  In general, regis
 - `GET /batches/{id}/synonyms`
 - `GET /batches/{id}/additions` - should returns additions, equivalents, and summary
 
-
 ## Register Virtual Compounds ##
 
 Virtual compound registration will typically be done in bulk, by a cheminformatician or registrar.  These registrations will be contain the structure, synonyms, and possibly properties.  Properties and synonym_types will need to be defined ahead of time.  The inputs will be a collection of compound records that will be presented in a CSV-style format, an SDfile format or a parquet file .  A single registration will be a array with a single record. 
 
-Registrations could executed synchronously or asynchronously.  In general, registration should be performed asynchronously to accommmodate multiple scenarios where processing would be require a lot of time, including molecules with complex ring structure or a collection that contains many entries.  *For the MVP, we have decided to go with synchronous registration.*
+Registrations could executed synchronously or asynchronously.  In general, registration should be performed asynchronously to accommmodate multiple scenarios where processing would be require a lot of time, including molecules with complex ring structure or a collection that contains many entries.  
+
+*For the MVP, we have decided to go with*:
+
+   1. *Synchronous registration.*
+   2. *csv as the only input format with the structure encoded as either smiles or molfile (V2000 or V3000) format.*
+   3. *csv as the only output format.*
+   4. *Entire request will fail if any entry fails.*
 
 - `POST /compounds` - synchronous registration endpoint for CSV input
   - Input
-    - query parameters
-      - `input_format=csv`  [default csv, optionally mol-v3000]
+    - *Deferred* query parameters
+      - `input_format=csv`  [default csv, optionally mol-v3000] - *No longer required.  The data format should be determined by the content.*
       - `output_format=csv` [default csv, optional mol-v3000]
     - example in csv
 
       ```text
-      "smiles, common_name, cas, usan
+      "structure, common_name, cas, usan
       "OC(=O)c1cc2c(cc1)c(=O)O","1,3-benezenedicarboxylic acid","121-91-5"
       "c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N",,"169590-42-5","celecoxib"
       ```
 
-    - csv data in the json body
+    - Mapping data is optional included in the input body. If not provided, it will be inferred from column names.  If provided, it will follow the format below:
 
       ```json
       {
-         "data": "smiles, common_name, cas, usan\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",     \"121-91-5\"\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\"\n",
          "mapping": {
-            "smiles": "compounds.smiles",
-            "common_name": "compounds.synonyms.common_name",
-            "cas": "compounds.synonyms.cas",
-            "usan": "compounds.synonyms.usan"
+            "<column name>": "<field name>",
+            "<column_name>": "<table_name>.[<field_name | dynamic attribute name>]"
+         }
+      }
+      ```
+
+    - Example csv data in the json body with mapping
+
+      ```json
+      {
+         "data": "structure, common_name, cas, usan\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",     \"121-91-5\"\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\"\n",
+         "mapping": {
+            "structure": "smiles",
+            "common_name": "compounds_synonyms.common_name",
+            "cas": "compounds_synonyms.cas",
+            "usan": "compounds_synonyms.usan"
          }
       }
       ```
@@ -119,9 +164,20 @@ Registrations could executed synchronously or asynchronously.  In general, regis
       ```json
       {
          "status_messge" = "Success",
-         "data": "smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",2,\"EPA-001\"\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",4,\"EPA-120\"\n"
+         "data": "smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id,registration_status,registration_error_message\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",2,\"EPA-001\","success",""\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",4,\"EPA-120\","success",""\n"
       }
       ```
+
+    - 422 Unprocessable Content  - *For the MVP, any process error will for entire transaction to fail* 
+
+      ```json
+      {
+         "status_messge" = "Failed",
+         "data": "smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id,registration_status,registration_error_message\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",2,\"EPA-001\","success",""\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",4,\"EPA-120\","failed","invalid structure"\n"
+      }
+      ```
+
+
 
 - `GET /compounds/` - returns an array of compounds with each entry having the comound, the properties and the synonyms.  An optional query parameter will allow the user to select the output format: json, csv-style, sd-file, parquet.  Properties and synonyms will need to be pivoted (and concatenated as necessary) to accomodate the csv,
 sd and parquet format expectations.  We will need to have query parameters to support pagination of the resulting output (`start`,`stop`,`max-per-page`)
