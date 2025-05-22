@@ -4,6 +4,7 @@ import yaml
 from rdkit import Chem
 from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
+from rdkit.Chem.RegistrationHash import HashLayer
 
 
 
@@ -118,3 +119,34 @@ def generate_uuid_hash_mol(layers: dict) ->  uuid.UUID:
     # Generate a UUID based on the string representation of the layers
     uuid_hash = uuid.uuid5(uuid.NAMESPACE_DNS, layers_str)
     return uuid_hash
+
+
+# #
+#     canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
+#     hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
+#     hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
+#     hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
+#     hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
+
+def calculate_tautomer_hash(mol: Chem.Mol) -> str:
+    """
+    Calculate the tautomer hash for a given molecule.
+    """
+    layers = generate_hash_layers(mol)
+    return generate_uuid_from_string(layers[HashLayer.TAUTOMER_HASH])
+
+def calculate_no_stereo_smiles_hash(mol: Chem.Mol) -> str:
+    """
+    Calculate the no-stereo SMILES hash for a given molecule.
+    """
+    layers = generate_hash_layers(mol)
+    return generate_uuid_from_string(layers[HashLayer.NO_STEREO_SMILES])
+
+def calculate_no_stereo_tautomer_hash(mol: Chem.Mol) -> str:
+    """
+    Calculate the no-stereo tautomer hash for a given molecule.
+    """
+    # Generate a no-stereo version of the molecule
+    layers = generate_hash_layers(mol)
+    return generate_uuid_from_string(layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
+

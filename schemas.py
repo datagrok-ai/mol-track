@@ -515,3 +515,19 @@ class SearchCompoundStructure(BaseModel):
         if mol is None:
             raise ValueError(f"Invalid SMILES string: {v}")
         return v
+
+
+class QueryCondition(BaseModel):
+    table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
+    field: str  # Field/column to filter on
+    operator: Literal[
+        "=", "!=", ">", "<", ">=", "<=", "LIKE", "IN"
+    ]  # expand for supported by rdkit cartridge like @>?
+    value: Optional[Any] = None  #
+    query_smiles: Optional[str] = None
+    columns: Optional[List[str]] = None  # List of columns to return for table
+
+
+class ComplexQueryRequest(BaseModel):
+    conditions: List[QueryCondition]
+    logic: Literal["AND", "OR"] = "AND"
