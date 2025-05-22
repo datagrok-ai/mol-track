@@ -53,9 +53,9 @@ def on_startup():
 
 
 # Compounds endpoints
-# @app.post("/compounds/", response_model=models.CompoundResponse)
-# def create_compound(compound: models.CompoundCreate, db: Session = Depends(get_db)):
-#     return crud.create_compound(db=db, compound=compound)
+@app.post("/compounds/", response_model=models.CompoundResponse)
+def create_compound(compound: models.CompoundCreate, db: Session = Depends(get_db)):
+    return crud.create_compound(db=db, compound=compound)
 
 
 @app.post("/compounds/batch/", response_model=List[models.CompoundResponse])
@@ -69,26 +69,25 @@ def create_compounds_batch(compounds: List[str] = Body(..., embed=True), db: Ses
     return crud.create_compounds_batch(db=db, smiles_list=compounds)
 
 
-# Think of removing the schema at all and use as params
-# @app.get("/compounds/", response_model=List[models.CompoundResponse])
-# def read_compounds(query: models.CompoundQueryParams = Depends(), db: Session = Depends(get_db)):
-#     """
-#     Get a list of compounds with optional filtering by substructure.
+@app.get("/compounds/", response_model=List[models.CompoundResponse])
+def read_compounds(query: models.CompoundQueryParams = Depends(), db: Session = Depends(get_db)):
+    """
+    Get a list of compounds with optional filtering by substructure.
 
-#     - **substructure**: Optional SMILES pattern to search for substructures
-#     - **skip**: Number of records to skip (for pagination)
-#     - **limit**: Maximum number of records to return (for pagination)
-#     """
-#     compounds = crud.get_compounds_ex(db, query_params=query)
-#     return compounds
+    - **substructure**: Optional SMILES pattern to search for substructures
+    - **skip**: Number of records to skip (for pagination)
+    - **limit**: Maximum number of records to return (for pagination)
+    """
+    compounds = crud.get_compounds_ex(db, query_params=query)
+    return compounds
 
 
-# @app.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
-# def read_compound(compound_id: int, db: Session = Depends(get_db)):
-#     db_compound = crud.get_compound(db, compound_id=compound_id)
-#     if db_compound is None:
-#         raise HTTPException(status_code=404, detail="Compound not found")
-#     return db_compound
+@app.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
+def read_compound(compound_id: int, db: Session = Depends(get_db)):
+    db_compound = crud.get_compound(db, compound_id=compound_id)
+    if db_compound is None:
+        raise HTTPException(status_code=404, detail="Compound not found")
+    return db_compound
 
 
 # Batches endpoints
@@ -342,8 +341,8 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
     }
 
 
-@app.post("/compounds/")
-def register_compounds(
+@app.post("/v1/compounds/")
+def register_compounds_v1(
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
@@ -356,30 +355,30 @@ def register_compounds(
     return registrar.result()
 
 
-@app.get("/compounds/", response_model=List[models.CompoundResponse])
-def read_compounds(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/v1/compounds/", response_model=List[models.CompoundResponse])
+def read_compounds_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     compounds = crud.get_compounds_v1(db, skip=skip, limit=limit)
     return compounds
 
 
-@app.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
-def read_compound(compound_id: int, db: Session = Depends(get_db)):
+@app.get("/v1/compounds/{compound_id}", response_model=models.CompoundResponse)
+def read_compound_v1(compound_id: int, db: Session = Depends(get_db)):
     db_compound = crud.get_compound(db, compound_id=compound_id)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
     return db_compound
 
 
-@app.get("/compounds/{compound_id}/synonyms", response_model=List[models.CompoundSynonym])
-def read_compound_synonyms(compound_id: int, db: Session = Depends(get_db)):
+@app.get("/v1/compounds/{compound_id}/synonyms", response_model=List[models.CompoundSynonym])
+def read_compound_synonyms_v1(compound_id: int, db: Session = Depends(get_db)):
     compound = crud.get_compound(db, compound_id=compound_id)
     if not compound:
         raise HTTPException(status_code=404, detail="Compound not found")
     return compound.compound_synonyms
 
 
-@app.get("/compounds/{compound_id}/properties", response_model=List[models.Property])
-def read_compound_properties(compound_id: int, db: Session = Depends(get_db)):
+@app.get("/v1/compounds/{compound_id}/properties", response_model=List[models.Property])
+def read_compound_properties_v1(compound_id: int, db: Session = Depends(get_db)):
     compound = crud.get_compound(db, compound_id=compound_id)
     if not compound:
         raise HTTPException(status_code=404, detail="Compound not found")
