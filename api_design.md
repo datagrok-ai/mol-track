@@ -16,6 +16,8 @@ We have a number of intents.
 6. register assays and assay_results.
 7. search within a domain (compounds, batches, assay_results) or in combination
 
+**IMPORTANT: All paths should be prefixed by the appropriate version.**  Right now the version would be `/v1`.  In this document, the version prefix is assumed for clarity.
+
 ## Schema - WIP ##
 
 When a user wants to register data into [Moltrack](https://github.com/datagrok-ai/mol-track), they typically want to register main entities like batches, compounds, or assay data.  The data set will typically have suppementary data like properties and synonyms that add context.  Moltrack was designed to handle this data in a controlled way.  To do that we need to allow the user to register the definitions of that context data.  We call this definition a schema.  The contract of this schema definition is to ensure that the appropriate definitions exist, to reuse previously defined definitions where possible, and to reject definitions that are incomplete.  The 'schema' is used in the definition of a set of resources but **not** a resource in and of itself.
@@ -45,6 +47,13 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
             ]
    }
    ```
+
+### Getter methods for schema ###
+
+The GET methods allow us to see the configuration of MolTrack from perspective of the properties, synonyms, etc. associated with entities in the system.  At the moment we are provide resources specific to the entities but could also make it more dynamic with a query parameter.  We could also consider adding equivalent paths like `/compounds/schema` and `/batches/schema`
+
+- `GET /schema/compounds` - returns properties and synonym_types associated with the compounds entity_type
+- `GET /schema/batches` - returns properties, synonym_types and additions associated with the batches entity_type
 
 ## Register Batches ##
 
