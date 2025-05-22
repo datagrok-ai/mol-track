@@ -98,8 +98,9 @@ class CompoundRegistrar:
                 msg = f"Row {idx + 1} failed: {str(e)}"
                 self.error_messages.append(msg)
 
-                if self.error_handling == enums.ErrorHandlingOptions.reject_all:
-                    raise HTTPException(status_code=400, detail=msg)
+                if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
+                    if self.failed_rows > 0:
+                        raise HTTPException(status_code=400, detail=self.result())
 
         self.db.commit()
 
