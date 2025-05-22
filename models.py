@@ -370,7 +370,7 @@ class BatchAssayResultsResponse(SQLModel):
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
 
 class SynonymTypeBase(SQLModel):
-    synonym_level: str = Field(nullable=False)
+    synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
     name: str = Field(nullable=False)
     pattern: Optional[str] = Field(default=None)
     description: str = Field(nullable=False)
