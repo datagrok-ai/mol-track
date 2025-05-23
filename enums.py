@@ -18,4 +18,8 @@ class ScopeClass(str, enum.Enum):
     BATCH  = "BATCH"
     COMPOUND = "COMPOUND"
     ASSAY = "ASSAY"
-    SYSTEM = "SYSTEM" 
+    SYSTEM = "SYSTEM"
+
+class SynonymLevel(str, enum.Enum):
+    BATCH = "BATCH"
+    COMPOUND = "COMPOUND"

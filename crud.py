@@ -195,6 +195,12 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
 def delete_compound(db: Session, compound_id: int):
     db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
     db.delete(db_compound)
+
+    # Delete related compound_synonyms
+    db.query(models.CompoundSynonym).filter(models.CompoundSynonym.compound_id == compound_id).delete(
+        synchronize_session=False
+    )
+
     db.commit()
     return db_compound
 
@@ -245,6 +251,10 @@ def create_batch(db: Session, batch: models.BatchBase):
 def delete_batch(db: Session, batch_id: int):
     db_batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
     db.delete(db_batch)
+
+    # Delete related batch_synonyms
+    db.query(models.BatchSynonym).filter(models.BatchSynonym.batch_id == batch_id).delete(synchronize_session=False)
+
     db.commit()
     return db_batch
 
@@ -803,3 +813,141 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     db.commit()
     db.refresh(db_batch_detail)
     return db_batch_detail
+
+
+# SynonymType CRUD operations
+def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase):
+    db_synonym_type = models.SynonymType(
+        synonym_level=synonym_type.synonym_level,
+        name=synonym_type.name,
+        pattern=synonym_type.pattern,
+        description=synonym_type.description,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym_type)
+    db.commit()
+    db.refresh(db_synonym_type)
+    return db_synonym_type
+
+
+def get_synonym_types(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.SynonymType).offset(skip).limit(limit).all()
+
+
+def get_synonym_type(db: Session, type_id: int):
+    return db.query(models.SynonymType).filter(models.SynonymType.id == type_id).first()
+
+
+# Compound synonym CRUD operations
+def create_compound_synonym(db: Session, synonym: models.CompoundSynonymBase):
+    db_synonym = models.CompoundSynonym(
+        synonym_value=synonym.synonym_value,
+        compound_id=synonym.compound_id,
+        synonym_type_id=synonym.synonym_type_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym)
+    db.commit()
+    db.refresh(db_synonym)
+    return db_synonym
+
+
+def get_compound_synonyms(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.CompoundSynonym).offset(skip).limit(limit).all()
+
+
+def get_compound_synonym(db: Session, synonym_id: int):
+    return db.query(models.CompoundSynonym).filter(models.CompoundSynonym.id == synonym_id).first()
+
+
+def update_compound_synonym(db: Session, compound_synonym_id: int, compound_synonym: models.CompoundSynonym):
+    db_compound_synonym = (
+        db.query(models.CompoundSynonym).filter(models.CompoundSynonym.id == compound_synonym_id).first()
+    )
+    if not db_compound_synonym:
+        raise HTTPException(status_code=404, detail="Compound synonym not found")
+
+    update_data = compound_synonym.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_compound_synonym, key, value)
+
+    db_compound_synonym.updated_at = datetime.now()
+    db.add(db_compound_synonym)
+    db.commit()
+    db.refresh(db_compound_synonym)
+    return db_compound_synonym
+
+
+# Batch synonym CRUD operations
+def create_batch_synonym(db: Session, synonym: models.BatchSynonymBase):
+    db_synonym = models.BatchSynonym(
+        synonym_value=synonym.synonym_value,
+        batch_id=synonym.batch_id,
+        synonym_type_id=synonym.synonym_type_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym)
+    db.commit()
+    db.refresh(db_synonym)
+    return db_synonym
+
+
+def get_batch_synonyms(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.BatchSynonym).offset(skip).limit(limit).all()
+
+
+def get_batch_synonym(db: Session, synonym_id: int):
+    return db.query(models.BatchSynonym).filter(models.BatchSynonym.id == synonym_id).first()
+
+
+def update_batch_synonym(db: Session, batch_synonym_id: int, batch_synonym: models.BatchSynonym):
+    db_batch_synonym = db.query(models.BatchSynonym).filter(models.BatchSynonym.id == batch_synonym_id).first()
+    if not db_batch_synonym:
+        raise HTTPException(status_code=404, detail="Batch synonym not found")
+
+    update_data = batch_synonym.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_batch_synonym, key, value)
+
+    db_batch_synonym.updated_at = datetime.now()
+    db.add(db_batch_synonym)
+    db.commit()
+    db.refresh(db_batch_synonym)
+    return db_batch_synonym
+
+
+def search_compounds_by_synonym(db: Session, synonym_value: str, skip: int = 0, limit: int = 100):
+    """
+    Search compounds by their synonyms.
+
+    Returns:
+        List of compounds matching the synonym
+    """
+    return (
+        db.query(models.Compound)
+        .join(models.CompoundSynonym)
+        .filter(models.CompoundSynonym.synonym_value.ilike(f"%{synonym_value}%"))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def search_batches_by_synonym(db: Session, synonym_value: str, skip: int = 0, limit: int = 100):
+    """
+    Search batches by their synonyms.
+
+    Returns:
+        List of batches matching the synonym
+    """
+    return (
+        db.query(models.Batch)
+        .join(models.BatchSynonym)
+        .filter(models.BatchSynonym.synonym_value.ilike(f"%{synonym_value}%"))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
