@@ -1,7 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi import FastAPI, Depends, File, Form, HTTPException, Body, UploadFile
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from compound_registrar import CompoundRegistrar
 import models
+import enums
 
 # Handle both package imports and direct execution
 try:
@@ -67,7 +69,6 @@ def create_compounds_batch(compounds: List[str] = Body(..., embed=True), db: Ses
     return crud.create_compounds_batch(db=db, smiles_list=compounds)
 
 
-# Think of removing the schema at all and use as params
 @app.get("/compounds/", response_model=List[models.CompoundResponse])
 def read_compounds(query: models.CompoundQueryParams = Depends(), db: Session = Depends(get_db)):
     """
@@ -298,3 +299,87 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
         raise HTTPException(status_code=404, detail=f"Batch with ID {batch_id} not found")
 
     return crud.get_batch_details_by_batch(db, batch_id=batch_id, skip=skip, limit=limit)
+
+
+@app.post("/schema/")
+def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
+    def create_if_not_exists(model_cls, base_cls, values, create_fn, created_list):
+        for item in values:
+            if not db.query(model_cls).filter_by(**item.dict()).first():
+                try:
+                    instance = create_fn(db, base_cls(**item.dict()))
+                    created_list.append(instance.name)
+                except Exception as e:
+                    db.rollback()
+                    raise HTTPException(status_code=500, detail=f"Error creating {model_cls.__name__}: {str(e)}")
+
+    created_synonyms = []
+    created_properties = []
+
+    create_if_not_exists(
+        model_cls=models.SynonymType,
+        base_cls=models.SynonymTypeBase,
+        values=payload.synonym_types,
+        create_fn=crud.create_synonym_type,
+        created_list=created_synonyms,
+    )
+
+    create_if_not_exists(
+        model_cls=models.Property,
+        base_cls=models.PropertyBase,
+        values=payload.properties,
+        create_fn=crud.create_property,
+        created_list=created_properties,
+    )
+
+    return {
+        "status": "success",
+        "created": {
+            "synonym_types": created_synonyms,
+            "property_types": created_properties,
+        },
+    }
+
+
+@app.post("/v1/compounds/")
+def register_compounds_v1(
+    csv_file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
+    db: Session = Depends(get_db),
+):
+    csv_content = csv_file.file.read().decode("utf-8")
+    registrar = CompoundRegistrar(db=db, mapping=mapping, error_handling=error_handling)
+    rows = registrar.process_csv(csv_content)
+    registrar.register_all(rows)
+    return registrar.result()
+
+
+@app.get("/v1/compounds/", response_model=List[models.CompoundResponse])
+def read_compounds_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    compounds = crud.get_compounds_v1(db, skip=skip, limit=limit)
+    return compounds
+
+
+@app.get("/v1/compounds/{compound_id}", response_model=models.CompoundResponse)
+def read_compound_v1(compound_id: int, db: Session = Depends(get_db)):
+    db_compound = crud.get_compound(db, compound_id=compound_id)
+    if db_compound is None:
+        raise HTTPException(status_code=404, detail="Compound not found")
+    return db_compound
+
+
+@app.get("/v1/compounds/{compound_id}/synonyms", response_model=List[models.CompoundSynonym])
+def read_compound_synonyms_v1(compound_id: int, db: Session = Depends(get_db)):
+    compound = crud.get_compound(db, compound_id=compound_id)
+    if not compound:
+        raise HTTPException(status_code=404, detail="Compound not found")
+    return compound.compound_synonyms
+
+
+@app.get("/v1/compounds/{compound_id}/properties", response_model=List[models.Property])
+def read_compound_properties_v1(compound_id: int, db: Session = Depends(get_db)):
+    compound = crud.get_compound(db, compound_id=compound_id)
+    if not compound:
+        raise HTTPException(status_code=404, detail="Compound not found")
+    return compound.properties

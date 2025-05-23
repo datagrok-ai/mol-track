@@ -21,7 +21,16 @@ except ImportError:
 
 # Compound CRUD operations
 def get_compound(db: Session, compound_id: int):
-    return db.query(models.Compound).filter(models.Compound.id == compound_id).first()
+    return (
+        db.query(models.Compound)
+        .options(
+            joinedload(models.Compound.batches),
+            joinedload(models.Compound.compound_synonyms),
+            joinedload(models.Compound.properties),
+        )
+        .filter(models.Compound.id == compound_id)
+        .first()
+    )
 
 
 def get_compound_by_inchi_key(db: Session, inchikey: str):
@@ -34,6 +43,20 @@ def get_compound_by_canonical_smiles(db: Session, canonical_smiles: str):
 
 def get_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).options(joinedload(models.Compound.batches)).offset(skip).limit(limit).all()
+
+
+def get_compounds_v1(db: Session, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Compound)
+        .options(
+            joinedload(models.Compound.batches),
+            joinedload(models.Compound.compound_synonyms),
+            joinedload(models.Compound.properties),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def create_compound(db: Session, compound: models.CompoundCreate):
@@ -803,3 +826,56 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     db.commit()
     db.refresh(db_batch_detail)
     return db_batch_detail
+
+
+def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase) -> models.SynonymType:
+    synonym_type = models.SynonymType(
+        synonym_level=synonym_type.synonym_level,
+        name=synonym_type.name,
+        description=synonym_type.description,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(synonym_type)
+    db.commit()
+    db.refresh(synonym_type)
+    return synonym_type
+
+
+def create_compound_synonym(db: Session, compound_synonym: models.CompoundSynonymBase) -> models.CompoundSynonym:
+    synonym = models.CompoundSynonym(
+        compound_id=compound_synonym.compound_id,
+        synonym_type_id=compound_synonym.synonym_type_id,
+        synonym_value=compound_synonym.synonym_value,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(synonym)
+    db.commit()
+    db.refresh(synonym)
+    return synonym
+
+
+def create_compound_detail(db: Session, compound_detail: models.CompoundDetailCreate) -> models.CompoundDetail:
+    property = db.query(models.Property).filter(models.Property.id == compound_detail.property_id).first()
+    if not property:
+        raise HTTPException(status_code=404, detail=f"Property with ID {compound_detail.property_id} not found")
+
+    detail = models.CompoundDetail(
+        compound_id=compound_detail.compound_id,
+        property_id=compound_detail.property_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+
+    value_type_map = {"datetime": "value_datetime", "int": "value_num", "double": "value_num", "string": "value_string"}
+
+    attr = value_type_map.get(property.value_type)
+    if attr:
+        if compound_detail.value is not None:
+            setattr(detail, attr, compound_detail.value)
+
+    db.add(detail)
+    db.commit()
+    db.refresh(detail)
+    return detail

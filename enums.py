@@ -14,8 +14,24 @@ class PropertyClass(str, enum.Enum):
     MEASURED = "MEASURED"
     PREDICTED = "PREDICTED"
 
+
 class ScopeClass(str, enum.Enum):
-    BATCH  = "BATCH"
+    BATCH = "BATCH"
     COMPOUND = "COMPOUND"
     ASSAY = "ASSAY"
-    SYSTEM = "SYSTEM" 
+    SYSTEM = "SYSTEM"
+
+
+class AdditionsRole(str, enum.Enum):
+    SALT = "SALT"
+    SOLVATE = "SOLVATE"
+
+
+class SynonymLevel(str, enum.Enum):
+    BATCH = "BATCH"
+    COMPOUND = "COMPOUND"
+
+
+class ErrorHandlingOptions(str, enum.Enum):
+    reject_all = "reject_all"
+    reject_row = "reject_row"
