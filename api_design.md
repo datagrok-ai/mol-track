@@ -55,6 +55,19 @@ The GET methods allow us to see the configuration of MolTrack from perspective o
 - `GET /schema/compounds` - returns properties and synonym_types associated with the compounds entity_type
 - `GET /schema/batches` - returns properties, synonym_types and additions associated with the batches entity_type
 
+## Additions ##
+
+Additions are addtional chemical entities are present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be preregistered into MolTrack.
+
+- `POST /additions` - used to register one or more additions into the MolTrack system.  Should accept an array of addition definitions.  Can be done in a csv format.  The return will be an array of additions added including the addition_id.
+
+  - A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv)
+
+- `GET /additions` - retrieve with pagination all the salts and solvates that have been registered.  Retrieve in a csv format.
+- `GET /additions/salts` - retrieve all additions with role of *salts*
+- `GET /additions/solvates` - retrieve all additions with role of *solvates*
+- `GET /additions/{addition_id}` - retrieve all information for a specific addition
+
 ## Register Batches ##
 
 Batch registration will be performed as singletons or in bulk, by the chemist or registrar.  Use cases include supporting individual batch synthesis, library synthesis generated internally or by a contract research organization (CRO) and acquistion from a vendor.  Each registrations entry will contain information about the batch including batch details, batch synonyms, compound information (including synonyms and properties) and batch additions.  Properties, synonym_types, and additons must be defined ahead of time and if missing will result in a registration failure.  The inputs will be a collection of batch records that will be presented in a CSV-style format, an SDfile format or a parquet file .  A single registration will be a collection with a single record.  
@@ -90,6 +103,8 @@ Mapping is optional, but assumes that the field names map to the database concep
          }
       }
       ```
+
+    - An example set of batches with addtions to be registered can be found [2_batches_with_additions.csv](./demo-data/black/2_batches_with_additions.csv).  The additions are listed in columns with the cells showing the equivalents.
 
   - Output
    The batches, batches_detail, batches_synonym, batch_additions, additions, compounds, compound_details, and compound_synonyms tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.

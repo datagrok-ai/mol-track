@@ -1,0 +1,8 @@
+{
+   "smiles": "smiles",
+   "Chemical": "compound_synonyms.common_name",
+   "common_name": "compound_synonyms.common_name",
+   "CAS #": "compound_synonyms.cas",
+   "corporate_batch_id": "batch_synonyms.corporate_batch_id",
+   "corporate_compound_id": "compound_synonyms.corporate_compound_id"
+}
