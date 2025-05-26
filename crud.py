@@ -273,6 +273,20 @@ def delete_batch(db: Session, batch_id: int):
     return db_batch
 
 
+def create_batch_synonym(db: Session, batch_synonym: models.BatchSynonymBase) -> models.BatchSynonym:
+    synonym = models.BatchSynonym(
+        batch_id=batch_synonym.batch_id,
+        synonym_type_id=batch_synonym.synonym_type_id,
+        synonym_value=batch_synonym.synonym_value,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(synonym)
+    db.commit()
+    db.refresh(synonym)
+    return synonym
+
+
 def create_semantic_type(db: Session, semantic_type: models.SemanticTypeBase):
     db_semantic_type = models.SemanticType(name=semantic_type.name, description=semantic_type.description)
 

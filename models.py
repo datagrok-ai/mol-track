@@ -134,6 +134,7 @@ class BatchResponseBase(BatchBase):
 
 class BatchResponse(BatchResponseBase):
     batch_details: List["BatchDetail"] = []
+    batch_synonyms: List["BatchSynonym"] = []
 
 
 class Batch(BatchResponseBase, table=True):
@@ -148,6 +149,7 @@ class Batch(BatchResponseBase, table=True):
     compound: "Compound" = Relationship(back_populates="batches")
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
+    batch_synonyms: List["BatchSynonym"] = Relationship(back_populates="batch")
 
 
 class SemanticTypeBase(SQLModel):
@@ -503,7 +505,13 @@ class CompoundSynonym(CompoundSynonymBase, table=True):
     compound: "Compound" = Relationship(back_populates="compound_synonyms")
 
 
-class BatchSynonym(SQLModel, table=True):
+class BatchSynonymBase(SQLModel):
+    batch_id: int = Field(foreign_key="moltrack.batches.id", nullable=False)
+    synonym_type_id: int = Field(foreign_key="moltrack.synonym_types.id", nullable=False)
+    synonym_value: str = Field(nullable=False)
+
+
+class BatchSynonym(BatchSynonymBase, table=True):
     __tablename__ = "batch_synonyms"
     __table_args__ = {"schema": DB_SCHEMA}
 
@@ -514,9 +522,8 @@ class BatchSynonym(SQLModel, table=True):
     )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    batch_id: int = Field(foreign_key="moltrack.batches.id", nullable=False)
-    synonym_type_id: int = Field(foreign_key="moltrack.synonym_types.id", nullable=False)
-    synonym_value: str = Field(nullable=False)
+
+    batch: "Batch" = Relationship(back_populates="batch_synonyms")
 
 
 class SchemaPayload(SQLModel):

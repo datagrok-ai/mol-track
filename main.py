@@ -4,6 +4,7 @@ import json
 from fastapi import FastAPI, Depends, File, Form, HTTPException, Body, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from batch_registrar import BatchRegistrar
 from compound_registrar import CompoundRegistrar
 import models
 import enums
@@ -455,3 +456,39 @@ def read_additions_solvates_v1(skip: int = 0, limit: int = 100, db: Session = De
 def read_addition_v1(addition_id: int, db: Session = Depends(get_db)):
     db_addition = crud.get_addition_v1(db, addition_id=addition_id)
     return db_addition
+
+
+@app.post("/v1/batches/")
+def register_batches_v1(
+    csv_file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
+    db: Session = Depends(get_db),
+):
+    csv_content = csv_file.file.read().decode("utf-8")
+    registrar = BatchRegistrar(db=db, mapping=mapping, error_handling=error_handling)
+    rows = registrar.process_csv(csv_content)
+    registrar.register_all(rows)
+    return registrar.result()
+
+
+@app.get("/v1/batches/", response_model=List[models.BatchResponse])
+def read_batches_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    batches = crud.get_batches(db, skip=skip, limit=limit)
+    return batches
+
+
+@app.get("/v1/batches/{batch_id}", response_model=models.BatchResponse)
+def read_batch_v1(batch_id: int, db: Session = Depends(get_db)):
+    db_batch = crud.get_batch(db, batch_id=batch_id)
+    if db_batch is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return db_batch
+
+
+@app.get("/v1/batches/{batch_id}/synonyms", response_model=List[models.BatchSynonym])
+def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
+    batch = crud.get_batch(db, batch_id=batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return batch.batch_synonyms

@@ -22,6 +22,11 @@ class CompoundRegistrar:
         self.failed_rows = 0
         self.error_messages = []
 
+        # TODO: Implement bulk inserts using SQLAlchemy's bulk_insert_mappings
+        # self.compound_data = []
+        # self.synonym_data = []
+        # self.property_data = []
+
     def normalize_key(self, name: str) -> str:
         return name.strip().lower().replace(" ", "_")
 
