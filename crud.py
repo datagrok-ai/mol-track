@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import models as models
 from rdkit.Chem.rdMolDescriptors import CalcMolFormula
 import main
+import enums
 
 # Handle both package imports and direct execution
 try:
@@ -879,3 +880,26 @@ def create_compound_detail(db: Session, compound_detail: models.CompoundDetailCr
     db.commit()
     db.refresh(detail)
     return detail
+
+
+def create_addition(db: Session, addition: models.AdditionBase) -> models.Addition:
+    db_addition = models.Addition(
+        **addition.dict(),
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_addition)
+    db.commit()
+    db.refresh(db_addition)
+    return db_addition
+
+
+def get_additions_v1(db: Session, skip: int = 0, limit: int = 100, role: enums.AdditionsRole | None = None):
+    query = db.query(models.Addition)
+    if role is not None:
+        query = query.filter(models.Addition.role == role)
+    return query.offset(skip).limit(limit).all()
+
+
+def get_addition_v1(db: Session, addition_id: int):
+    return db.query(models.Addition).filter(models.Addition.id == addition_id).first()

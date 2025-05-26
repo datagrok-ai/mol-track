@@ -1,9 +1,13 @@
+import csv
+import io
+import json
 from fastapi import FastAPI, Depends, File, Form, HTTPException, Body, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from compound_registrar import CompoundRegistrar
 import models
 import enums
+
 
 # Handle both package imports and direct execution
 try:
@@ -301,18 +305,27 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
     return crud.get_batch_details_by_batch(db, batch_id=batch_id, skip=skip, limit=limit)
 
 
+# TODO: Move to the utils or a separate module
+def create_if_not_exists(model_cls, base_cls, values, create_fn, created_list, db):
+    for item in values:
+        if not isinstance(item, dict):
+            item = item.dict()
+
+        # TODO: Think how to better handle empty values
+        # TODO: Think abouut how to be with column names that are not the same as model fields
+        item = {k: v for k, v in item.items() if v not in (None, "", [], {}, ())}
+        # TODO: Improve lookup for existing records (if exists we will need an update method, TBD)
+        if not db.query(model_cls).filter_by(**item).first():
+            try:
+                instance = create_fn(db, base_cls(**item))
+                created_list.append({"id": instance.id, "name": instance.name})
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(status_code=500, detail=f"Error creating {model_cls.__name__}: {str(e)}")
+
+
 @app.post("/schema/")
 def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
-    def create_if_not_exists(model_cls, base_cls, values, create_fn, created_list):
-        for item in values:
-            if not db.query(model_cls).filter_by(**item.dict()).first():
-                try:
-                    instance = create_fn(db, base_cls(**item.dict()))
-                    created_list.append(instance.name)
-                except Exception as e:
-                    db.rollback()
-                    raise HTTPException(status_code=500, detail=f"Error creating {model_cls.__name__}: {str(e)}")
-
     created_synonyms = []
     created_properties = []
 
@@ -322,6 +335,7 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
         values=payload.synonym_types,
         create_fn=crud.create_synonym_type,
         created_list=created_synonyms,
+        db=db,
     )
 
     create_if_not_exists(
@@ -330,6 +344,7 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
         values=payload.properties,
         create_fn=crud.create_property,
         created_list=created_properties,
+        db=db,
     )
 
     return {
@@ -383,3 +398,60 @@ def read_compound_properties_v1(compound_id: int, db: Session = Depends(get_db))
     if not compound:
         raise HTTPException(status_code=404, detail="Compound not found")
     return compound.properties
+
+
+@app.post("/v1/additions/")
+def create_additions(
+    additions: Optional[str] = Form(None), file: Optional[UploadFile] = File(None), db: Session = Depends(get_db)
+):
+    created_additions = []
+    input_addtions = []
+
+    if file:
+        if file.content_type != "text/csv":
+            raise HTTPException(status_code=400, detail="Only CSV files are accepted")
+        csv_content = file.file.read().decode("utf-8")
+        input_addtions = list(csv.DictReader(io.StringIO(csv_content)))
+
+    elif additions:
+        input_addtions = json.loads(additions)["additions"]
+
+    create_if_not_exists(
+        model_cls=models.Addition,
+        base_cls=models.AdditionBase,
+        values=input_addtions,
+        create_fn=crud.create_addition,
+        created_list=created_additions,
+        db=db,
+    )
+
+    return {
+        "status": "success",
+        "created": {
+            "additions": created_additions,
+        },
+    }
+
+
+@app.get("/v1/additions/", response_model=List[models.AdditionResponse])
+def read_additions_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    additions = crud.get_additions_v1(db, skip=skip, limit=limit)
+    return additions
+
+
+@app.get("/v1/additions/salts", response_model=List[models.AdditionResponse])
+def read_additions_salts_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    salts = crud.get_additions_v1(db, skip=skip, limit=limit, role=enums.AdditionsRole.SALT)
+    return salts
+
+
+@app.get("/v1/additions/solvates", response_model=List[models.AdditionResponse])
+def read_additions_solvates_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    solvents = crud.get_additions_v1(db, skip=skip, limit=limit, role=enums.AdditionsRole.SOLVATE)
+    return solvents
+
+
+@app.get("/v1/additions/{addition_id}", response_model=models.AdditionBase)
+def read_addition_v1(addition_id: int, db: Session = Depends(get_db)):
+    db_addition = crud.get_addition_v1(db, addition_id=addition_id)
+    return db_addition

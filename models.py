@@ -406,29 +406,35 @@ class BatchAssayResultsResponse(SQLModel):
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
 
 
-class Addition(SQLModel, table=True):
+class AdditionResponse(SQLModel):
+    id: int = Field(primary_key=True, index=True)
+    name: str = Field(nullable=False, unique=True)
+
+
+class AdditionBase(AdditionResponse):
+    description: Optional[str] = None
+    code: Optional[str] = None
+    smiles: Optional[str] = None
+    role: enums.AdditionsRole = Field(sa_column=Column(Enum(enums.AdditionsRole)))
+    molfile: Optional[str] = None
+    formula: Optional[str] = None
+    molecular_weight: Optional[float] = None
+
+
+class Addition(AdditionBase, table=True):
     __tablename__ = "additions"
     __table_args__ = (
         CheckConstraint("role IN ('SALT', 'SOLVATE')", name="additions_role_check"),
         {"schema": DB_SCHEMA},
     )
 
-    id: int = Field(primary_key=True, index=True)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    name: str = Field(nullable=False, unique=True)
-    description: Optional[str]
-    code: Optional[str]
     is_active: bool = Field(default=True)
-    formula: Optional[str]
-    molecular_weight: Optional[float]
-    smiles: Optional[str]
-    molfile: Optional[str]
-    role: enums.AdditionsRole = Field(sa_column=Column(Enum(enums.AdditionsRole)))
     is_archived: bool = Field(default=False)
     deleted_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
     deleted_by: Optional[uuid.UUID] = Field(default=None)
@@ -514,3 +520,7 @@ class BatchSynonym(SQLModel, table=True):
 class SchemaPayload(SQLModel):
     properties: List["PropertyBase"] = Field(default_factory=list)
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
+
+
+class AdditionsPayload(SQLModel):
+    additions: List["AdditionBase"] = Field(default_factory=list)
