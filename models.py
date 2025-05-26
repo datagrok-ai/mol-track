@@ -407,11 +407,12 @@ class BatchAssayResultsResponse(SQLModel):
 
 
 class AdditionResponse(SQLModel):
-    id: int = Field(primary_key=True, index=True)
+    id: int
+    name: str
+
+
+class AdditionBase(SQLModel):
     name: str = Field(nullable=False, unique=True)
-
-
-class AdditionBase(AdditionResponse):
     description: Optional[str] = None
     code: Optional[str] = None
     smiles: Optional[str] = None
@@ -428,6 +429,7 @@ class Addition(AdditionBase, table=True):
         {"schema": DB_SCHEMA},
     )
 
+    id: int = Field(primary_key=True, index=True)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

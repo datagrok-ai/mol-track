@@ -1,8 +1,8 @@
 import json
-from pathlib import Path
 import pytest
 
 import enums
+from tests.conftest import load_csv_file
 
 TEST_SCHEMA_DATA = {
     "properties": [
@@ -31,14 +31,9 @@ def preload_schema(client):
     return client.post("/schema/", json=TEST_SCHEMA_DATA)
 
 
-def load_csv_file(file_name: str) -> str:
-    path = Path(__file__).parent.parent / "demo-data" / "black" / file_name
-    return path.read_text(encoding="utf-8")
-
-
-def post_compound_data(client, file_name, error_handling):
-    csv_data = load_csv_file(file_name)
-    files = {"csv_file": (file_name, csv_data, "text/csv")}
+def post_compound_data(client, file_path, error_handling):
+    csv_data = load_csv_file(file_path)
+    files = {"csv_file": (file_path, csv_data, "text/csv")}
     data = {
         "error_handling": error_handling.value,
         "mapping": json.dumps(DEFAULT_MAPPING),
@@ -55,14 +50,16 @@ def test_preload_schema(client):
 
     expected_synonyms = ["batch_corporate_id", "corporate_id", "common name", "CAS", "USAN"]
     expected_properties = ["MolLogP"]
+    actual_synonyms = [s["name"] for s in data["created"]["synonym_types"]]
+    actual_properties = [p["name"] for p in data["created"]["property_types"]]
 
     assert "created" in data
-    assert sorted(data["created"]["synonym_types"]) == sorted(expected_synonyms)
-    assert data["created"]["property_types"] == expected_properties
+    assert sorted(actual_synonyms) == sorted(expected_synonyms)
+    assert actual_properties == expected_properties
 
 
 def test_register_compounds_reject_all(client, preload_schema):
-    response = post_compound_data(client, "2_batches.csv", enums.ErrorHandlingOptions.reject_all)
+    response = post_compound_data(client, "demo-data/black/2_batches.csv", enums.ErrorHandlingOptions.reject_all)
     assert response.status_code == 400
 
     result = response.json()["detail"]
@@ -72,7 +69,7 @@ def test_register_compounds_reject_all(client, preload_schema):
 
 
 def test_register_compounds_reject_row(client, preload_schema):
-    response = post_compound_data(client, "2_batches.csv", enums.ErrorHandlingOptions.reject_row)
+    response = post_compound_data(client, "demo-data/black/2_batches.csv", enums.ErrorHandlingOptions.reject_row)
     assert response.status_code == 200
 
     result = response.json()
