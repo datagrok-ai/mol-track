@@ -8,7 +8,7 @@
         "properties": [
             {
                 "name": "Reported CLint",
-                "unit": "uL/min/106 cells",
+                "unit": "uL/min/10^6 cells",
                 "required": true
             },
             {
