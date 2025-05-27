@@ -470,11 +470,19 @@ class BatchAddition(SQLModel, table=True):
 
 
 class SynonymTypeBase(SQLModel):
-    synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
+    synonym_level: enums.SynonymLevel = Field(
+        sa_column=Column(Enum(enums.SynonymLevel)),
+        schema_extra={
+            "validation_alias": "level",
+        },
+    )
     name: str = Field(nullable=False)
     # TODO: Confirm if the 'description' field should be absent
     description: str = Field(nullable=False, default="")
     pattern: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
 
 
 class SynonymType(SynonymTypeBase, table=True):
