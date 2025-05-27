@@ -50,23 +50,25 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
 
 ### Getter methods for schema ###
 
-The GET methods allow us to see the configuration of MolTrack from perspective of the properties, synonyms, etc. associated with entities in the system.  At the moment we are provide resources specific to the entities but could also make it more dynamic with a query parameter.  We could also consider adding equivalent paths like `/compounds/schema` and `/batches/schema`
+The GET methods allow us to see the configuration of MolTrack from perspective of the properties, synonyms, etc. associated with entities in the system.  At the moment we provide resources specific to the entities but could also make it more dynamic with a query parameter.  We could also consider adding equivalent paths like `/compounds/schema` and `/batches/schema`
 
 - `GET /schema/compounds` - returns properties and synonym_types associated with the compounds entity_type
 - `GET /schema/batches` - returns properties, synonym_types and additions associated with the batches entity_type
 
 ## Additions ##
 
-Additions are addtional chemical entities are present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be preregistered into MolTrack.
+Additions are addtional chemical entities present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be preregistered into MolTrack.
 
-- `POST /additions` - used to register one or more additions into the MolTrack system.  Should accept an array of addition definitions.  Can be done in a csv format.  The return will be an array of additions added including the addition_id.
+- `POST /additions` - used to register one or more additions into the MolTrack system.  Should accept an array of addition definitions.  Can be done in a csv format (selected as the format for the MVP).  The return will be an array of additions added including the addition_id.
 
   - A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv)
 
-- `GET /additions` - retrieve with pagination all the salts and solvates that have been registered.  Retrieve in a csv format.
-- `GET /additions/salts` - retrieve all additions with role of *salts*
-- `GET /additions/solvates` - retrieve all additions with role of *solvates*
-- `GET /additions/{addition_id}` - retrieve all information for a specific addition
+- `PUT /additions` – updates one or more existing additions in the MolTrack system. Accepts an array of complete addition definitions, each including a valid addition_id. Returns an array of the updated additions.
+
+- `GET /additions` - retrieve all the salts and solvates that have been registered.  Retrieve in a csv format.
+- `GET /additions/salts` - retrieve all additions with role of *salts*.
+- `GET /additions/solvates` - retrieve all additions with role of *solvates*.
+- `GET /additions/{addition_id}` - retrieve all information for a specific addition.
 
 ## Register Batches ##
 
@@ -95,11 +97,11 @@ Mapping is optional, but assumes that the field names map to the database concep
       {
          "data": "\"batch_corporate_id\", smiles, common_name, cas, usan\n\"EPA-001-001\",\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",     \"121-91-5\"\n\"EPA-120-001\",\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\"\n",
          "mapping": {
-            "structure": "compounds.smiles",
-            "batch_corporate_id": "batches.synonyms.batch_corporate_id",
-            "common_name": "compounds.synonyms.common_name",
-            "cas": "compounds.synonyms.cas",
-            "usan": "compounds.synonyms.usan"
+            "smiles": "compounds.smiles",
+            "batch_corporate_id": "batches_synonyms.batch_corporate_id",
+            "common_name": "compounds_synonyms.common_name",
+            "cas": "compounds_synonyms.cas",
+            "usan": "compounds_synonyms.usan"
          }
       }
       ```
@@ -112,7 +114,7 @@ Mapping is optional, but assumes that the field names map to the database concep
 
       ```json
       {
-         "status_messge" = "Success",
+         "status_message" = "Success",
          "data": "\"batch_corporate_id\",smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id\n\"EPA-001-001\",\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",1,2,\"EPA-001\"\n\"EPA-120-001\",\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",2,4,\"EPA-120\"\n"
       }
       ```
@@ -132,16 +134,16 @@ Mapping is optional, but assumes that the field names map to the database concep
 
 ## Register Virtual Compounds ##
 
-Virtual compound registration will typically be done in bulk, by a cheminformatician or registrar.  These registrations will be contain the structure, synonyms, and possibly properties.  Properties and synonym_types will need to be defined ahead of time.  The inputs will be a collection of compound records that will be presented in a CSV-style format, an SDfile format or a parquet file .  A single registration will be a array with a single record. 
+Virtual compound registration will typically be done in bulk, by a cheminformatician or registrar.  These registrations will be contain the structure, synonyms, and possibly properties.  Properties and synonym_types will need to be defined ahead of time.  The inputs will be a collection of compound records that will be presented in a CSV-style format, an SDfile format or a parquet file. A single registration will be a array with a single record. 
 
-Registrations could executed synchronously or asynchronously.  In general, registration should be performed asynchronously to accommmodate multiple scenarios where processing would be require a lot of time, including molecules with complex ring structure or a collection that contains many entries.  
+Registrations could be executed synchronously or asynchronously.  In general, registration should be performed asynchronously to accommmodate multiple scenarios where processing would be require a lot of time, including molecules with complex ring structure or a collection that contains many entries.  
 
 *For the MVP, we have decided to go with*:
 
    1. *Synchronous registration.*
    2. *csv as the only input format with the structure encoded as either smiles or molfile (V2000 or V3000) format.*
    3. *csv as the only output format.*
-   4. *Entire request will fail if any entry fails.*
+   4. *Two failure-handling strategies are possible: (a) Reject all – the entire request fails if any entry is invalid; (b) Reject row – invalid entries are skipped, while valid ones are processed. By default, the system uses the Reject all strategy.*
 
 - `POST /compounds` - synchronous registration endpoint for CSV input
   - Input
@@ -200,7 +202,6 @@ Registrations could executed synchronously or asynchronously.  In general, regis
          "data": "smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id,registration_status,registration_error_message\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",2,\"EPA-001\","success",""\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",4,\"EPA-120\","failed","invalid structure"\n"
       }
       ```
-
 
 
 - `GET /compounds/` - returns an array of compounds with each entry having the comound, the properties and the synonyms.  An optional query parameter will allow the user to select the output format: json, csv-style, sd-file, parquet.  Properties and synonyms will need to be pivoted (and concatenated as necessary) to accomodate the csv,
