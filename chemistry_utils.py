@@ -120,14 +120,6 @@ def generate_uuid_hash_mol(layers: dict) ->  uuid.UUID:
     uuid_hash = uuid.uuid5(uuid.NAMESPACE_DNS, layers_str)
     return uuid_hash
 
-
-# #
-#     canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
-#     hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
-#     hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
-#     hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
-#     hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
-
 def calculate_tautomer_hash(mol: Chem.Mol) -> str:
     """
     Calculate the tautomer hash for a given molecule.

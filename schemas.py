@@ -326,7 +326,7 @@ class CompoundBase(BaseModel):
     canonical_smiles: Optional[str] = None
     original_molfile: Optional[str] = None
     inchi: Optional[str] = None
-    hash_mol: Optional[uuid.UUID] = None
+    hash_mol: Optional[str] = None
     formula: Optional[str] = None
     hash_tautomer: Optional[uuid.UUID] = None
     hash_canonical_smiles: Optional[uuid.UUID] = None
@@ -364,7 +364,7 @@ class CompoundUpdate(BaseModel):
     canonical_smiles: Optional[str] = None
     original_molfile: Optional[str] = None
     inchi: Optional[str] = None
-    hash_mol: Optional[uuid.UUID] = None
+    hash_mol: Optional[str] = None
     formula: Optional[str] = None
     hash_tautomer: Optional[uuid.UUID] = None
     hash_canonical_smiles: Optional[uuid.UUID] = None

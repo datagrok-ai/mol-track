@@ -76,7 +76,7 @@ class Compound(Base):
     inchikey = Column(Text, nullable=False, unique=True)
     molregno = Column(Integer, nullable=False)
     formula = Column(Text, nullable=False)
-    hash_mol = Column(UUID(as_uuid=True), nullable=False)
+    hash_mol = Column(Text(40), nullable=False)
     hash_tautomer = Column(UUID(as_uuid=True), nullable=False)
     hash_canonical_smiles = Column(UUID(as_uuid=True), nullable=False)
     hash_no_stereo_smiles = Column(UUID(as_uuid=True), nullable=False)
