@@ -306,23 +306,25 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
     return crud.get_batch_details_by_batch(db, batch_id=batch_id, skip=skip, limit=limit)
 
 
-# TODO: Move to the utils or a separate module
 def create_if_not_exists(model_cls, base_cls, values, create_fn, created_list, db):
     for item in values:
         if not isinstance(item, dict):
-            item = item.dict()
+            item = item.model_dump(by_alias=True)
 
         # TODO: Think how to better handle empty values
-        # TODO: Think abouut how to be with column names that are not the same as model fields
+        # TODO: Think about how to be with column names that are not the same as model fields
         item = {k: v for k, v in item.items() if v not in (None, "", [], {}, ())}
-        # TODO: Improve lookup for existing records (if exists we will need an update method, TBD)
-        if not db.query(model_cls).filter_by(**item).first():
-            try:
-                instance = create_fn(db, base_cls(**item))
+
+        try:
+            instance_obj = base_cls.model_validate(item)
+            item_for_filter = instance_obj.model_dump()
+            # TODO: Improve lookup for existing records (if exists we will need an update method, TBD)
+            if not db.query(model_cls).filter_by(**item_for_filter).first():
+                instance = create_fn(db, instance_obj)
                 created_list.append({"id": instance.id, "name": instance.name})
-            except Exception as e:
-                db.rollback()
-                raise HTTPException(status_code=500, detail=f"Error creating {model_cls.__name__}: {str(e)}")
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Error processing {model_cls.__name__}: {str(e)}")
 
 
 @app.post("/schema/")

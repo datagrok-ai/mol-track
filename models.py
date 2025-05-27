@@ -421,7 +421,16 @@ class AdditionBase(SQLModel):
     role: enums.AdditionsRole = Field(sa_column=Column(Enum(enums.AdditionsRole)))
     molfile: Optional[str] = None
     formula: Optional[str] = None
-    molecular_weight: Optional[float] = None
+    # Issue related to alias not working properly in SQLModel: https://github.com/fastapi/sqlmodel/issues/374
+    molecular_weight: Optional[float] = Field(
+        None,
+        schema_extra={
+            "validation_alias": "molecular weight",
+        },
+    )
+
+    class Config:
+        populate_by_name = True
 
 
 class Addition(AdditionBase, table=True):
