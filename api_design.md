@@ -211,11 +211,135 @@ sd and parquet format expectations.  We will need to have query parameters to su
 
 ## Assay Data - WIP ##
 
-`/assay_results`
+- `POST /schema/assay`  will define allowed/expected properties for assay_type_details, assay_details, assay_type_properties.  The properties represent categorization of the assay type whose values would be stored in *assay_type_details*, experimental conditions that would be stored as the assays level in the *assay_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assay type* level.
+
+N.B. I am not happy with the titling of the major sections of the following schema
+
+   ```json
+   {
+      "assay_type_details properties": [
+         {
+            "name": "assay format",
+            "scope": "assay_types",
+            "property_class": "asserted",
+            "value_type": "string"
+         },
+         {
+            "name": "biological system",
+            "scope": "hepatocyte",
+            "property_class": "asserted",
+            "value_type": "string"
+         }
+      ],
+      "assay_details properties":[
+            {
+            "name": "Cell Species",
+            "value_type": "string",
+            "required": true,
+            "scope": "assay",
+            "property_class": "asserted"
+        },
+        {
+            "name": "Cell Lot",
+            "value_type": "string",
+            "required": true,
+            "scope": "assay",
+            "property_class": "measured"
+        },
+        {
+            "name": "Cell Concentration",
+            "value_type": "float",
+            "required": true,
+            "scope": "assay",
+            "property_class": "measured",
+            "units": "10^6 cells/mL"
+        },
+        {
+            "name": "Assay Run Date",
+            "value_type": "datetime",
+            "required": true,
+            "scope": "assay",
+            "property_class": "measured"
+        },
+        {
+            "name": "Assayer",
+            "value_type": "uuid",
+            "required": true,
+            "scope": "assay",
+            "property_class": "measured"
+        }
+      ],
+       "assay_type_properties": [
+            {
+                "name": "Reported CLint",
+                "value_type": "float",
+                "unit": "uL/min/10^6 cells",
+                "required": true,
+                "property_class": "measured",
+                "scope": "assay_results"
+            },
+            {
+                "name": "Mean HTC recovery",
+                "unit": "%",
+                "required": false,
+               "value_type": "float",
+               "property_class": "measured",
+                "scope": "assay_results"
+            },
+            {
+                "name": "SD HTC recovery",
+                "unit": "%",
+                "required": false,
+               "value_type": "float",
+               "property_class": "measured",
+                "scope": "assay_results"
+            },
+            {
+                "name": "Dosed Concentration",
+                "unit": "uM",
+                "required": true,
+               "value_type": "float",
+               "property_class": "measured",
+                "scope": "assay_results"
+            }
+       ]
+   }
+   ```
+
+- `POST /assay_types` will create an instance of an assay type and values in assay_type_details and assay_type_properties. An example is presented below.
+
+   ```json
+   {
+    "assay_type": {
+        "name": "Hepatocyte Stability",
+        "details": {
+            "assay format": "in cellulo",
+            "biological_system": "hepatocyte"
+        }
+      }
+   }
+   ```
+
+- `POST /assays` will create an instance of the 'assays' or assay run and populate property values in *assay_details* table.  Example properties to be populated would include assay date, assayer, and might include cell lot number for a *in cellulo* assay.  An example is presented below:
+
+   ```json
+   {
+      "assay_details": {
+         "cell species": "Human",
+         "cell lot": "H1",
+         "assayer": "Jane Doe",
+         "assay_date": "2024-02-01"
+      }
+   }
+   ```
+
+- `POST /assay_results` will be populate data in assays, assay_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assays and assay_results levels.  There will need to be a mapping.  Since there were be multiple results rows per assay run, the assays instance will be to be determined by matching appropriate properties.
+
+An example CSV can be found here [assay_results.csv](./demo-data/black/assay_results.csv).  An example mapping can be seen here [assay_results_mapping.json](./demo-data/black/assay_results_mapping.json).  Note that all fields are not mapped.
 
 ## Search - WIP ##
 
-Can we provide a generalized search capabilities across all the various entities in our model: compounds, batches, assay_results.  
+Can we provide a generalized search capabilities across all the various entities in our model: compounds, batches, assay_results.  The endpoint path indicates the shape of the returned data: compound per row; batch per row; assay result value per row.
 
 - `/search/compounds`
 - `/search/batches`
@@ -235,15 +359,14 @@ A simple or complex set of search criteria are presented in a json format.  Quer
       3. batch property of source = WuXi
       4. kinase IC50 < 100 uM
 
-
-`/search/compounds/structure`
-- exact  -->  smiles + standardized by Moltrack settings.  optional pattern of standardization  [array of standardization steps].  uses all layers of the registration mol hash
-   - returns - 0 or 1 compound entries, exact match can return multiple tautomers
+- `POST /search/compounds/structure`
+    - exact  -->  smiles + standardized by Moltrack settings.  optional pattern of standardization  [array of standardization steps].  uses all layers of the registration mol hash
+    - returns - 0 or 1 compound entries, exact match can return multiple tautomers
 - less precise  -- substructure, tautomer, no-stereo
 substructure + similar to a key compound
 
-`/search/batches`
-`/search/assay-data`
+- `POST /search/batches`
+- `POST /search/assay-data`
 
 logical conditions -> postgres sql condition phrases
 
