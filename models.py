@@ -453,7 +453,13 @@ class Addition(AdditionBase, table=True):
     deleted_by: Optional[uuid.UUID] = Field(default=None)
 
 
-class BatchAddition(SQLModel, table=True):
+class BatchAdditionBase(SQLModel):
+    batch_id: int = Field(foreign_key="moltrack.batches.id", nullable=False, unique=True)
+    addition_id: int = Field(foreign_key="moltrack.additions.id", nullable=False, unique=True)
+    addition_equivalent: float = Field(default=1)
+
+
+class BatchAddition(BatchAdditionBase, table=True):
     __tablename__ = "batch_additions"
     __table_args__ = {"schema": DB_SCHEMA}
 
@@ -464,9 +470,6 @@ class BatchAddition(SQLModel, table=True):
     )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    batch_id: int = Field(foreign_key="moltrack.batches.id", nullable=False, unique=True)
-    addition_id: int = Field(foreign_key="moltrack.additions.id", nullable=False, unique=True)
-    addition_equivalent: float = Field(default=1)
 
 
 class SynonymTypeBase(SQLModel):
@@ -477,8 +480,6 @@ class SynonymTypeBase(SQLModel):
         },
     )
     name: str = Field(nullable=False)
-    # TODO: Confirm if the 'description' field should be absent
-    description: str = Field(nullable=False, default="")
     pattern: Optional[str] = None
 
     class Config:
@@ -493,6 +494,7 @@ class SynonymType(SynonymTypeBase, table=True):
     )
 
     id: int = Field(primary_key=True, index=True)
+    description: str = None
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -549,4 +551,13 @@ class SchemaPayload(SQLModel):
 
 
 class AdditionsPayload(SQLModel):
+    additions: List["AdditionBase"] = Field(default_factory=list)
+
+
+class SchemaCompoundResponse(SQLModel):
+    properties: List["PropertyBase"] = Field(default_factory=list)
+    synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
+
+
+class SchemaBatchResponse(SchemaCompoundResponse):
     additions: List["AdditionBase"] = Field(default_factory=list)

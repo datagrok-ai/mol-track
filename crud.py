@@ -843,6 +843,18 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     return db_batch_detail
 
 
+def create_batch_addition(db: Session, batch_addition: models.BatchAdditionBase) -> models.BatchAddition:
+    batch_addition = models.BatchAddition(
+        **batch_addition.dict(),
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(batch_addition)
+    db.commit()
+    db.refresh(batch_addition)
+    return batch_addition
+
+
 def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase) -> models.SynonymType:
     synonym_type = models.SynonymType(
         synonym_level=synonym_type.synonym_level,

@@ -1,6 +1,7 @@
 from typing import Dict, Optional
 from fastapi import HTTPException
 from pytest import Session
+from sqlalchemy import select
 from compound_registrar import CompoundRegistrar
 import crud
 import models
@@ -9,6 +10,11 @@ import models
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
+        self.additions_map = self.load_additions()
+
+    def load_additions(self) -> Dict[str, int]:
+        result = self.db.execute(select(models.Addition)).all()
+        return {self.normalize_key(a.name): a.id for (a,) in result}
 
     def process_row(self, row):
         grouped = self.group_data(row)
@@ -17,6 +23,7 @@ class BatchRegistrar(CompoundRegistrar):
         self.create_properties(compound.id, grouped.get("properties", {}))
         batch = self.create_batch(compound.id)
         self.create_batch_synonyms(batch.id, grouped.get("batches_synonyms", {}))
+        self.create_batch_additions(batch.id, grouped.get("batches_additions", {}))
 
     def create_batch(self, compound_id: int):
         batch_data = models.BatchBase(compound_id=compound_id)
@@ -31,3 +38,14 @@ class BatchRegistrar(CompoundRegistrar):
 
             synonym_input = models.BatchSynonymBase(batch_id=batch_id, synonym_type_id=type_id, synonym_value=value)
             crud.create_batch_synonym(self.db, batch_synonym=synonym_input)
+
+    def create_batch_additions(self, batch_id: int, batch_additions: Dict[str, str]):
+        for addition_name, value in batch_additions.items():
+            norm_addition_name = self.normalize_key(addition_name)
+            addition_id = self.additions_map.get(norm_addition_name)
+            if addition_id is None:
+                raise HTTPException(status_code=400, detail=f"Unknown addition: {addition_name}")
+            addition_input = models.BatchAdditionBase(
+                batch_id=batch_id, addition_id=addition_id, addition_equivalent=value
+            )
+            crud.create_batch_addition(self.db, batch_addition=addition_input)

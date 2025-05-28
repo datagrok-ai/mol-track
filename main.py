@@ -312,7 +312,6 @@ def create_if_not_exists(model_cls, base_cls, values, create_fn, created_list, d
             item = item.model_dump(by_alias=True)
 
         # TODO: Think how to better handle empty values
-        # TODO: Think about how to be with column names that are not the same as model fields
         item = {k: v for k, v in item.items() if v not in (None, "", [], {}, ())}
 
         try:
@@ -357,6 +356,35 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
             "property_types": created_properties,
         },
     }
+
+
+# TODO: Move to the utils file
+def get_properties_by_scope(scope: enums.ScopeClass, db: Session) -> List[models.Property]:
+    return db.query(models.Property).filter(models.Property.scope == scope).all()
+
+
+def get_synonyms_by_level(level: enums.SynonymLevel, db: Session) -> List[models.SynonymType]:
+    return db.query(models.SynonymType).filter(models.SynonymType.synonym_level == level).all()
+
+
+@app.get("/schema/compounds", response_model=models.SchemaCompoundResponse)
+def get_schema_compounds(db: Session = Depends(get_db)):
+    return models.SchemaCompoundResponse(
+        properties=get_properties_by_scope(enums.ScopeClass.COMPOUND, db),
+        synonym_types=get_synonyms_by_level(enums.SynonymLevel.COMPOUND, db),
+    )
+
+
+@app.get("/schema/batches", response_model=models.SchemaBatchResponse)
+def get_schema_batches(db: Session = Depends(get_db)):
+    properties = get_properties_by_scope(enums.ScopeClass.BATCH, db)
+    synonym_types = get_synonyms_by_level(enums.SynonymLevel.BATCH, db)
+
+    addition_ids = db.query(models.BatchAddition.addition_id).distinct().all()
+    addition_ids = [aid[0] for aid in addition_ids]
+    additions = db.query(models.Addition).filter(models.Addition.id.in_(addition_ids)).all()
+
+    return models.SchemaBatchResponse(properties=properties, synonym_types=synonym_types, additions=additions)
 
 
 @app.post("/v1/compounds/")
