@@ -10,6 +10,8 @@ from compound_registrar import CompoundRegistrar
 import models
 import enums
 
+from sqlalchemy.orm import load_only
+
 
 # Handle both package imports and direct execution
 try:
@@ -367,11 +369,21 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
 
 # TODO: Move to the utils file
 def get_properties_by_scope(scope: enums.ScopeClass, db: Session) -> List[models.Property]:
-    return db.query(models.Property).filter(models.Property.scope == scope).all()
+    return (
+        db.query(models.Property)
+        .options(load_only(models.Property.id, models.Property.name, models.Property.scope))
+        .filter(models.Property.scope == scope)
+        .all()
+    )
 
 
 def get_synonyms_by_level(level: enums.SynonymLevel, db: Session) -> List[models.SynonymType]:
-    return db.query(models.SynonymType).filter(models.SynonymType.synonym_level == level).all()
+    return (
+        db.query(models.SynonymType)
+        .options(load_only(models.SynonymType.id, models.SynonymType.name, models.SynonymType.synonym_level))
+        .filter(models.SynonymType.synonym_level == level)
+        .all()
+    )
 
 
 @app.get("/schema/compounds", response_model=models.SchemaCompoundResponse)
@@ -387,10 +399,12 @@ def get_schema_batches(db: Session = Depends(get_db)):
     properties = get_properties_by_scope(enums.ScopeClass.BATCH, db)
     synonym_types = get_synonyms_by_level(enums.SynonymLevel.BATCH, db)
 
-    addition_ids = db.query(models.BatchAddition.addition_id).distinct().all()
-    addition_ids = [aid[0] for aid in addition_ids]
-    additions = db.query(models.Addition).filter(models.Addition.id.in_(addition_ids)).all()
-
+    additions = (
+        db.query(models.Addition)
+        .join(models.BatchAddition, models.Addition.id == models.BatchAddition.addition_id)
+        .distinct()
+        .all()
+    )
     return models.SchemaBatchResponse(properties=properties, synonym_types=synonym_types, additions=additions)
 
 
