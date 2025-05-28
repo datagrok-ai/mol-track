@@ -48,9 +48,9 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
    }
    ```
 
-### Getter methods for schema ###
+### Getter endpoints for schema ###
 
-The GET methods allow us to see the configuration of MolTrack from perspective of the properties, synonyms, etc. associated with entities in the system.  At the moment we provide resources specific to the entities but could also make it more dynamic with a query parameter.  We could also consider adding equivalent paths like `/compounds/schema` and `/batches/schema`
+The GET endpoints allow us to see the configuration of MolTrack from perspective of the properties, synonyms, etc. associated with entities in the system.  At the moment we are provide resources specific to the entities but could also make it more dynamic with a query parameter.  We could also consider adding equivalent paths like `/compounds/schema` and `/batches/schema`
 
 - `GET /schema/compounds` - returns properties and synonym_types associated with the compounds entity_type
 - `GET /schema/batches` - returns properties, synonym_types and additions associated with the batches entity_type
@@ -59,7 +59,7 @@ The GET methods allow us to see the configuration of MolTrack from perspective o
 
 Additions are addtional chemical entities present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be preregistered into MolTrack.
 
-- `POST /additions` - used to register one or more additions into the MolTrack system.  Should accept an array of addition definitions.  Can be done in a csv format (selected as the format for the MVP).  The return will be an array of additions added including the addition_id.
+- `POST /additions` - used to register one or more additions into the MolTrack system.  The endpoint accepts an array of addition definitions in csv format (selected as the format for the MVP).  The return will be an array of additions added including the addition_id.
 
   - A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv)
 
@@ -69,6 +69,8 @@ Additions are addtional chemical entities present in the batch/lot of a material
 - `GET /additions/salts` - retrieve all additions with role of *salts*.
 - `GET /additions/solvates` - retrieve all additions with role of *solvates*.
 - `GET /additions/{addition_id}` - retrieve all information for a specific addition.
+
+- `DELETE /additions/{addition_id}` - soft delete from a given addition.
 
 ## Register Batches ##
 
@@ -106,7 +108,7 @@ Mapping is optional, but assumes that the field names map to the database concep
       }
       ```
 
-    - An example set of batches with addtions to be registered can be found [2_batches_with_additions.csv](./demo-data/black/2_batches_with_additions.csv).  The additions are listed in columns with the cells showing the equivalents.
+    - An example set of batches with addtions and batch properties to be registered can be found [2_batches_with_additions.csv](./demo-data/black/2_batches_with_additions.csv).  The additions are listed in columns with the cells showing the equivalents.  Schemas posts should be performed with [compounds_schema.json](./demo-data/black/compounds_schema.json) and [batches_schema.json](./demo-data/black/batches_schema.json) first to prepare the appropriate schema.
 
   - Output
    The batches, batches_detail, batches_synonym, batch_additions, additions, compounds, compound_details, and compound_synonyms tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.
@@ -121,16 +123,21 @@ Mapping is optional, but assumes that the field names map to the database concep
 
 - `GET /batches/` - returns a representation of batches including details, synonyms, additions and compounds including details and synonyms
 
+   Future potential capabilities
    1. pagination must be supported
    2. output format must be supported. `output-format=[json|csv|mol-v3000]` with a default of `csv`.  If `json` format is selected, the data is returned in a nested dictionary structure.  If the format is `csv` or `mol-v3000`, then the data is pivoted/concatenated/flattened
    3. there should probably be a hard limit
 
-- `GET /batches/{id}` - .returns a representation of batches including details, synonyms, additions and compounds including details and synonyms
-   - Query parameter `output-format=[json|csv|mol-v3000]` with a default of `csv`.  If `json` format is selected, the data is returned in a nested dictionary structure.  If the format is `csv` or `mol-v3000`, then the data is pivoted/concatenated/flattened
+- `GET /batches/{id}` - Returns a representation of batches including details, synonyms, additions and compounds including details and synonyms
 
-- `GET /batches/{id}/properties`
-- `GET /batches/{id}/synonyms`
-- `GET /batches/{id}/additions` - should returns additions, equivalents, and summary
+   Future potential capability
+  - Query parameter `output-format=[json|csv|mol-v3000]` with a default of `csv`.  If `json` format is selected, the data is returned in a nested dictionary structure.  If the format is `csv` or `mol-v3000`, then the data is pivoted/concatenated/flattened
+
+- `GET /batches/{batch_id}/properties`
+- `GET /batches/{batch_id}/synonyms`
+- `GET /batches/{batch_id}/additions` - should returns additions, equivalents, and summary
+
+- `PUT /batches/{batch_id}` - Used for updating information (details, compound, synonym, additions) for a given batch.  `batch_regno` is not updateable.
 
 ## Register Virtual Compounds ##
 
@@ -203,14 +210,21 @@ Registrations could be executed synchronously or asynchronously.  In general, re
       }
       ```
 
+### Getter endpoints ###
+These are included for symmetry of user experience.  They may be deprecated in favor of a search experience for become synonyms for that search endpoint.
 
 - `GET /compounds/` - returns an array of compounds with each entry having the comound, the properties and the synonyms.  An optional query parameter will allow the user to select the output format: json, csv-style, sd-file, parquet.  Properties and synonyms will need to be pivoted (and concatenated as necessary) to accomodate the csv,
-sd and parquet format expectations.  We will need to have query parameters to support pagination of the resulting output (`start`,`stop`,`max-per-page`)
+sd and parquet format expectations.  ~~We will need to have query parameters to support pagination of the resulting output (`start`,`stop`,`max-per-page`)~~
 - `GET /compounds/{compound_id}`
 - `GET /compounds/{compound_id}/properties` - I think these will be less used but included for completeness
 - `GET /compounds/{compound_id}/synonyms` - I think these will be less used but included for completeness
 
-## Assay Data - WIP ##
+- `PUT /compounds/{compound_id}` - Used to update information (structure, properties, synonyms) for the provided compound_id.  Based on the business rule configuration, structure changes for compounds with batches attached are not permitted but rather may only be performed via the `PUT /batches/{batch_id}` endpoint.
+- `DELETE /compounds/{compound_id}` - Used to perform a soft delete.  Only allowed from compounds that have no dependent batches.
+
+## Assay Data ##
+
+A key capability for moltrack is to capture assay data related to a sample (batch).  Typically this will be measured biological activity (potency, selectivity, toxicity).  Can be used to capture measured physical/chemical attributes as well.
 
 - `POST /schema/assay`  will define allowed/expected properties for assay_type_details, assay_details, assay_type_properties.  The properties represent categorization of the assay type whose values would be stored in *assay_type_details*, experimental conditions that would be stored as the assays level in the *assay_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assay type* level.
 
@@ -227,7 +241,7 @@ N.B. I am not happy with the titling of the major sections of the following sche
          },
          {
             "name": "biological system",
-            "scope": "hepatocyte",
+            "scope": "assay_types",
             "property_class": "asserted",
             "value_type": "string"
          }
@@ -335,6 +349,23 @@ N.B. I am not happy with the titling of the major sections of the following sche
    ```
 
 - `POST /assay_results` will be populate data in assays, assay_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assays and assay_results levels.  There will need to be a mapping.  Since there were be multiple results rows per assay run, the assays instance will be to be determined by matching appropriate properties.
+  - See example [assay data](./demo-data/black/assay_results.csv)
+  - See example [mapping](./demo-data/black/assay_results_mapping.json)
+
+### Assay Data Getter endpoint ###
+
+These are included for symmetrical thinking of user experience.  They may be deprecated in favor of a search experience for become synonyms for that search endpoint.
+
+- `GET /assay_types` - Return a list of all assay_types with included assay_type_details and assay_type_properties
+- `GET /assay_types/{assay_type_id}`
+- `GET /assays` - Return a list of all assays including assay_type information, assay_details information
+- `GET /assays/{assay_id}`
+- `GET /assay_results`
+   Query parameters include possible filters for {assay_type_id} and/or {assay_id}
+
+### Assay Data Putter endpoints ###
+
+### Assay Data Deleter endpoints ###
 
 An example CSV can be found here [assay_results.csv](./demo-data/black/assay_results.csv).  An example mapping can be seen here [assay_results_mapping.json](./demo-data/black/assay_results_mapping.json).  Note that all fields are not mapped.
 
@@ -347,7 +378,7 @@ Can we provide a generalized search capabilities across all the various entities
 - `/search/assay-data`
 
 - `POST /search`
-A simple or complex set of search criteria are presented in a json format.  Query parameters provide pagination support and output format style.  User stories:
+A simple or complex set of search criteria are presented in a json format.  ~~Query parameters provide pagination support and output format style.~~ For the MVP, pagination is not required and only the CSV style output will be provided.  User stories:
 
    1. Find all batches made for project X in the past week.
    2. Find all stereo-similar compounds to I can determine whether I have expressed the stereo nature of my new molecule correctly.
@@ -392,8 +423,8 @@ Properties and synonym types can probably follow the standard approaches:
 
 - *Deferred* `POST /batches-collection`  To be implemented post-MVP.
 
-   A mapping between input fields and database structure will need to be provided or inferred.  The POST method creates a job that needs to be performed and returns the `jobId`.
-   For this method we will need to consider the ability to include all the data in the json body, gzipping the content, or provide a file upload mechanism.  The backend job should probably separate the content into individual entries so that we can run in parallel threads and still capture progress and errors.
+   A mapping between input fields and database structure will need to be provided or inferred.  The POST endpoint creates a job that needs to be performed and returns the `jobId`.
+   For this endpoint we will need to consider the ability to include all the data in the json body, gzipping the content, or provide a file upload mechanism.  The backend job should probably separate the content into individual entries so that we can run in parallel threads and still capture progress and errors.
 
    Returns:
 
@@ -450,8 +481,8 @@ A simplified json example is presented here to demonstrate the input structure:
    ]
    ```
 
-   A mapping between input fields and database structure will need to be provided or inferred.  The POST method creates a job that needs to be performed and returns the `jobId`.
-   For this method we will need to consider the ability to include all the data in the json body, gzipping the content, or provide a file upload mechanism.  The backend job should probably separate the content into individual entries so that we can run in parallel threads and still capture progress and errors.
+   A mapping between input fields and database structure will need to be provided or inferred.  The POST endpoint creates a job that needs to be performed and returns the `jobId`.
+   For this endpoint we will need to consider the ability to include all the data in the json body, gzipping the content, or provide a file upload mechanism.  The backend job should probably separate the content into individual entries so that we can run in parallel threads and still capture progress and errors.
 
    Returns:
 
