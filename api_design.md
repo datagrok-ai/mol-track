@@ -78,7 +78,7 @@ Batch registration will be performed as singletons or in bulk, by the chemist or
 
 Registrations could executed synchronously or asynchronously.  In general, registration should be performed asynchronously to accommmodate multiple scenarios where processing would be require a lot of time, including molecules with complex ring structure or a collection that contains many entries.  *For the MVP, we have decided to go with synchronous registration.*
 
-Mapping is optional, but assumes that the field names map to the database concepts.
+Mapping is optional, but assumes that the field names directly map to the database concepts.
 
 - `POST /batches` - synchronous registration endpoint for CSV input
   - Input
@@ -123,14 +123,14 @@ Mapping is optional, but assumes that the field names map to the database concep
 
 - `GET /batches/` - returns a representation of batches including details, synonyms, additions and compounds including details and synonyms
 
-   Future potential capabilities
+   __Future potential capabilities__
    1. pagination must be supported
    2. output format must be supported. `output-format=[json|csv|mol-v3000]` with a default of `csv`.  If `json` format is selected, the data is returned in a nested dictionary structure.  If the format is `csv` or `mol-v3000`, then the data is pivoted/concatenated/flattened
    3. there should probably be a hard limit
 
 - `GET /batches/{id}` - Returns a representation of batches including details, synonyms, additions and compounds including details and synonyms
 
-   Future potential capability
+   __Future potential capability__
   - Query parameter `output-format=[json|csv|mol-v3000]` with a default of `csv`.  If `json` format is selected, the data is returned in a nested dictionary structure.  If the format is `csv` or `mol-v3000`, then the data is pivoted/concatenated/flattened
 
 - `GET /batches/{batch_id}/properties`
@@ -211,20 +211,22 @@ Registrations could be executed synchronously or asynchronously.  In general, re
       ```
 
 ### Getter endpoints ###
+
 These are included for symmetry of user experience.  They may be deprecated in favor of a search experience for become synonyms for that search endpoint.
 
-- `GET /compounds/` - returns an array of compounds with each entry having the comound, the properties and the synonyms.  An optional query parameter will allow the user to select the output format: json, csv-style, sd-file, parquet.  Properties and synonyms will need to be pivoted (and concatenated as necessary) to accomodate the csv,
-sd and parquet format expectations.  ~~We will need to have query parameters to support pagination of the resulting output (`start`,`stop`,`max-per-page`)~~
+- `GET /compounds/` - returns an array of compounds with each entry having the comound, the properties and the synonyms.  An optional query parameter will allow the user to select the output format: json, csv-style, sd-file, parquet.  Properties and synonyms will need to be pivoted (and concatenated as necessary) to accomodate the csv, sd and parquet format expectations.  ~~We will need to have query parameters to support pagination of the resulting output (`start`,`stop`,`max-per-page`)~~
 - `GET /compounds/{compound_id}`
-- `GET /compounds/{compound_id}/properties` - I think these will be less used but included for completeness
-- `GET /compounds/{compound_id}/synonyms` - I think these will be less used but included for completeness
+- `GET /compounds/{compound_id}/properties` - I think these will be infrequently used but included for completeness
+- `GET /compounds/{compound_id}/synonyms` - I think these will be infrequently used but included for completeness
+
+### Update endpoints ###
 
 - `PUT /compounds/{compound_id}` - Used to update information (structure, properties, synonyms) for the provided compound_id.  Based on the business rule configuration, structure changes for compounds with batches attached are not permitted but rather may only be performed via the `PUT /batches/{batch_id}` endpoint.
 - `DELETE /compounds/{compound_id}` - Used to perform a soft delete.  Only allowed from compounds that have no dependent batches.
 
-## Assay Data ##
+## Assay Data Domain ##
 
-A key capability for moltrack is to capture assay data related to a sample (batch).  Typically this will be measured biological activity (potency, selectivity, toxicity).  Can be used to capture measured physical/chemical attributes as well.
+A key capability for moltrack is to capture assay data related to a sample (batch).  Typically this will be measured biological activity (potency, selectivity, toxicity).  It can be used to capture measured physical/chemical attributes as well.
 
 - `POST /schema/assay`  will define allowed/expected properties for assay_type_details, assay_details, assay_type_properties.  The properties represent categorization of the assay type whose values would be stored in *assay_type_details*, experimental conditions that would be stored as the assays level in the *assay_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assay type* level.
 
@@ -348,18 +350,18 @@ N.B. I am not happy with the titling of the major sections of the following sche
    }
    ```
 
-- `POST /assay_results` will be populate data in assays, assay_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assays and assay_results levels.  There will need to be a mapping.  Since there were be multiple results rows per assay run, the assays instance will be to be determined by matching appropriate properties.
+- `POST /assay_results` This endpoint will be used populate data in assays, assay_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assays and assay_results levels.  There will need to be a mapping.  Since there were be multiple results rows per assay run, the assays instance will be to be determined by matching appropriate properties.
   - See example [assay data](./demo-data/black/assay_results.csv)
   - See example [mapping](./demo-data/black/assay_results_mapping.json)
 
 ### Assay Data Getter endpoint ###
 
-These are included for symmetrical thinking of user experience.  They may be deprecated in favor of a search experience for become synonyms for that search endpoint.
+These are included for symmetrical thinking of user experience.  They may be deprecated in favor of a search experience or become alternative paths for that search endpoint.
 
-- `GET /assay_types` - Return a list of all assay_types with included assay_type_details and assay_type_properties
-- `GET /assay_types/{assay_type_id}`
-- `GET /assays` - Return a list of all assays including assay_type information, assay_details information
-- `GET /assays/{assay_id}`
+- `GET /assay_types` - Return a list of all assay_types with included assay_type_details and assay_type_properties.
+- `GET /assay_types/{assay_type_id}` - Return the details for a specific assay_type.
+- `GET /assays` - Return a list of all assays including assay_type information, assay_details information.
+- `GET /assays/{assay_id}` - Return the details for a specific assay.
 - `GET /assay_results`
    Query parameters include possible filters for {assay_type_id} and/or {assay_id}
 
@@ -392,9 +394,9 @@ A simple or complex set of search criteria are presented in a json format.  ~~Qu
       4. kinase IC50 < 100 uM
 
 - `POST /search/compounds/structure`
-    - exact  -->  smiles + standardized by Moltrack settings.  optional pattern of standardization  [array of standardization steps].  uses all layers of the registration mol hash
-    - returns - 0 or 1 compound entries, exact match can return multiple tautomers
-- less precise  -- substructure, tautomer, no-stereo
+  - exact  -->  smiles + standardized by Moltrack settings.  optional pattern of standardization  [array of standardization steps].  uses all layers of the registration mol hash
+    - returns - 0 or 1 compound entries, exact match might return multiple tautomers
+  - less precise  -- substructure, tautomer, no-stereo
 substructure + similar to a key compound
 
 - `POST /search/batches`
