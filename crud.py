@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
 from typing import List
-from sqlalchemy import text
+from sqlalchemy import insert, text
 from datetime import datetime, timezone
 import models as models
 from rdkit.Chem.rdMolDescriptors import CalcMolFormula
@@ -344,14 +344,11 @@ def create_properties(db: Session, properties: list[models.PropertyBase]) -> lis
             to_insert.append(data)
 
     if to_insert:
-        db.bulk_insert_mappings(models.Property, to_insert)
+        stmt = insert(models.Property).values(to_insert).returning(models.Property.id, models.Property.name)
+        result = db.execute(stmt).fetchall()
         db.commit()
 
-        inserted_names = [d["name"] for d in to_insert]
-        inserted = (
-            db.query(models.Property.id, models.Property.name).filter(models.Property.name.in_(inserted_names)).all()
-        )
-        return [{"id": id_, "name": name} for id_, name in inserted]
+        return [{"id": row.id, "name": row.name} for row in result]
 
     return []
 
@@ -924,16 +921,10 @@ def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase
             to_insert.append(data)
 
     if to_insert:
-        db.bulk_insert_mappings(models.SynonymType, to_insert)
+        stmt = insert(models.SynonymType).values(to_insert).returning(models.SynonymType.id, models.SynonymType.name)
+        result = db.execute(stmt).fetchall()
         db.commit()
-
-        inserted_names = [d["name"] for d in to_insert]
-        inserted = (
-            db.query(models.SynonymType.id, models.SynonymType.name)
-            .filter(models.SynonymType.name.in_(inserted_names))
-            .all()
-        )
-        return [{"id": id_, "name": name} for id_, name in inserted]
+        return [{"id": row.id, "name": row.name} for row in result]
 
     return []
 
