@@ -323,6 +323,39 @@ def create_property(db: Session, property: models.PropertyBase):
     return db_property
 
 
+def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:
+    # TODO: Think of better unique constraint
+    input_names = [p.name for p in properties]
+    existing = db.query(models.Property.name).filter(models.Property.name.in_(input_names)).all()
+    existing_names = {name for (name,) in existing}
+
+    to_insert = []
+
+    for p in properties:
+        if p.name not in existing_names:
+            validated = models.PropertyBase.model_validate(p)
+            data = validated.model_dump(by_alias=True, exclude_unset=True, exclude_none=True)
+            data.update(
+                {
+                    "created_by": main.admin_user_id,
+                    "updated_by": main.admin_user_id,
+                }
+            )
+            to_insert.append(data)
+
+    if to_insert:
+        db.bulk_insert_mappings(models.Property, to_insert)
+        db.commit()
+
+        inserted_names = [d["name"] for d in to_insert]
+        inserted = (
+            db.query(models.Property.id, models.Property.name).filter(models.Property.name.in_(inserted_names)).all()
+        )
+        return [{"id": id_, "name": name} for id_, name in inserted]
+
+    return []
+
+
 # def update_property(db: Session, property_id: int, property: schemas.PropertyUpdate):
 #     db_property = db.query(models.Property).filter(models.Property.id == property_id).first()
 
@@ -867,6 +900,42 @@ def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase) -> mo
     db.commit()
     db.refresh(synonym_type)
     return synonym_type
+
+
+def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase]) -> list[dict]:
+    input_names = [st.name for st in synonym_types]
+    # TODO: Think of better way to avoid duplications
+    existing_names = {
+        name for (name,) in db.query(models.SynonymType.name).filter(models.SynonymType.name.in_(input_names)).all()
+    }
+
+    to_insert = []
+    for st in synonym_types:
+        if st.name not in existing_names:
+            validated = models.SynonymTypeBase.model_validate(st)
+            data = validated.model_dump()
+            data.update(
+                {
+                    "description": "",
+                    "created_by": main.admin_user_id,
+                    "updated_by": main.admin_user_id,
+                }
+            )
+            to_insert.append(data)
+
+    if to_insert:
+        db.bulk_insert_mappings(models.SynonymType, to_insert)
+        db.commit()
+
+        inserted_names = [d["name"] for d in to_insert]
+        inserted = (
+            db.query(models.SynonymType.id, models.SynonymType.name)
+            .filter(models.SynonymType.name.in_(inserted_names))
+            .all()
+        )
+        return [{"id": id_, "name": name} for id_, name in inserted]
+
+    return []
 
 
 def create_compound_synonym(db: Session, compound_synonym: models.CompoundSynonymBase) -> models.CompoundSynonym:

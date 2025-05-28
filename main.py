@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import time
 from fastapi import FastAPI, Depends, File, Form, HTTPException, Body, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -328,26 +329,32 @@ def create_if_not_exists(model_cls, base_cls, values, create_fn, created_list, d
 
 @app.post("/schema/")
 def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
-    created_synonyms = []
-    created_properties = []
+    # created_synonyms = []
+    # created_properties = []
 
-    create_if_not_exists(
-        model_cls=models.SynonymType,
-        base_cls=models.SynonymTypeBase,
-        values=payload.synonym_types,
-        create_fn=crud.create_synonym_type,
-        created_list=created_synonyms,
-        db=db,
-    )
+    start = time.time()
+    created_synonyms = crud.create_synonym_types(db, payload.synonym_types)
+    created_properties = crud.create_properties(db, payload.properties)
 
-    create_if_not_exists(
-        model_cls=models.Property,
-        base_cls=models.PropertyBase,
-        values=payload.properties,
-        create_fn=crud.create_property,
-        created_list=created_properties,
-        db=db,
-    )
+    # create_if_not_exists(
+    #     model_cls=models.SynonymType,
+    #     base_cls=models.SynonymTypeBase,
+    #     values=payload.synonym_types,
+    #     create_fn=crud.create_synonym_type,
+    #     created_list=created_synonyms,
+    #     db=db,
+    # )
+
+    # create_if_not_exists(
+    #     model_cls=models.Property,
+    #     base_cls=models.PropertyBase,
+    #     values=payload.properties,
+    #     create_fn=crud.create_property,
+    #     created_list=created_properties,
+    #     db=db,
+    # )
+
+    print(f"time taken to complete: {time.time() - start}")
 
     return {
         "status": "success",

@@ -481,9 +481,15 @@ class SynonymTypeBase(SQLModel):
     )
     name: str = Field(nullable=False)
     pattern: Optional[str] = None
+    description: str = Field(default="")
 
     class Config:
         populate_by_name = True
+
+
+class SynonymTypeResponse(SQLModel):
+    id: int
+    name: str
 
 
 class SynonymType(SynonymTypeBase, table=True):
@@ -494,7 +500,6 @@ class SynonymType(SynonymTypeBase, table=True):
     )
 
     id: int = Field(primary_key=True, index=True)
-    description: str = None
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
