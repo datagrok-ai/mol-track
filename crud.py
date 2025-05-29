@@ -1,3 +1,5 @@
+import random
+import uuid
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
@@ -6,8 +8,8 @@ from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
 from typing import List, Dict, Any
 from sqlalchemy import text
 from datetime import datetime, timezone
-import uuid
-import random
+import models as models
+from rdkit.Chem.rdMolDescriptors import CalcMolFormula
 import main
 from chemistry_utils import (
     standardize_mol,
@@ -18,7 +20,7 @@ from chemistry_utils import (
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
-    from . import models, schemas
+    from . import models
 except ImportError:
     # When run directly
     import models
@@ -27,6 +29,7 @@ except ImportError:
 # Compound CRUD operations
 def get_compound(db: Session, compound_id: int):
     return db.query(models.Compound).filter(models.Compound.id == compound_id).first()
+
 
 def get_compound_by_inchi_key(db: Session, inchikey: str):
     return db.query(models.Compound).filter(models.Compound.inchikey == inchikey).first()
@@ -43,7 +46,8 @@ def get_compound_by_tautomer(db: Session, tautomer: str):
 def get_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).options(joinedload(models.Compound.batches)).offset(skip).limit(limit).all()
 
-def create_compound(db: Session, compound: schemas.CompoundCreate):
+
+def create_compound(db: Session, compound: models.CompoundCreate):
     # Create RDKit molecule from SMILES
     mol = Chem.MolFromSmiles(compound.smiles)
     if mol is None:
@@ -101,25 +105,27 @@ def create_compound(db: Session, compound: schemas.CompoundCreate):
         updated_at=datetime.now(),
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
-        is_archived=compound.is_archived
+        is_archived=compound.is_archived,
     )
-    
+
     db.add(db_compound)
     db.commit()
     db.refresh(db_compound)
+
     return db_compound
+
 
 def create_compounds_batch(db: Session, smiles_list: List[str]):
     """
     Create multiple compounds from a list of SMILES strings.
-    
+
     Args:
         db: Database session
         smiles_list: List of SMILES strings
-        
+
     Returns:
         List of created compounds
-        
+
     Raises:
         HTTPException: If any SMILES is invalid or already exists
     """
@@ -129,13 +135,10 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             invalid_smiles.append({"index": i, "smiles": smiles})
-    
+
     if invalid_smiles:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid SMILES strings found: {invalid_smiles}"
-        )
-    
+        raise HTTPException(status_code=400, detail=f"Invalid SMILES strings found: {invalid_smiles}")
+
     # Calculate InChIKeys for all compounds
     compounds_data = []
     for smiles in smiles_list:
@@ -143,31 +146,34 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
         canonical_smiles = Chem.MolToSmiles(mol, isomericSmiles=True, canonical=True)
         inchi = Chem.MolToInchi(mol)
         inchikey = Chem.InchiToInchiKey(inchi)
-        
-        compounds_data.append({
-            "smiles": smiles,
-            "canonical_smiles": canonical_smiles,
-            "inchi": inchi,
-            "inchikey": inchikey
-        })
-    
+
+        compounds_data.append(
+            {
+                "smiles": smiles,
+                "canonical_smiles": canonical_smiles,
+                "inchi": inchi,
+                "inchikey": inchikey,
+            }
+        )
+
     # Check if any compounds already exist
     existing_compounds = []
     for i, compound in enumerate(compounds_data):
         existing = get_compound_by_inchi_key(db, compound["inchikey"])
         if existing:
-            existing_compounds.append({
-                "index": i, 
-                "smiles": compound["smiles"], 
-                "inchikey": compound["inchikey"]
-            })
-    
+            existing_compounds.append(
+                {
+                    "index": i,
+                    "smiles": compound["smiles"],
+                    "inchikey": compound["inchikey"],
+                }
+            )
+
     if existing_compounds:
         raise HTTPException(
-            status_code=400, 
-            detail=f"Some compounds already exist in the database: {existing_compounds}"
+            status_code=400, detail=f"Some compounds already exist in the database: {existing_compounds}"
         )
-    
+
     # Create all compounds
     # NOTE: The following UUID values are placeholders for hash fields
     # and will be replaced with actual computed hash values later.
@@ -179,40 +185,42 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
             inchikey=compound_data["inchikey"],
             molregno=random.randint(1, 100),
             formula=CalcMolFormula(mol),
-            hash_mol = uuid.uuid4(),
-            hash_tautomer = uuid.uuid4(),
-            hash_canonical_smiles = uuid.uuid4(),
-            hash_no_stereo_smiles = uuid.uuid4(),
-            hash_no_stereo_tautomer = uuid.uuid4(),
+            hash_mol=uuid.uuid4(),
+            hash_tautomer=uuid.uuid4(),
+            hash_canonical_smiles=uuid.uuid4(),
+            hash_no_stereo_smiles=uuid.uuid4(),
+            hash_no_stereo_tautomer=uuid.uuid4(),
             created_by=main.admin_user_id,
             updated_by=main.admin_user_id,
             created_at=datetime.now(),
             updated_at=datetime.now(),
-            is_archived=False
+            is_archived=False,
         )
         db.add(db_compound)
         created_compounds.append(db_compound)
-    
+
     db.commit()
-    
+
     # Refresh all compounds to get their IDs
     for compound in created_compounds:
         db.refresh(compound)
-    
+
     return created_compounds
 
-def update_compound(db: Session, compound_id: int, compound: schemas.CompoundUpdate):
-    db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
-    
-    update_data = compound.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_compound, key, value)
-    
-    db_compound.updated_at = datetime.now()
-    db.add(db_compound)
-    db.commit()
-    db.refresh(db_compound)
-    return db_compound
+
+# def update_compound(db: Session, compound_id: int, compound: schemas.CompoundUpdate):
+#     db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
+
+#     update_data = compound.model_dump(exclude_unset=True)
+#     for key, value in update_data.items():
+#         setattr(db_compound, key, value)
+
+#     db_compound.updated_at = datetime.now()
+#     db.add(db_compound)
+#     db.commit()
+#     db.refresh(db_compound)
+#     return db_compound
+
 
 def delete_compound(db: Session, compound_id: int):
     db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
@@ -220,24 +228,28 @@ def delete_compound(db: Session, compound_id: int):
     db.commit()
     return db_compound
 
+
 # Batch CRUD operations
 def get_batch(db: Session, batch_id: int):
     return db.query(models.Batch).filter(models.Batch.id == batch_id).first()
 
+
 def get_batches(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Batch).offset(skip).limit(limit).all()
+
 
 def get_batches_by_compound(db: Session, compound_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Batch).filter(models.Batch.compound_id == compound_id).offset(skip).limit(limit).all()
 
-def create_batch(db: Session, batch: schemas.BatchCreate):
+
+def create_batch(db: Session, batch: models.BatchBase):
     db_batch = models.Batch(
         compound_id=batch.compound_id,
         notes=batch.notes,
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
         created_at=datetime.now(),
-        batch_regno=random.randint(1, 100)
+        batch_regno=random.randint(1, 100),
     )
 
     db.add(db_batch)
@@ -245,18 +257,20 @@ def create_batch(db: Session, batch: schemas.BatchCreate):
     db.refresh(db_batch)
     return db_batch
 
-def update_batch(db: Session, batch_id: int, batch: schemas.BatchUpdate):
-    db_batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
-    
-    update_data = batch.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_batch, key, value)
-    
-    db_batch.updated_at = datetime.now()
-    db.add(db_batch)
-    db.commit()
-    db.refresh(db_batch)
-    return db_batch
+
+# def update_batch(db: Session, batch_id: int, batch: schemas.BatchUpdate):
+#     db_batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
+
+#     update_data = batch.model_dump(exclude_unset=True)
+#     for key, value in update_data.items():
+#         setattr(db_batch, key, value)
+
+#     db_batch.updated_at = datetime.now()
+#     db.add(db_batch)
+#     db.commit()
+#     db.refresh(db_batch)
+#     return db_batch
+
 
 def delete_batch(db: Session, batch_id: int):
     db_batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
@@ -264,25 +278,26 @@ def delete_batch(db: Session, batch_id: int):
     db.commit()
     return db_batch
 
-def create_semantic_type(db: Session, semantic_type: schemas.SemanticTypeCreate):
-    db_semantic_type = models.SemanticType(
-        name=semantic_type.name,
-        description=semantic_type.description
-    )
+
+def create_semantic_type(db: Session, semantic_type: models.SemanticTypeBase):
+    db_semantic_type = models.SemanticType(name=semantic_type.name, description=semantic_type.description)
 
     db.add(db_semantic_type)
     db.commit()
     db.refresh(db_semantic_type)
     return db_semantic_type
 
+
 # Property CRUD operations
 def get_property(db: Session, property_id: int):
     return db.query(models.Property).filter(models.Property.id == property_id).first()
 
+
 def get_properties(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Property).offset(skip).limit(limit).all()
 
-def create_property(db: Session, property: schemas.PropertyCreate):
+
+def create_property(db: Session, property: models.PropertyBase):
     db_property = models.Property(
         name=property.name,
         value_type=property.value_type,
@@ -299,18 +314,20 @@ def create_property(db: Session, property: schemas.PropertyCreate):
     db.refresh(db_property)
     return db_property
 
-def update_property(db: Session, property_id: int, property: schemas.PropertyUpdate):
-    db_property = db.query(models.Property).filter(models.Property.id == property_id).first()
-    
-    update_data = property.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_property, key, value)
-    
-    db_property.updated_at = datetime.now()
-    db.add(db_property)
-    db.commit()
-    db.refresh(db_property)
-    return db_property
+
+# def update_property(db: Session, property_id: int, property: schemas.PropertyUpdate):
+#     db_property = db.query(models.Property).filter(models.Property.id == property_id).first()
+
+#     update_data = property.model_dump(exclude_unset=True)
+#     for key, value in update_data.items():
+#         setattr(db_property, key, value)
+
+#     db_property.updated_at = datetime.now()
+#     db.add(db_property)
+#     db.commit()
+#     db.refresh(db_property)
+#     return db_property
+
 
 def delete_property(db: Session, property_id: int):
     db_property = db.query(models.Property).filter(models.Property.id == property_id).first()
@@ -318,14 +335,17 @@ def delete_property(db: Session, property_id: int):
     db.commit()
     return db_property
 
+
 # AssayType CRUD operations
 def get_assay_type(db: Session, assay_type_id: int):
     return db.query(models.AssayType).filter(models.AssayType.id == assay_type_id).first()
 
+
 def get_assay_types(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.AssayType).offset(skip).limit(limit).all()
 
-def create_assay_type(db: Session, assay_type: schemas.AssayTypeCreate):
+
+def create_assay_type(db: Session, assay_type: models.AssayTypeCreate):
     # Create the assay type
     current_time = datetime.now(timezone.utc)
     db_assay_type = models.AssayType(
@@ -339,13 +359,13 @@ def create_assay_type(db: Session, assay_type: schemas.AssayTypeCreate):
     db.add(db_assay_type)
     db.commit()
     db.refresh(db_assay_type)
-    
+
     # Add properties to the assay type if provided
     if assay_type.property_ids:
         properties = db.query(models.Property).filter(models.Property.id.in_(assay_type.property_ids)).all()
         for prop in properties:
             db_assay_type.properties.append(prop)
-    
+
     # Add property requirements if provided
     for req in assay_type.property_requirements:
         # Skip if property not in the assay type's properties
@@ -355,10 +375,10 @@ def create_assay_type(db: Session, assay_type: schemas.AssayTypeCreate):
         property_req = models.AssayTypeProperty(
             assay_type_id=db_assay_type.id,
             property_id=req["property_id"],
-            required=req.get("required", False)
+            required=req.get("required", False),
         )
         db.add(property_req)
-    
+
     # Add property details if provided
     for detail in assay_type.property_details:
         # Skip if property not in the assay type's properties
@@ -372,15 +392,15 @@ def create_assay_type(db: Session, assay_type: schemas.AssayTypeCreate):
 
         property_detail = models.AssayTypeDetail(
             assay_type_id=db_assay_type.id,
-            property_id=detail["property_id"]
+            property_id=detail["property_id"],
         )
 
         # Set the appropriate value based on property type
-        if property.value_type == 'datetime' and "value_datetime" in detail:
+        if property.value_type == "datetime" and "value_datetime" in detail:
             property_detail.value_datetime = detail["value_datetime"]
-        elif property.value_type in ('int', 'double') and "value_num" in detail:
+        elif property.value_type in ("int", "double") and "value_num" in detail:
             property_detail.value_num = detail["value_num"]
-        elif property.value_type == 'string' and "value_string" in detail:
+        elif property.value_type == "string" and "value_string" in detail:
             property_detail.value_string = detail["value_string"]
 
         db.add(property_detail)
@@ -388,6 +408,7 @@ def create_assay_type(db: Session, assay_type: schemas.AssayTypeCreate):
     db.commit()
     db.refresh(db_assay_type)
     return db_assay_type
+
 
 # Assay CRUD operations
 def get_assay(db: Session, assay_id: int):
@@ -401,9 +422,11 @@ def get_assay(db: Session, assay_id: int):
 
         # If no properties from assay details, get them from the assay type
         if not property_ids and assay.assay_type:
-            assay_type_properties = db.query(models.AssayTypeProperty).filter(
-                models.AssayTypeProperty.assay_type_id == assay.assay_type_id
-            ).all()
+            assay_type_properties = (
+                db.query(models.AssayTypeProperty)
+                .filter(models.AssayTypeProperty.assay_type_id == assay.assay_type_id)
+                .all()
+            )
             property_ids = [prop.property_id for prop in assay_type_properties]
 
         # Get the property objects
@@ -415,6 +438,7 @@ def get_assay(db: Session, assay_id: int):
             assay.properties = []
 
     return assay
+
 
 def get_assays(db: Session, skip: int = 0, limit: int = 100):
     # Get assays with pagination
@@ -428,9 +452,11 @@ def get_assays(db: Session, skip: int = 0, limit: int = 100):
 
         # If no properties from assay details, get them from the assay type
         if not property_ids and assay.assay_type:
-            assay_type_properties = db.query(models.AssayTypeProperty).filter(
-                models.AssayTypeProperty.assay_type_id == assay.assay_type_id
-            ).all()
+            assay_type_properties = (
+                db.query(models.AssayTypeProperty)
+                .filter(models.AssayTypeProperty.assay_type_id == assay.assay_type_id)
+                .all()
+            )
             property_ids = [prop.property_id for prop in assay_type_properties]
 
         # Get the property objects
@@ -443,7 +469,8 @@ def get_assays(db: Session, skip: int = 0, limit: int = 100):
 
     return assays
 
-def create_assay(db: Session, assay: schemas.AssayCreate):
+
+def create_assay(db: Session, assay: models.AssayCreate):
     # Create the assay
     db_assay = models.Assay(
         name=assay.name,
@@ -451,12 +478,12 @@ def create_assay(db: Session, assay: schemas.AssayCreate):
         assay_type_id=assay.assay_type_id,
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
     db.add(db_assay)
     db.commit()
     db.refresh(db_assay)
-    
+
     # Initialize empty properties list
     db_assay.properties = []
 
@@ -482,7 +509,7 @@ def create_assay(db: Session, assay: schemas.AssayCreate):
                 # Initialize empty detail
                 assay_detail = models.AssayDetail(
                     assay_id=db_assay.id,
-                    property_id=prop.id
+                    property_id=prop.id,
                 )
                 db.add(assay_detail)
                 valid_properties.append(prop)
@@ -495,14 +522,15 @@ def create_assay(db: Session, assay: schemas.AssayCreate):
 
     return db_assay
 
-def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
+
+def get_compounds_ex(db: Session, query_params: models.CompoundQueryParams):
     """
     Get compounds with optional filtering parameters.
-    
+
     Args:
         db: Database session
         query_params: Query parameters including substructure, skip, and limit
-        
+
     Returns:
         List of compounds matching the query parameters
     """
@@ -512,7 +540,7 @@ def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
         mol = Chem.MolFromSmiles(query_params.substructure)
         if mol is None:
             raise HTTPException(status_code=400, detail="Invalid substructure SMILES string")
-        
+
         # SQL query using the RDKit cartridge substructure operator '@>'
         sql = text(f"""
             SELECT c.* FROM {models.DB_SCHEMA}.compounds c
@@ -521,7 +549,7 @@ def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
             ORDER BY c.id
             OFFSET :skip LIMIT :limit
         """)
-        
+
         result = db.execute(sql, {"skip": query_params.skip, "limit": query_params.limit})
         compounds = []
         for row in result:
@@ -529,7 +557,7 @@ def get_compounds_ex(db: Session, query_params: schemas.CompoundQueryParams):
             for column, value in row._mapping.items():
                 setattr(compound, column, value)
             compounds.append(compound)
-        
+
         return compounds
     
          
@@ -558,13 +586,15 @@ def search_compounds_exact(
 def get_assay_result(db: Session, assay_result_id: int):
     return db.query(models.AssayResult).filter(models.AssayResult.id == assay_result_id).first()
 
+
 def get_assay_results(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.AssayResult).offset(skip).limit(limit).all()
+
 
 def get_batch_assay_results(db: Session, batch_id: int):
     """Get all assay results for a specific batch"""
     results = db.query(models.AssayResult).filter(models.AssayResult.batch_id == batch_id).all()
-    
+
     # Group results by assay_id
     grouped_results = {}
     for result in results:
@@ -573,14 +603,14 @@ def get_batch_assay_results(db: Session, batch_id: int):
             # Get the assay name
             assay = db.query(models.Assay).filter(models.Assay.id == assay_id).first()
             assay_name = assay.name if assay else "Unknown Assay"
-            
+
             grouped_results[assay_id] = {
                 "assay_id": assay_id,
                 "batch_id": batch_id,
                 "assay_name": assay_name,
-                "measurements": {}
+                "measurements": {},
             }
-        
+
         # Get property name and type
         property = db.query(models.Property).filter(models.Property.id == result.property_id).first()
         property_name = property.name if property else f"Property-{result.property_id}"
@@ -588,82 +618,91 @@ def get_batch_assay_results(db: Session, batch_id: int):
 
         # Get value based on property type
         value = None
-        if property_type in ('int', 'double'):
+        if property_type in ("int", "double"):
             value = result.value_num
-        elif property_type == 'string':
+        elif property_type == "string":
             value = result.value_string
-        elif property_type == 'bool':
+        elif property_type == "bool":
             value = result.value_bool
 
         # If we have a qualifier other than "=" (0), include it in the result
         if result.value_qualifier != 0:
             grouped_results[assay_id]["measurements"][property_name] = {
                 "qualifier": result.value_qualifier,
-                "value": value
+                "value": value,
             }
         else:
             grouped_results[assay_id]["measurements"][property_name] = value
-    
+
     return list(grouped_results.values())
 
-def create_assay_result(db: Session, assay_result: schemas.AssayResultCreate):
+
+def create_assay_result(db: Session, assay_result: models.AssayResultBase):
     """Create a single assay result entry for a specific property"""
     # Validate assay exists
     assay = db.query(models.Assay).filter(models.Assay.id == assay_result.assay_id).first()
     if assay is None:
         raise HTTPException(status_code=404, detail=f"Assay with ID {assay_result.assay_id} not found")
-    
+
     # Validate batch exists
     batch = db.query(models.Batch).filter(models.Batch.id == assay_result.batch_id).first()
     if batch is None:
         raise HTTPException(status_code=404, detail=f"Batch with ID {assay_result.batch_id} not found")
-    
+
     # Validate property exists and get its type
     property = db.query(models.Property).filter(models.Property.id == assay_result.property_id).first()
     if property is None:
         raise HTTPException(status_code=404, detail=f"Property with ID {assay_result.property_id} not found")
-    
+
     # Check if the property is associated with the assay through assay_details
-    assay_detail = db.query(models.AssayDetail).filter(
-        models.AssayDetail.assay_id == assay_result.assay_id,
-        models.AssayDetail.property_id == assay_result.property_id
-    ).first()
+    assay_detail = (
+        db.query(models.AssayDetail)
+        .filter(
+            models.AssayDetail.assay_id == assay_result.assay_id,
+            models.AssayDetail.property_id == assay_result.property_id,
+        )
+        .first()
+    )
 
     # If not found in assay_details, check if the property is associated with the assay's assay_type
     if not assay_detail:
         assay_type = db.query(models.AssayType).filter(models.AssayType.id == assay.assay_type_id).first()
         if assay_type:
             # Check if property is in assay type properties
-            assay_type_property = db.query(models.AssayTypeProperty).filter(
-                models.AssayTypeProperty.assay_type_id == assay_type.id,
-                models.AssayTypeProperty.property_id == assay_result.property_id
-            ).first()
+            assay_type_property = (
+                db.query(models.AssayTypeProperty)
+                .filter(
+                    models.AssayTypeProperty.assay_type_id == assay_type.id,
+                    models.AssayTypeProperty.property_id == assay_result.property_id,
+                )
+                .first()
+            )
 
             if not assay_type_property:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Property with ID {assay_result.property_id} is not associated with assay type '{assay_type.name}'"
+                    detail=f"Property with ID {assay_result.property_id} is not associated with assay type '{assay_type.name}'",
                 )
-    
+
     # Create the assay result with the appropriate value field
     db_assay_result = models.AssayResult(
         assay_id=assay_result.assay_id,
         batch_id=assay_result.batch_id,
         property_id=assay_result.property_id,
-        value_qualifier=assay_result.value_qualifier
+        value_qualifier=assay_result.value_qualifier,
     )
 
     # Set the appropriate value based on property type
-    if property.value_type in ('int', 'double') and assay_result.value_num is not None:
+    if property.value_type in ("int", "double") and assay_result.value_num is not None:
         db_assay_result.value_num = assay_result.value_num
-    elif property.value_type == 'string' and assay_result.value_string is not None:
+    elif property.value_type == "string" and assay_result.value_string is not None:
         db_assay_result.value_string = assay_result.value_string
-    elif property.value_type == 'bool' and assay_result.value_bool is not None:
+    elif property.value_type == "bool" and assay_result.value_bool is not None:
         db_assay_result.value_bool = assay_result.value_bool
     else:
         raise HTTPException(
             status_code=400,
-            detail=f"Property value of type {property.value_type} missing or not supported for AssayResult"
+            detail=f"Property value of type {property.value_type} missing or not supported for AssayResult",
         )
 
     db.add(db_assay_result)
@@ -671,18 +710,19 @@ def create_assay_result(db: Session, assay_result: schemas.AssayResultCreate):
     db.refresh(db_assay_result)
     return db_assay_result
 
-def create_batch_assay_results(db: Session, batch_results: schemas.BatchAssayResultsCreate):
+
+def create_batch_assay_results(db: Session, batch_results: models.BatchAssayResultsCreate):
     """Create multiple assay results for a batch in a single transaction"""
     # Validate assay exists
     assay = db.query(models.Assay).filter(models.Assay.id == batch_results.assay_id).first()
     if assay is None:
         raise HTTPException(status_code=404, detail=f"Assay with ID {batch_results.assay_id} not found")
-    
+
     # Validate batch exists
     batch = db.query(models.Batch).filter(models.Batch.id == batch_results.batch_id).first()
     if batch is None:
         raise HTTPException(status_code=404, detail=f"Batch with ID {batch_results.batch_id} not found")
-    
+
     # Get the assay type
     assay_type = db.query(models.AssayType).filter(models.AssayType.id == assay.assay_type_id).first()
     if assay_type is None:
@@ -693,17 +733,16 @@ def create_batch_assay_results(db: Session, batch_results: schemas.BatchAssayRes
     for prop in assay_type.properties:
         properties[prop.name] = {
             "id": prop.id,
-            "value_type": prop.value_type
+            "value_type": prop.value_type,
         }
-    
+
     # Validate all property names in measurements
     for prop_name in batch_results.measurements.keys():
         if prop_name not in properties:
             raise HTTPException(
-                status_code=400, 
-                detail=f"Property '{prop_name}' is not associated with assay type '{assay_type.name}'"
+                status_code=400, detail=f"Property '{prop_name}' is not associated with assay type '{assay_type.name}'"
             )
-    
+
     # Create assay results for each property
     created_results = []
     processed_measurements = {}
@@ -717,7 +756,7 @@ def create_batch_assay_results(db: Session, batch_results: schemas.BatchAssayRes
             assay_id=batch_results.assay_id,
             batch_id=batch_results.batch_id,
             property_id=property_id,
-            value_qualifier=0  # Default to equals
+            value_qualifier=0,  # Default to equals
         )
 
         # Handle complex measurement (dict with qualifier and value)
@@ -729,61 +768,64 @@ def create_batch_assay_results(db: Session, batch_results: schemas.BatchAssayRes
             value = measurement["value"]
 
             # Set the value based on property type
-            if property_type in ('int', 'double'):
+            if property_type in ("int", "double"):
                 db_assay_result.value_num = float(value)
                 processed_measurements[prop_name] = {
                     "qualifier": db_assay_result.value_qualifier,
-                    "value": value
+                    "value": value,
                 }
-            elif property_type == 'string':
+            elif property_type == "string":
                 db_assay_result.value_string = str(value)
                 processed_measurements[prop_name] = {
                     "qualifier": db_assay_result.value_qualifier,
-                    "value": value
+                    "value": value,
                 }
-            elif property_type == 'bool':
+            elif property_type == "bool":
                 db_assay_result.value_bool = bool(value)
                 processed_measurements[prop_name] = {
                     "qualifier": db_assay_result.value_qualifier,
-                    "value": value
+                    "value": value,
                 }
         # Handle simple value (backward compatibility)
         else:
-            if property_type in ('int', 'double'):
+            if property_type in ("int", "double"):
                 db_assay_result.value_num = float(measurement)
                 processed_measurements[prop_name] = measurement
-            elif property_type == 'string':
+            elif property_type == "string":
                 db_assay_result.value_string = str(measurement)
                 processed_measurements[prop_name] = measurement
-            elif property_type == 'bool':
+            elif property_type == "bool":
                 db_assay_result.value_bool = bool(measurement)
                 processed_measurements[prop_name] = measurement
 
         db.add(db_assay_result)
         created_results.append(db_assay_result)
-    
+
     db.commit()
-    
+
     # Refresh all results to get their IDs
     for result in created_results:
         db.refresh(result)
-    
+
     # Return in grouped format
     return {
         "assay_id": batch_results.assay_id,
         "batch_id": batch_results.batch_id,
         "assay_name": assay.name,
-        "measurements": processed_measurements
+        "measurements": processed_measurements,
     }
+
 
 # BatchDetail CRUD operations
 def get_batch_detail(db: Session, batch_detail_id: int):
     return db.query(models.BatchDetail).filter(models.BatchDetail.id == batch_detail_id).first()
 
+
 def get_batch_details_by_batch(db: Session, batch_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.BatchDetail).filter(models.BatchDetail.batch_id == batch_id).offset(skip).limit(limit).all()
 
-def create_batch_detail(db: Session, batch_detail: schemas.BatchDetailCreate):
+
+def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     # Get the property to determine its value type
     property = db.query(models.Property).filter(models.Property.id == batch_detail.property_id).first()
     if not property:
@@ -798,11 +840,11 @@ def create_batch_detail(db: Session, batch_detail: schemas.BatchDetailCreate):
     )
 
     # Set the value based on the property type
-    if batch_detail.value_datetime is not None and property.value_type == 'datetime':
+    if batch_detail.value_datetime is not None and property.value_type == "datetime":
         db_batch_detail.value_datetime = batch_detail.value_datetime
-    elif batch_detail.value_num is not None and property.value_type in ('int', 'double'):
+    elif batch_detail.value_num is not None and property.value_type in ("int", "double"):
         db_batch_detail.value_num = batch_detail.value_num
-    elif batch_detail.value_string is not None and property.value_type == 'string':
+    elif batch_detail.value_string is not None and property.value_type == "string":
         db_batch_detail.value_string = batch_detail.value_string
 
     db.add(db_batch_detail)

@@ -3,3 +3,4 @@
 ._pycache
 __pycache__/
 .python-version
+**/.DS_Store
