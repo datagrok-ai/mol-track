@@ -11,6 +11,10 @@ from rdkit.Chem.rdMolDescriptors import CalcMolFormula
 import main
 import enums
 
+from sqlalchemy.orm import load_only
+
+from typing import Type, Dict, Any
+
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
@@ -88,7 +92,7 @@ def create_compound(db: Session, compound: models.CompoundCreate):
         original_molfile=compound.original_molfile,
         inchi=inchi,
         inchikey=inchikey,
-        molregno=random.randint(1, 100),
+        molregno=random.randint(1, 1000000),
         formula=CalcMolFormula(mol),
         hash_mol=uuid.uuid4(),
         hash_tautomer=uuid.uuid4(),
@@ -321,36 +325,6 @@ def create_property(db: Session, property: models.PropertyBase):
     db.commit()
     db.refresh(db_property)
     return db_property
-
-
-def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:
-    # TODO: Think of better unique constraint
-    input_names = [p.name for p in properties]
-    existing = db.query(models.Property.name).filter(models.Property.name.in_(input_names)).all()
-    existing_names = {name for (name,) in existing}
-
-    to_insert = []
-
-    for p in properties:
-        if p.name not in existing_names:
-            validated = models.PropertyBase.model_validate(p)
-            data = validated.model_dump(by_alias=True, exclude_unset=True, exclude_none=True)
-            data.update(
-                {
-                    "created_by": main.admin_user_id,
-                    "updated_by": main.admin_user_id,
-                }
-            )
-            to_insert.append(data)
-
-    if to_insert:
-        stmt = insert(models.Property).values(to_insert).returning(models.Property.id, models.Property.name)
-        result = db.execute(stmt).fetchall()
-        db.commit()
-
-        return [{"id": row.id, "name": row.name} for row in result]
-
-    return []
 
 
 # def update_property(db: Session, property_id: int, property: schemas.PropertyUpdate):
@@ -899,36 +873,6 @@ def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase) -> mo
     return synonym_type
 
 
-def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase]) -> list[dict]:
-    input_names = [st.name for st in synonym_types]
-    # TODO: Think of better way to avoid duplications
-    existing_names = {
-        name for (name,) in db.query(models.SynonymType.name).filter(models.SynonymType.name.in_(input_names)).all()
-    }
-
-    to_insert = []
-    for st in synonym_types:
-        if st.name not in existing_names:
-            validated = models.SynonymTypeBase.model_validate(st)
-            data = validated.model_dump()
-            data.update(
-                {
-                    "description": "",
-                    "created_by": main.admin_user_id,
-                    "updated_by": main.admin_user_id,
-                }
-            )
-            to_insert.append(data)
-
-    if to_insert:
-        stmt = insert(models.SynonymType).values(to_insert).returning(models.SynonymType.id, models.SynonymType.name)
-        result = db.execute(stmt).fetchall()
-        db.commit()
-        return [{"id": row.id, "name": row.name} for row in result]
-
-    return []
-
-
 def create_compound_synonym(db: Session, compound_synonym: models.CompoundSynonymBase) -> models.CompoundSynonym:
     synonym = models.CompoundSynonym(
         compound_id=compound_synonym.compound_id,
@@ -980,12 +924,83 @@ def create_addition(db: Session, addition: models.AdditionBase) -> models.Additi
     return db_addition
 
 
-def get_additions_v1(db: Session, skip: int = 0, limit: int = 100, role: enums.AdditionsRole | None = None):
-    query = db.query(models.Addition)
-    if role is not None:
-        query = query.filter(models.Addition.role == role)
-    return query.offset(skip).limit(limit).all()
+"------------------NEW Logic ------------------"
 
 
-def get_addition_v1(db: Session, addition_id: int):
-    return db.query(models.Addition).filter(models.Addition.id == addition_id).first()
+def bulk_create_if_not_exists(
+    db: Session,
+    model_cls: Type,
+    base_model_cls: Type,
+    items: List[Any],
+    *,
+    name_attr: str = "name",
+    validate: bool = True,
+) -> List[Dict[str, Any]]:
+    input_names = [getattr(item, name_attr) for item in items]
+    existing_names = {
+        name
+        for (name,) in db.query(getattr(model_cls, name_attr))
+        .filter(getattr(model_cls, name_attr).in_(input_names))
+        .all()
+    }
+
+    to_insert = []
+    for item in items:
+        print(item)
+        item_name = getattr(item, name_attr)
+        if item_name not in existing_names:
+            validated = base_model_cls.model_validate(item) if validate else item
+            data = validated.model_dump()
+            data.update(
+                {
+                    "created_by": main.admin_user_id,
+                    "updated_by": main.admin_user_id,
+                }
+            )
+            to_insert.append(data)
+
+    if not to_insert:
+        return []
+
+    stmt = insert(model_cls).values(to_insert).returning(model_cls.id, getattr(model_cls, name_attr))
+    result = db.execute(stmt).fetchall()
+    db.commit()
+
+    return [{"id": row.id, name_attr: getattr(row, name_attr)} for row in result]
+
+
+def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase]) -> list[dict]:
+    return bulk_create_if_not_exists(db, models.SynonymType, models.SynonymTypeBase, synonym_types)
+
+
+def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:
+    return bulk_create_if_not_exists(db, models.Property, models.PropertyBase, properties)
+
+
+def create_additions(db: Session, additions: list[models.AdditionBase]) -> list[dict]:
+    return bulk_create_if_not_exists(db, models.Addition, models.AdditionBase, additions, validate=False)
+
+
+def get_additions(db: Session, role: enums.AdditionsRole | None = None) -> List[models.AdditionResponse]:
+    query = db.query(models.Addition).options(load_only(models.Addition.id, models.Addition.name))
+    if role is None:
+        return query.all()
+    return query.filter_by(role=role).all()
+
+
+def get_addition_by_id(db: Session, addition_id: int) -> models.AdditionBase:
+    return db.get(models.Addition, addition_id)
+
+
+def create_compound_synonyms(db: Session, compound_synonym: list[models.CompoundSynonymBase]) -> models.CompoundSynonym:
+    synonym = models.CompoundSynonym(
+        compound_id=compound_synonym.compound_id,
+        synonym_type_id=compound_synonym.synonym_type_id,
+        synonym_value=compound_synonym.synonym_value,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(synonym)
+    db.commit()
+    db.refresh(synonym)
+    return synonym
