@@ -1,51 +1,91 @@
-from typing import Dict, Optional
+from datetime import datetime
+import random
+from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pytest import Session
-from sqlalchemy import select
+from sqlalchemy import text
 from compound_registrar import CompoundRegistrar
-import crud
-import models
+import enums
+import main
 
 
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
-        self.additions_map = self.load_additions()
 
-    def load_additions(self) -> Dict[str, int]:
-        result = self.db.execute(select(models.Addition)).all()
-        return {self.normalize_key(a.name): a.id for (a,) in result}
+    def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
+        return {
+            "inchikey": inchikey,
+            "notes": None,
+            "created_by": main.admin_user_id,
+            "updated_by": main.admin_user_id,
+            "created_at": datetime.now(),
+            "batch_regno": random.randint(0, 1000),
+        }
 
-    def process_row(self, row):
-        grouped = self.group_data(row)
-        compound = self.create_compound(grouped.get("compounds", {}))
-        self.create_synonyms(compound.id, grouped.get("compounds_synonyms", {}))
-        self.create_properties(compound.id, grouped.get("properties", {}))
-        batch = self.create_batch(compound.id)
-        self.create_batch_synonyms(batch.id, grouped.get("batches_synonyms", {}))
-        self.create_batch_additions(batch.id, grouped.get("batches_additions", {}))
-
-    def create_batch(self, compound_id: int):
-        batch_data = models.BatchBase(compound_id=compound_id)
-        return crud.create_batch(self.db, batch=batch_data)
-
-    def create_batch_synonyms(self, batch_id: int, synonyms: Dict[str, str]):
+    def build_batch_synonyms_records(self, batch_id: int, synonyms: Dict[str, str]) -> List[Dict[str, Any]]:
+        records = []
         for synonym_name, value in synonyms.items():
             norm_synonym_name = self.normalize_key(synonym_name)
             type_id = self.synonym_type_map.get(norm_synonym_name)
             if type_id is None:
                 raise HTTPException(status_code=400, detail=f"Unknown synonym type: {synonym_name}")
 
-            synonym_input = models.BatchSynonymBase(batch_id=batch_id, synonym_type_id=type_id, synonym_value=value)
-            crud.create_batch_synonym(self.db, batch_synonym=synonym_input)
-
-    def create_batch_additions(self, batch_id: int, batch_additions: Dict[str, str]):
-        for addition_name, value in batch_additions.items():
-            norm_addition_name = self.normalize_key(addition_name)
-            addition_id = self.additions_map.get(norm_addition_name)
-            if addition_id is None:
-                raise HTTPException(status_code=400, detail=f"Unknown addition: {addition_name}")
-            addition_input = models.BatchAdditionBase(
-                batch_id=batch_id, addition_id=addition_id, addition_equivalent=value
+            records.append(
+                {
+                    "batch_id": batch_id,
+                    "synonym_type_id": type_id,
+                    "synonym_value": value,
+                    "created_by": main.admin_user_id,
+                    "updated_by": main.admin_user_id,
+                }
             )
-            crud.create_batch_addition(self.db, batch_addition=addition_input)
+            return records
+
+    def build_batch_sql(self, rows: List[Dict[str, Any]]):
+        super().build_sql(rows)
+        batch_records_to_insert, batches_synonyms_to_insert = [], []
+        try:
+            for idx, row in enumerate(rows):
+                try:
+                    grouped = self._group_data(row)
+                    batch_synonyms = grouped.get("batches_synonyms", {})
+
+                    batch_record = self._build_batch_record(self.compounds_to_insert[idx]["inchikey"])
+                    batch_records_to_insert.append(batch_record)
+
+                    batches_syn_records = self._build_batch_synonym_records(
+                        batch_synonyms, self.compound_record[idx]["inchikey"]
+                    )
+                    batches_synonyms_to_insert.extend(batches_syn_records)
+
+                    self.successful_rows += 1
+                except Exception as e:
+                    self.failed_rows += 1
+                    self.error_messages.append(f"Row {idx + 1} failed: {str(e)}")
+                    if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
+                        raise HTTPException(status_code=400, detail=self.result())
+
+            batch_column_names = batch_records_to_insert[0].keys()
+
+            batch_values_sql = self._values_sql(batch_records_to_insert, batch_column_names)
+
+            self.sql += f""",
+            inserted_batches AS (INSERT INTO batches (compound_id, notes, created_by, updated_by, created_at, batch_regno)
+            SELECT ic.id, b.notes, b.created_by, b.updated_by, b.created_at, b.batch_regno
+            FROM (VALUES {batch_values_sql}) AS b (inchikey, notes, created_by, updated_by, created_at, batch_regno)
+            JOIN inserted_compounds ic ON b.inchikey = ic.inchikey
+            )
+            """
+
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to register compounds: {str(e)}")
+
+    def register_all(self, rows: List[Dict[str, Any]]):
+        self.build_batch_sql(rows=rows)
+        self.sql += """
+            SELECT count(*) FROM inserted_compounds;
+        """
+        self.db.execute(text(self.sql))
+        self.db.commit()

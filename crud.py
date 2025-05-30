@@ -25,19 +25,6 @@ except ImportError:
 
 
 # Compound CRUD operations
-def get_compound(db: Session, compound_id: int):
-    return (
-        db.query(models.Compound)
-        .options(
-            joinedload(models.Compound.batches),
-            joinedload(models.Compound.compound_synonyms),
-            joinedload(models.Compound.properties),
-        )
-        .filter(models.Compound.id == compound_id)
-        .first()
-    )
-
-
 def get_compound_by_inchi_key(db: Session, inchikey: str):
     return db.query(models.Compound).filter(models.Compound.inchikey == inchikey).first()
 
@@ -50,21 +37,7 @@ def get_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).options(joinedload(models.Compound.batches)).offset(skip).limit(limit).all()
 
 
-def get_compounds_v1(db: Session, skip: int = 0, limit: int = 100):
-    return (
-        db.query(models.Compound)
-        .options(
-            joinedload(models.Compound.batches),
-            joinedload(models.Compound.compound_synonyms),
-            joinedload(models.Compound.properties),
-        )
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-
-
-def create_compound(db: Session, compound: models.CompoundCreate):
+def create_compound(db: Session, compound: models.CompoundCreate, idx: int):
     # Create RDKit molecule from SMILES
     mol = Chem.MolFromSmiles(compound.smiles)
     if mol is None:
@@ -92,7 +65,7 @@ def create_compound(db: Session, compound: models.CompoundCreate):
         original_molfile=compound.original_molfile,
         inchi=inchi,
         inchikey=inchikey,
-        molregno=random.randint(1, 1000000),
+        molregno=idx,
         formula=CalcMolFormula(mol),
         hash_mol=uuid.uuid4(),
         hash_tautomer=uuid.uuid4(),
@@ -106,9 +79,9 @@ def create_compound(db: Session, compound: models.CompoundCreate):
         is_archived=compound.is_archived,
     )
 
-    db.add(db_compound)
-    db.commit()
-    db.refresh(db_compound)
+    # db.add(db_compound)
+    # db.commit()
+    # db.refresh(db_compound)
 
     return db_compound
 
@@ -873,45 +846,6 @@ def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase) -> mo
     return synonym_type
 
 
-def create_compound_synonym(db: Session, compound_synonym: models.CompoundSynonymBase) -> models.CompoundSynonym:
-    synonym = models.CompoundSynonym(
-        compound_id=compound_synonym.compound_id,
-        synonym_type_id=compound_synonym.synonym_type_id,
-        synonym_value=compound_synonym.synonym_value,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
-    )
-    db.add(synonym)
-    db.commit()
-    db.refresh(synonym)
-    return synonym
-
-
-def create_compound_detail(db: Session, compound_detail: models.CompoundDetailCreate) -> models.CompoundDetail:
-    property = db.query(models.Property).filter(models.Property.id == compound_detail.property_id).first()
-    if not property:
-        raise HTTPException(status_code=404, detail=f"Property with ID {compound_detail.property_id} not found")
-
-    detail = models.CompoundDetail(
-        compound_id=compound_detail.compound_id,
-        property_id=compound_detail.property_id,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
-    )
-
-    value_type_map = {"datetime": "value_datetime", "int": "value_num", "double": "value_num", "string": "value_string"}
-
-    attr = value_type_map.get(property.value_type)
-    if attr:
-        if compound_detail.value is not None:
-            setattr(detail, attr, compound_detail.value)
-
-    db.add(detail)
-    db.commit()
-    db.refresh(detail)
-    return detail
-
-
 def create_addition(db: Session, addition: models.AdditionBase) -> models.Addition:
     db_addition = models.Addition(
         **addition.dict(),
@@ -1004,3 +938,30 @@ def create_compound_synonyms(db: Session, compound_synonym: list[models.Compound
     db.commit()
     db.refresh(synonym)
     return synonym
+
+
+def get_compounds_v1(db: Session, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Compound)
+        .options(
+            joinedload(models.Compound.batches),
+            joinedload(models.Compound.compound_synonyms),
+            joinedload(models.Compound.properties),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_compound(db: Session, compound_id: int):
+    return (
+        db.query(models.Compound)
+        .options(
+            joinedload(models.Compound.batches),
+            joinedload(models.Compound.compound_synonyms),
+            joinedload(models.Compound.properties),
+        )
+        .filter(models.Compound.id == compound_id)
+        .first()
+    )

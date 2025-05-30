@@ -26,6 +26,8 @@ class CompoundRegistrar:
         self.successful_rows = 0
         self.failed_rows = 0
         self.error_messages = []
+        self.compounds_to_insert = []
+        self.sql = None
 
     @staticmethod
     def _normalize_key(name: str) -> str:
@@ -163,8 +165,8 @@ class CompoundRegistrar:
             "errors": self.error_messages if self.failed_rows else [],
         }
 
-    def register_all(self, rows: List[Dict[str, Any]]):
-        compounds_to_insert, synonyms_to_insert, details_to_insert = [], [], []
+    def build_sql(self, rows: List[Dict[str, Any]]):
+        synonyms_to_insert, details_to_insert = [], []
 
         try:
             for idx, row in enumerate(rows):
@@ -175,7 +177,7 @@ class CompoundRegistrar:
                     properties = grouped.get("properties", {})
 
                     compound_record = self._build_compound_record(compound_data, idx)
-                    compounds_to_insert.append(compound_record)
+                    self.compounds_to_insert.append(compound_record)
 
                     syn_records = self._build_synonym_records(synonyms, compound_record["inchikey"])
                     synonyms_to_insert.extend(syn_records)
@@ -190,19 +192,19 @@ class CompoundRegistrar:
                     if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
                         raise HTTPException(status_code=400, detail=self.result())
 
-            if not compounds_to_insert:
+            if not self.compounds_to_insert:
                 return
 
             # compound_column_names = [column.name for column in models.Compound.__table__.columns]
-            compound_column_names = compounds_to_insert[0].keys()
+            compound_column_names = self.compounds_to_insert[0].keys()
             synonym_column_names = synonyms_to_insert[0].keys()
             detail_column_names = details_to_insert[0].keys()
 
-            compounds_sql = self._values_sql(compounds_to_insert, compound_column_names)
+            compounds_sql = self._values_sql(self.compounds_to_insert, compound_column_names)
             synonyms_sql = self._values_sql(synonyms_to_insert, synonym_column_names)
             details_sql = self._values_sql(details_to_insert, detail_column_names)
 
-            sql = f"""
+            self.sql = f"""
             WITH inserted_compounds AS (
                 INSERT INTO compounds ({", ".join(compound_column_names)})
                 VALUES
@@ -221,12 +223,15 @@ class CompoundRegistrar:
                 FROM (VALUES {details_sql}) AS d(inchikey, property_id, value_string, value_num, value_datetime, created_by, updated_by)
                 JOIN inserted_compounds ic ON d.inchikey = ic.inchikey
             )
-            SELECT count(*) FROM inserted_compounds;
             """
-
-            self.db.execute(text(sql))
-            self.db.commit()
-
         except Exception as e:
             self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Failed to register compounds: {str(e)}")
+
+    def register_all(self, rows: List[Dict[str, Any]]):
+        self.build_sql(rows=rows)
+        self.sql += """
+            SELECT count(*) FROM inserted_compounds;
+        """
+        self.db.execute(text(self.sql))
+        self.db.commit()
