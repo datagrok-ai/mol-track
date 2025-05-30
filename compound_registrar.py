@@ -60,7 +60,8 @@ class CompoundRegistrar:
             grouped.setdefault(table, {})[field] = value
         return grouped
 
-    def _build_compound_record(self, compound_data: Dict[str, Any], mol, idx: int) -> Dict[str, Any]:
+    def _build_compound_record(self, compound_data: Dict[str, Any], idx: int) -> Dict[str, Any]:
+        mol = Chem.MolFromSmiles(compound_data.get("smiles"))
         canonical_smiles = Chem.MolToSmiles(mol, isomericSmiles=True, canonical=True)
         inchi = Chem.MolToInchi(mol)
         inchikey = Chem.InchiToInchiKey(inchi)
@@ -70,17 +71,17 @@ class CompoundRegistrar:
             "inchi": inchi,
             "inchikey": inchikey,
             "original_molfile": compound_data.get("original_molfile", ""),
-            "molregno": compound_data.get("molregno", idx),
+            "molregno": idx,
             "formula": rdMolDescriptors.CalcMolFormula(mol),
-            "hash_mol": str(uuid.uuid4()),
-            "hash_tautomer": str(uuid.uuid4()),
-            "hash_canonical_smiles": str(uuid.uuid4()),
-            "hash_no_stereo_smiles": str(uuid.uuid4()),
-            "hash_no_stereo_tautomer": str(uuid.uuid4()),
+            "hash_mol": uuid.uuid4(),
+            "hash_tautomer": uuid.uuid4(),
+            "hash_canonical_smiles": uuid.uuid4(),
+            "hash_no_stereo_smiles": uuid.uuid4(),
+            "hash_no_stereo_tautomer": uuid.uuid4(),
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
-            "created_by": compound_data.get("created_by", main.admin_user_id),
-            "updated_by": compound_data.get("updated_by", main.admin_user_id),
+            "created_by": main.admin_user_id,
+            "updated_by": main.admin_user_id,
             "is_archived": compound_data.get("is_archived", False),
         }
 
@@ -102,6 +103,44 @@ class CompoundRegistrar:
             )
         return records
 
+    def _build_details_records(self, properties: Dict[str, Any], inchikey: str) -> List[Dict[str, Any]]:
+        records = []
+        for prop_name, value in properties.items():
+            norm_prop_name = self._normalize_key(prop_name)
+            prop_id = self.property_records_map.get(norm_prop_name)
+            if prop_id is None:
+                raise HTTPException(status_code=400, detail=f"Unknown property: {prop_name}")
+
+            # property_record = self.db.query(models.Property).filter(models.Property.id == prop_id).first()
+            # if not property_record:
+            #     raise HTTPException(status_code=404, detail=f"Property with ID {prop_id} not found")
+
+            detail = {
+                "inchikey": inchikey,
+                "property_id": prop_id,
+                "value_string": None,
+                "value_num": None,
+                "value_datetime": datetime.now(),
+                "created_by": main.admin_user_id,
+                "updated_by": main.admin_user_id,
+            }
+
+            value_type_map = {
+                "datetime": "value_datetime",
+                "int": "value_num",
+                "double": "value_num",
+                "string": "value_string",
+            }
+
+            attr = value_type_map.get("double")
+            if attr and value is not None:
+                detail[attr] = float(value)
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported or null value for: {prop_name}")
+
+            records.append(detail)
+        return records
+
     def _values_sql(self, table_data: List[Dict[str, Any]], columns: List[str]) -> str:
         def quote(val):
             if val is None:
@@ -109,7 +148,7 @@ class CompoundRegistrar:
             if isinstance(val, str):
                 return f"'{val.replace("'", "''")}'"
             if isinstance(val, datetime):
-                return f"'{val.isoformat()}'"
+                return f"'{val.isoformat()}'::timestamp with time zone"
             if isinstance(val, uuid.UUID):
                 return f"'{val}'::uuid"
             return str(val)
@@ -125,7 +164,7 @@ class CompoundRegistrar:
         }
 
     def register_all(self, rows: List[Dict[str, Any]]):
-        compounds_to_insert, synonyms_to_insert = [], []
+        compounds_to_insert, synonyms_to_insert, details_to_insert = [], [], []
 
         try:
             for idx, row in enumerate(rows):
@@ -133,17 +172,16 @@ class CompoundRegistrar:
                     grouped = self._group_data(row)
                     compound_data = grouped.get("compounds", {})
                     synonyms = grouped.get("compounds_synonyms", {})
+                    properties = grouped.get("properties", {})
 
-                    smiles = compound_data.get("smiles")
-                    mol = Chem.MolFromSmiles(smiles)
-                    if mol is None:
-                        raise ValueError(f"Invalid SMILES string: {smiles}")
-
-                    compound_record = self._build_compound_record(compound_data, mol, idx)
+                    compound_record = self._build_compound_record(compound_data, idx)
                     compounds_to_insert.append(compound_record)
 
                     syn_records = self._build_synonym_records(synonyms, compound_record["inchikey"])
                     synonyms_to_insert.extend(syn_records)
+
+                    detail_records = self._build_details_records(properties, compound_record["inchikey"])
+                    details_to_insert.extend(detail_records)
 
                     self.successful_rows += 1
                 except Exception as e:
@@ -155,32 +193,18 @@ class CompoundRegistrar:
             if not compounds_to_insert:
                 return
 
-            comp_cols = [
-                "canonical_smiles",
-                "inchi",
-                "inchikey",
-                "original_molfile",
-                "molregno",
-                "formula",
-                "hash_mol",
-                "hash_tautomer",
-                "hash_canonical_smiles",
-                "hash_no_stereo_smiles",
-                "hash_no_stereo_tautomer",
-                "created_at",
-                "updated_at",
-                "created_by",
-                "updated_by",
-                "is_archived",
-            ]
-            syn_cols = ["inchikey", "synonym_type_id", "synonym_value", "created_by", "updated_by"]
+            # compound_column_names = [column.name for column in models.Compound.__table__.columns]
+            compound_column_names = compounds_to_insert[0].keys()
+            synonym_column_names = synonyms_to_insert[0].keys()
+            detail_column_names = details_to_insert[0].keys()
 
-            compounds_sql = self._values_sql(compounds_to_insert, comp_cols)
-            synonyms_sql = self._values_sql(synonyms_to_insert, syn_cols)
+            compounds_sql = self._values_sql(compounds_to_insert, compound_column_names)
+            synonyms_sql = self._values_sql(synonyms_to_insert, synonym_column_names)
+            details_sql = self._values_sql(details_to_insert, detail_column_names)
 
             sql = f"""
             WITH inserted_compounds AS (
-                INSERT INTO compounds ({", ".join(comp_cols)})
+                INSERT INTO compounds ({", ".join(compound_column_names)})
                 VALUES
                 {compounds_sql}
                 RETURNING id, inchikey
@@ -190,6 +214,12 @@ class CompoundRegistrar:
                 SELECT ic.id, s.synonym_type_id, s.synonym_value, s.created_by, s.updated_by
                 FROM (VALUES {synonyms_sql}) AS s(inchikey, synonym_type_id, synonym_value, created_by, updated_by)
                 JOIN inserted_compounds ic ON s.inchikey = ic.inchikey
+            ),
+            inserted_details AS (
+                INSERT INTO compound_details (compound_id, property_id, value_string, value_num, value_datetime, created_by, updated_by)
+                SELECT ic.id, d.property_id, d.value_string, d.value_num, d.value_datetime, d.created_by, d.updated_by
+                FROM (VALUES {details_sql}) AS d(inchikey, property_id, value_string, value_num, value_datetime, created_by, updated_by)
+                JOIN inserted_compounds ic ON d.inchikey = ic.inchikey
             )
             SELECT count(*) FROM inserted_compounds;
             """
