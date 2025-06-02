@@ -323,10 +323,10 @@ def search_compounds_exact(
     """
     try:
         # Validate and generate hash_mol using the Pydantic model
-        exact_params = models.ExactSearchModel(**request.dict())
+        exact_params = models.ExactSearchModel(**request.model_dump())
 
         # Use the generated hash_mol to query the database
-        return crud.search_compounds_by_hash(db=db, hash_mol=exact_params.hash_mol)
+        return crud.get_compound_by_hash(db=db, hash_mol=exact_params.hash_mol)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -339,7 +339,7 @@ def search_compound_structure(
     """
     Perform a dynamic structure-based search for compounds.
 
-    - **search_type**: Type of structure search (e.g., "substructure", "tautomer", "stereo", "similarity").
+    - **search_type**: Type of structure search (e.g., "substructure", "tautomer", "stereo", "similarity", "connectivity").
     - **query_smiles**: SMILES string for the structure search.
     - **search_parameters**: Additional parameters for the search.
     """
@@ -366,6 +366,13 @@ def search_compound_structure(
                 query_smiles=query_smiles,
                 search_parameters=request.search_parameters,
             )
+        elif request.search_type == "connectivity":
+            return crud.search_compounds_connectivity(
+                db=db,
+                query_smiles=query_smiles,
+                search_parameters=request.search_parameters,
+            )
+
         elif request.search_type == "similarity":
             return crud.search_compounds_similarity(
                 db=db,

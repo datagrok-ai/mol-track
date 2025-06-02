@@ -7,6 +7,9 @@ import enums
 import os
 from datetime import datetime
 import uuid
+from rdkit import Chem
+from rdkit.Chem.RegistrationHash import GetMolHash
+from chemistry_utils import standardize_mol, generate_hash_layers
 
 # # Handle both package imports and direct execution
 # try:
@@ -75,7 +78,7 @@ class Compound(CompoundResponseBase, table=True):
 
     molregno: int = Field(nullable=False)
     formula: str = Field(nullable=False)
-    hash_mol: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    hash_mol: str = Field(nullable=False)
     hash_tautomer: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     hash_canonical_smiles: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     hash_no_stereo_smiles: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
@@ -370,38 +373,39 @@ class BatchAssayResultsResponse(SQLModel):
 class ExactSearchModel(SQLModel):
     query_smiles: str  # SMILES string for the molecule
     standardization_steps: Optional[List[str]] = None
-    hash_mol: Optional[str] = None
+    # hash_mol: Optional[str] = None
     
-      # Optional standardization steps
-    # hash_mol: Optional[uuid.UUID] = (
-    #     None  # UUID hash generated from the standardized SMILES
-    # )
+    # Optional standardization steps
+    hash_mol: Optional[str] = (
+        None  # UUID hash generated from the standardized SMILES
+    )
 
-    # @validator("hash_mol", always=True, pre=True)
-    # def validate_or_generate_hash(cls, v, values):
-    #     """
-    #     Validate or generate a UUID hash from the standardized SMILES.
-    #     """
-    #     query_smiles = values.get("query_smiles")
-    #     if not query_smiles:
-    #         raise ValueError("query_smiles is required to generate a hash.")
+    @validator("hash_mol", always=True, pre=True)
+    def validate_or_generate_hash(cls, v, values):
+        """
+        Validate or generate a UUID hash from the standardized SMILES.
+        """
+        query_smiles = values.get("query_smiles")
+        if not query_smiles:
+            raise ValueError("query_smiles is required to generate a hash.")
 
-    #     # Convert SMILES to RDKit molecule
-    #     mol = Chem.MolFromSmiles(query_smiles)
-    #     if mol is None:
-    #         raise ValueError(f"Invalid SMILES string: {query_smiles}")
+        # Convert SMILES to RDKit molecule
+        mol = Chem.MolFromSmiles(query_smiles)
+        if mol is None:
+            raise ValueError(f"Invalid SMILES string: {query_smiles}")
 
-    #     # Standardize the molecule
-    #     standardized_mol = standardize_mol(mol)
+        # Standardize the molecule
+        standardized_mol = standardize_mol(mol)
 
-    #     # Generate molecular layers
-    #     layers = generate_hash_layers(standardized_mol)
+        # Generate molecular layers
+        layers = generate_hash_layers(standardized_mol)
 
-    #     # Generate the hash if not provided - this is a placeholder
-    #     # this would be GetMolHash
-    #     if v is None:
-    #         return generate_uuid_hash_mol(layers)
-        # return v
+        # Generate the hash if not provided - this is a placeholder
+        # this would be GetMolHash
+        if v is None:
+            print(GetMolHash(layers))
+            return GetMolHash(layers)
+        return v
 
 class SearchCompoundStructure(SQLModel):
     search_type: Literal[

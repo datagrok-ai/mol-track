@@ -4,7 +4,7 @@ import yaml
 from rdkit import Chem
 from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
-from rdkit.Chem.RegistrationHash import HashLayer
+from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
 
 
 
