@@ -880,7 +880,6 @@ def bulk_create_if_not_exists(
 
     to_insert = []
     for item in items:
-        print(item)
         item_name = getattr(item, name_attr)
         if item_name not in existing_names:
             validated = base_model_cls.model_validate(item) if validate else item
@@ -922,8 +921,32 @@ def get_additions(db: Session, role: enums.AdditionsRole | None = None) -> List[
     return query.filter_by(role=role).all()
 
 
-def get_addition_by_id(db: Session, addition_id: int) -> models.AdditionBase:
-    return db.get(models.Addition, addition_id)
+def get_addition_by_id(db: Session, addition_id: int) -> models.Addition:
+    db_addition = db.get(models.Addition, addition_id)
+    if db_addition is None:
+        raise HTTPException(status_code=404, detail="Addition not found")
+    return db_addition
+
+
+def update_addition_by_id(db: Session, addition_id: int, addition_update: models.AdditionUpdate):
+    db_addition = get_addition_by_id(db, addition_id=addition_id)
+    update_data = addition_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_addition, key, value)
+
+    db_addition.updated_at = datetime.now()
+    db.add(db_addition)
+    db.commit()
+    db.refresh(db_addition)
+    return db_addition
+
+
+def delete_addition_by_id(db: Session, addition_id: int):
+    db_addition = get_addition_by_id(db, addition_id=addition_id)
+    db_addition.deleted_at = datetime.now()
+    db.delete(db_addition)
+    db.commit()
+    return db_addition
 
 
 def create_compound_synonyms(db: Session, compound_synonym: list[models.CompoundSynonymBase]) -> models.CompoundSynonym:

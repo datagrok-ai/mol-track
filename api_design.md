@@ -63,13 +63,14 @@ Additions are addtional chemical entities present in the batch/lot of a material
 
   - A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv)
 
-- `PUT /additions` – updates one or more existing additions in the MolTrack system. Accepts an array of complete addition definitions, each including a valid addition_id. Returns an array of the updated additions.
-
 - `GET /additions` - retrieve all the salts and solvates that have been registered.  Retrieve in a csv format.
 - `GET /additions/salts` - retrieve all additions with role of *salts*.
 - `GET /additions/solvates` - retrieve all additions with role of *solvates*.
 - `GET /additions/{addition_id}` - retrieve all information for a specific addition.
 
+### Update endpoints ###
+
+- `PUT /additions/{addition_id}` – Used to update information for the provided addition_id.
 - `DELETE /additions/{addition_id}` - soft delete from a given addition.
 
 ## Register Batches ##

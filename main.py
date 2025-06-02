@@ -1,6 +1,7 @@
 import csv
 import io
-from fastapi import FastAPI, Depends, File, Form, HTTPException, Body, UploadFile
+import time
+from fastapi import FastAPI, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from batch_registrar import BatchRegistrar
@@ -59,41 +60,41 @@ def on_startup():
 
 
 # Compounds endpoints
-@app.post("/compounds/", response_model=models.CompoundResponse)
-def create_compound(compound: models.CompoundCreate, db: Session = Depends(get_db)):
-    return crud.create_compound(db=db, compound=compound)
+# @app.post("/compounds/", response_model=models.CompoundResponse)
+# def create_compound(compound: models.CompoundCreate, db: Session = Depends(get_db)):
+#     return crud.create_compound(db=db, compound=compound)
 
 
-@app.post("/compounds/batch/", response_model=List[models.CompoundResponse])
-def create_compounds_batch(compounds: List[str] = Body(..., embed=True), db: Session = Depends(get_db)):
-    """
-    Create multiple compounds from a list of SMILES strings.
+# @app.post("/compounds/batch/", response_model=List[models.CompoundResponse])
+# def create_compounds_batch(compounds: List[str] = Body(..., embed=True), db: Session = Depends(get_db)):
+#     """
+#     Create multiple compounds from a list of SMILES strings.
 
-    All SMILES must be valid and not already exist in the database.
-    If any SMILES is invalid or already exists, the entire batch will fail.
-    """
-    return crud.create_compounds_batch(db=db, smiles_list=compounds)
-
-
-@app.get("/compounds/", response_model=List[models.CompoundResponse])
-def read_compounds(query: models.CompoundQueryParams = Depends(), db: Session = Depends(get_db)):
-    """
-    Get a list of compounds with optional filtering by substructure.
-
-    - **substructure**: Optional SMILES pattern to search for substructures
-    - **skip**: Number of records to skip (for pagination)
-    - **limit**: Maximum number of records to return (for pagination)
-    """
-    compounds = crud.get_compounds_ex(db, query_params=query)
-    return compounds
+#     All SMILES must be valid and not already exist in the database.
+#     If any SMILES is invalid or already exists, the entire batch will fail.
+#     """
+#     return crud.create_compounds_batch(db=db, smiles_list=compounds)
 
 
-@app.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
-def read_compound(compound_id: int, db: Session = Depends(get_db)):
-    db_compound = crud.get_compound(db, compound_id=compound_id)
-    if db_compound is None:
-        raise HTTPException(status_code=404, detail="Compound not found")
-    return db_compound
+# @app.get("/compounds/", response_model=List[models.CompoundResponse])
+# def read_compounds(query: models.CompoundQueryParams = Depends(), db: Session = Depends(get_db)):
+#     """
+#     Get a list of compounds with optional filtering by substructure.
+
+#     - **substructure**: Optional SMILES pattern to search for substructures
+#     - **skip**: Number of records to skip (for pagination)
+#     - **limit**: Maximum number of records to return (for pagination)
+#     """
+#     compounds = crud.get_compounds_ex(db, query_params=query)
+#     return compounds
+
+
+# @app.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
+# def read_compound(compound_id: int, db: Session = Depends(get_db)):
+#     db_compound = crud.get_compound(db, compound_id=compound_id)
+#     if db_compound is None:
+#         raise HTTPException(status_code=404, detail="Compound not found")
+#     return db_compound
 
 
 # Batches endpoints
@@ -310,7 +311,7 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
 "-------------------New logic-----------------"
 
 
-@app.post("/schema/")
+@app.post("/v1/schema/")
 def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
     created_synonyms = crud.create_synonym_types(db, payload.synonym_types)
     created_properties = crud.create_properties(db, payload.properties)
@@ -343,7 +344,7 @@ def get_synonyms_by_level(level: enums.SynonymLevel, db: Session) -> List[models
     )
 
 
-@app.get("/schema/compounds", response_model=models.SchemaCompoundResponse)
+@app.get("/v1/schema/compounds", response_model=models.SchemaCompoundResponse)
 def get_schema_compounds(db: Session = Depends(get_db)):
     return models.SchemaCompoundResponse(
         properties=get_properties_by_scope(enums.ScopeClass.COMPOUND, db),
@@ -351,7 +352,7 @@ def get_schema_compounds(db: Session = Depends(get_db)):
     )
 
 
-@app.get("/schema/batches", response_model=models.SchemaBatchResponse)
+@app.get("/v1/schema/batches", response_model=models.SchemaBatchResponse)
 def get_schema_batches(db: Session = Depends(get_db)):
     properties = get_properties_by_scope(enums.ScopeClass.BATCH, db)
     synonym_types = get_synonyms_by_level(enums.SynonymLevel.BATCH, db)
@@ -372,10 +373,12 @@ def register_compounds_v1(
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     db: Session = Depends(get_db),
 ):
+    start = time.time()
     csv_content = csv_file.file.read().decode("utf-8")
     registrar = CompoundRegistrar(db=db, mapping=mapping, error_handling=error_handling)
     rows = registrar.process_csv(csv_content)
     registrar.register_all(rows)
+    print(f"Time taken: {time.time() - start}")
     return registrar.result()
 
 
@@ -441,26 +444,32 @@ def create_additions(file: Optional[UploadFile] = File(None), db: Session = Depe
 
 @app.get("/v1/additions/", response_model=List[models.AdditionResponse])
 def read_additions_v1(db: Session = Depends(get_db)):
-    additions = crud.get_additions(db)
-    return additions
+    return crud.get_additions(db)
 
 
 @app.get("/v1/additions/salts", response_model=List[models.AdditionResponse])
 def read_additions_salts_v1(db: Session = Depends(get_db)):
-    salts = crud.get_additions(db, role=enums.AdditionsRole.SALT)
-    return salts
+    return crud.get_additions(db, role=enums.AdditionsRole.SALT)
 
 
 @app.get("/v1/additions/solvates", response_model=List[models.AdditionResponse])
 def read_additions_solvates_v1(db: Session = Depends(get_db)):
-    solvents = crud.get_additions(db, role=enums.AdditionsRole.SOLVATE)
-    return solvents
+    return crud.get_additions(db, role=enums.AdditionsRole.SOLVATE)
 
 
 @app.get("/v1/additions/{addition_id}", response_model=models.AdditionBase)
 def read_addition_v1(addition_id: int, db: Session = Depends(get_db)):
-    db_addition = crud.get_addition_by_id(db, addition_id=addition_id)
-    return db_addition
+    return crud.get_addition_by_id(db, addition_id=addition_id)
+
+
+@app.put("/v1/additions/{addition_id}", response_model=models.Addition)
+def update_addition_v1(addition_id: int, addition_update: models.AdditionUpdate, db: Session = Depends(get_db)):
+    return crud.update_addition_by_id(db, addition_id, addition_update)
+
+
+@app.delete("/v1/additions/{addition_id}", response_model=models.Addition)
+def delete_addition(addition_id: int, db: Session = Depends(get_db)):
+    return crud.delete_addition_by_id(db, addition_id=addition_id)
 
 
 @app.post("/v1/batches/")
