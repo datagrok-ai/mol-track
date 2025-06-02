@@ -41,7 +41,7 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
        "synonym_types": [
             {"name": "batch_corporate_id", "level": "batch", "pattern": ""},
             {"name": "corporate_id", "level": "compound", "pattern": ""},
-            {"name": "CAS number", "level": "compound", "pattern": r"\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b"},
+            {"name": "CAS number", "level": "compound", "pattern": "r'\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b'"},
             {"name": "common name", "level": "compound", "pattern": ""},
             {"name": "USAN", "level": "compound", "pattern": ""}
             ]
@@ -116,7 +116,7 @@ Mapping is optional, but assumes that the field names directly map to the databa
 
       ```json
       {
-         "status_message" = "Success",
+         "status_message": "Success",
          "data": "\"batch_corporate_id\",smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id\n\"EPA-001-001\",\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",1,2,\"EPA-001\"\n\"EPA-120-001\",\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",2,4,\"EPA-120\"\n"
       }
       ```
@@ -196,7 +196,7 @@ Registrations could be executed synchronously or asynchronously.  In general, re
 
       ```json
       {
-         "status_messge" = "Success",
+         "status_messge": "Success",
          "data": "smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id,registration_status,registration_error_message\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",2,\"EPA-001\","success",""\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",4,\"EPA-120\","success",""\n"
       }
       ```
@@ -205,7 +205,7 @@ Registrations could be executed synchronously or asynchronously.  In general, re
 
       ```json
       {
-         "status_messge" = "Failed",
+         "status_messge": "Failed",
          "data": "smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id,registration_status,registration_error_message\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",2,\"EPA-001\","success",""\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",4,\"EPA-120\","failed","invalid structure"\n"
       }
       ```
@@ -445,7 +445,7 @@ Properties and synonym types can probably follow the standard approaches:
 
    ```json
    {
-      "batches-collection-job-id": id,
+      "batches-collection-job-id": 123456,
       "global-status": "In Progress",
       "individual-statuses": [
          { "batch1": "Success"},
@@ -476,7 +476,7 @@ A simplified json example is presented here to demonstrate the input structure:
          "smiles": "c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N",
          "synonyms": [
             {"USAN": "celecoxib"},
-            {"CAS Number": "169590-42-5}"
+            {"CAS Number": "169590-42-5"}
          ],
          "properties": []
       }
@@ -502,7 +502,7 @@ A simplified json example is presented here to demonstrate the input structure:
 
    ```json
    {
-      "compounds-collection-job-id": id,
+      "compounds-collection-job-id": 123456,
       "global-status": "In Progress",
       "individual-statuses": [
          { "molecule1": "Success"},

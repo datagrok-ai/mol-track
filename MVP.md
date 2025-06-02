@@ -40,10 +40,10 @@ We describe here the capabilities that we see as appropriate for a minimal viabl
     - [ ] Search for batches based on properties.
     - [ ] Search for compounds or batches using a combination of search conditions
 6. Chemists can *(for MVP, global user)*
-    - [] Register compounds by csv with smiles or ctab including compounds, properties, synonyms. ~~or sd-file (ctab + properties)~~
-    - [] Register batches  with compound, compound synonyms, batch, batch synonyms, batch properties, batch additions with smiles+json or sd-file with v3000-ctab and properties
-    - Update compound based on business rules and permissions
-    - Update batches based on business rules and permissions
+    - [x] Register compounds by csv with smiles or ctab including compounds, properties, synonyms. ~~or sd-file (ctab + properties)~~
+    - [ ] Register batches  with compound, compound synonyms, batch, batch synonyms, batch properties, batch additions with csv, ~~smiles+json or sd-file with v3000-ctab and properties~~
+    - [ ] Update compound based on business rules and permissions
+    - [ ] Update batches based on business rules and permissions
 7. Biologists can *(for MVP, global user)*
     - [ ] configure result_types (properties).
     - [ ] configure assay_types and property associations.
