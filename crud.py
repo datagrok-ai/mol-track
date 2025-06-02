@@ -193,13 +193,6 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
 #     return db_compound
 
 
-def delete_compound(db: Session, compound_id: int):
-    db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
-    db.delete(db_compound)
-    db.commit()
-    return db_compound
-
-
 # Batch CRUD operations
 def get_batch(db: Session, batch_id: int):
     return db.query(models.Batch).filter(models.Batch.id == batch_id).first()
@@ -944,7 +937,8 @@ def update_addition_by_id(db: Session, addition_id: int, addition_update: models
 def delete_addition_by_id(db: Session, addition_id: int):
     db_addition = get_addition_by_id(db, addition_id=addition_id)
     db_addition.deleted_at = datetime.now()
-    db.delete(db_addition)
+    # Hard delete addition
+    # db.delete(db_addition)
     db.commit()
     return db_addition
 
@@ -988,3 +982,18 @@ def get_compound(db: Session, compound_id: int):
         .filter(models.Compound.id == compound_id)
         .first()
     )
+
+
+def delete_compound(db: Session, compound_id: int):
+    db_compound = db.get(models.Compound, compound_id)
+    if db_compound is None:
+        raise HTTPException(status_code=404, detail="Compound not found")
+    db_compound.deleted_at = datetime.now()
+
+    # Hard delete compound, related synonyms and details
+    # db.delete(db_compound)
+    # db.query(models.CompoundSynonym).filter(models.CompoundSynonym.compound_id == compound_id).delete()
+    # db.query(models.CompoundDetail).filter(models.CompoundDetail.compound_id == compound_id).delete()
+
+    db.commit()
+    return db_compound

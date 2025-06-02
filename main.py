@@ -412,6 +412,14 @@ def read_compound_properties_v1(compound_id: int, db: Session = Depends(get_db))
     return compound.properties
 
 
+@app.delete("/v1/compounds/{compound_id}", response_model=models.Compound)
+def delete_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
+    batches = crud.get_batches_by_compound(db, compound_id=compound_id)
+    if batches:
+        raise HTTPException(status_code=400, detail="Compound has dependent batches")
+    return crud.delete_compound(db, compound_id=compound_id)
+
+
 # TODO: Move to utils
 def clean_empty_values(d: dict) -> dict:
     return {k: (None if isinstance(v, str) and v.strip() == "" else v) for k, v in d.items()}
