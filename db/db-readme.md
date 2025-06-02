@@ -5,7 +5,7 @@
 
 ~~The design is evolved with DBML in [schema.dbml](schema.dbml).  Install `npm install -g @dbml/cli`~~
 
-~~`dbms2sql schema.dbml -o schema.sql`~~
+~~`dbml2sql schema.dbml -o schema.sql`~~
 
 ## Instantiation
 

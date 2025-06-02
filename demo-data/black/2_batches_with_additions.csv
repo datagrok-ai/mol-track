@@ -1,3 +1,3 @@
-batch_corporate_id,smiles,common_name,cas,usan,MolLogP, HCl, H2O
-EPA-001-001,C1=CC(=CC(=C1)C(=O)O)C(=O)O,"1,3-benezenedicarboxylic acid",121-91-5,,1.0829999446868896, 1.0,
-EPA-120-001,c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N,,169590-42-5,celecoxib,3.5139200687408447, , 1.0
+batch_corporate_id,smiles,common_name,cas,usan,MolLogP, HCl, H2O, acquistion_date
+EPA-001-001,C1=CC(=CC(=C1)C(=O)O)C(=O)O,"1,3-benezenedicarboxylic acid",121-91-5,,1.0829999446868896, 1.0,, 2024-01-01
+EPA-120-001,c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N,,169590-42-5,celecoxib,3.5139200687408447, , 1.0, 2024-01-03

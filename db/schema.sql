@@ -81,7 +81,7 @@ CREATE TABLE moltrack.synonym_types (
   synonym_level text check (synonym_level in ('BATCH', 'COMPOUND')) NOT NULL,
   name text NOT NULL, -- e.g., CAS, USAN, INN, tradename ,source code
   pattern text, -- regex for identifier: CHEMBL.*
-  description text NOT NULL
+  description text
 );
 
 -- Compounds table - unique chemical structures
