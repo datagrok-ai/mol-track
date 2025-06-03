@@ -373,14 +373,9 @@ An example CSV can be found here [assay_results.csv](./demo-data/black/assay_res
 
 ## Search - WIP ##
 
-Can we provide a generalized search capabilities across all the various entities in our model: compounds, batches, assay_results.  The endpoint path indicates the shape of the returned data: compound per row; batch per row; assay result value per row.
+We provide a generalized search capabilities across all the various entities in our model: compounds, batches, assay_results.  A simple or complex set of search criteria are presented in a json format.  ~~Query parameters provide pagination support and output format style.~~ For the MVP, pagination is not required and only the CSV style output will be provided.  
 
-- `/search/compounds`
-- `/search/batches`
-- `/search/assay-data`
-
-- `POST /search`
-A simple or complex set of search criteria are presented in a json format.  ~~Query parameters provide pagination support and output format style.~~ For the MVP, pagination is not required and only the CSV style output will be provided.  User stories:
+User stories:
 
    1. Find all batches made for project X in the past week.
    2. Find all stereo-similar compounds to I can determine whether I have expressed the stereo nature of my new molecule correctly.
@@ -393,11 +388,62 @@ A simple or complex set of search criteria are presented in a json format.  ~~Qu
       3. batch property of source = WuXi
       4. kinase IC50 < 100 uM
 
+The endpoint path indicates the shape of the returned data: compound per row; batch per row; assay result value per row.
+
+- `/search/compounds` - compound per row, batch data aggregated or pivoted to the compound row.
+- `/search/batches` - batch per row, compound data denormalized to each batch row, assay results aggreated or pivoted to the batch row
+- `/search/assay-data` -
+
+- `POST /search`
 - `POST /search/compounds/structure`
   - exact  -->  smiles + standardized by Moltrack settings.  optional pattern of standardization  [array of standardization steps].  uses all layers of the registration mol hash
     - returns - 0 or 1 compound entries, exact match might return multiple tautomers
-  - less precise  -- substructure, tautomer, no-stereo
-substructure + similar to a key compound
+  - less precise  -- substructure, tautomer, no-stereo, similar to a key compound
+    - returns multiple rows
+
+   Caller does not need to how we call the fields and parameters
+
+    - exact( query_molecule: smiles)
+    - substructure( query_molecule: smarts)
+    - tautomer( query_molecule: smiles)
+    - no-stereo( query_molecule: smiles )
+    - similar( query_molecule: smiles, similarity_threshold: float = 0.9)
+
+   How to structure the json?
+
+   ```json
+    {
+      "query_mol": "smiles | smarts",
+      "structure_search": "exact (default) | substructure | tautomer | no-stereo | similar "
+    },
+    { "structure_search_type": ""}
+    ```
+   If we can decide on the proper structure search condition expression then these can just be part of the `/search/compounds` body and we don't need the `/search/compounds/structure` path
+
+- `POST /search/complex` - should this be the generalized search?  Krzysztof has implement body like
+
+```json
+{
+  "conditions": [
+    {
+      "table": "compounds",
+      "field": "hash_tautomer",
+      "operator": "=",
+      "query_smiles": "Cc1ccc(NC(=O)c2ccc(CN3CCN(C)CC3)cc2)cc1Nc1nccc(-c2cccnc2)n1",
+      "columns": ["id", "canonical_smiles"]
+    },
+    {
+      "table": "assays",
+      "field": "IC50",
+      "operator": "<",
+      "unit": "nM"
+      "value": 100,
+      "columns": ["assay_id", "IC50", "target"]
+    }
+  ],
+  "logic": "AND"
+}
+```
 
 - `POST /search/batches`
 - `POST /search/assay-data`
