@@ -82,10 +82,8 @@ def generate_hash_layers(mol: Chem.Mol) -> dict:
     Returns:
         dict: A dictionary containing the layers used to compute the MolHash.
     """
-    # Generate molecular layers
-    layers = RegistrationHash.GetMolLayers(mol, enable_tautomer_hash_v2=True)
 
-    return layers
+    return RegistrationHash.GetMolLayers(mol, enable_tautomer_hash_v2=True)
 
 
 def generate_uuid_from_string(input_string: str) -> uuid.UUID:
@@ -98,45 +96,26 @@ def generate_uuid_from_string(input_string: str) -> uuid.UUID:
     Returns:
         uuid.UUID: The UUID hash of the input string, ready for PostgreSQL UUID type.
     """
-    uuid_hash = uuid.uuid5(uuid.NAMESPACE_DNS, input_string)
-    return uuid_hash
-
-def generate_uuid_hash_mol(layers: dict) ->  uuid.UUID:
-    """
-    Generate a UUID hash for a given molecule's layers.
-
-    Args:
-        layers (dict): The layers of the molecule.
-
-    Returns:
-        str: The UUID hash of the molecule.
-    """
-    # Convert the layers to a string representation
-    sorted_layers = tuple(sorted(layers.items(), key=lambda item: item[0].name))
-    layers_str = str(sorted_layers)
-    # Generate a UUID based on the string representation of the layers
-    uuid_hash = uuid.uuid5(uuid.NAMESPACE_DNS, layers_str)
-    return uuid_hash
+    return uuid.uuid5(uuid.NAMESPACE_DNS, input_string)
+    
 
 def calculate_tautomer_hash(mol: Chem.Mol) -> str:
     """
     Calculate the tautomer hash for a given molecule.
     """
-    layers = generate_hash_layers(mol)
-    return generate_uuid_from_string(layers[HashLayer.TAUTOMER_HASH])
+    return  generate_uuid_from_string(generate_hash_layers(mol)[HashLayer.TAUTOMER_HASH])
+
 
 def calculate_no_stereo_smiles_hash(mol: Chem.Mol) -> str:
-    """
-    Calculate the no-stereo SMILES hash for a given molecule.
-    """
-    layers = generate_hash_layers(mol)
-    return generate_uuid_from_string(layers[HashLayer.NO_STEREO_SMILES])
+    
+    """Calculate the no-stereo SMILES hash for a given molecule."""
+
+    return generate_uuid_from_string(generate_hash_layers(mol)[HashLayer.NO_STEREO_SMILES])
+
 
 def calculate_no_stereo_tautomer_hash(mol: Chem.Mol) -> str:
     """
     Calculate the no-stereo tautomer hash for a given molecule.
     """
-    # Generate a no-stereo version of the molecule
-    layers = generate_hash_layers(mol)
-    return generate_uuid_from_string(layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
+    return generate_uuid_from_string(generate_hash_layers(mol)[HashLayer.NO_STEREO_TAUTOMER_HASH])
 
