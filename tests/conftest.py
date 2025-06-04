@@ -152,40 +152,7 @@ def client(test_db):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def compound(client):
-    response = client.post(
-        "/compounds/",
-        json={
-            "smiles": aspirin_smiles,
-            "is_archived": False,
-        },
-    )
-    assert response.status_code == 200
-    return response.json()
-
-
-@pytest.fixture
-def batch(client, compound):
-    response = client.post("/batches/", json={"compound_id": compound["id"], "notes": "Notes"})
-    assert response.status_code == 200
-    return response.json()
-
-
-@pytest.fixture
-def synonym_type(client):
-    response = client.post("/synonym-types/", json=synonym_type_data)
-    assert response.status_code == 200, f"Failed to create synonym_type: {response.text}"
-    return response.json()
-
-
 # Common test data
 aspirin_smiles = "CC(=O)OC1=CC=CC=C1C(=O)O"
 aspirin_smiles_noncanonical = "CC(Oc1c(C(O)=O)cccc1)=O"
 caffeine_smiles = "CN1C=NC2=C1C(=O)N(C(=O)N2C)C"
-synonym_type_data = {
-    "name": "Batch Code",
-    "synonym_level": "BATCH",
-    "pattern": r"[A-Z]{3}-\d{4}",
-    "description": "Description",
-}
