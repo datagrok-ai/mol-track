@@ -67,6 +67,7 @@ class CompoundResponseBase(CompoundBase):
 
 class CompoundResponse(CompoundResponseBase):
     batches: List["Batch"] = []
+    compound_synonyms: List["CompoundSynonym"] = []
 
 
 class Compound(CompoundResponseBase, table=True):
@@ -86,6 +87,7 @@ class Compound(CompoundResponseBase, table=True):
     deleted_by: Optional[uuid.UUID] = Field(default=None)
 
     batches: List["Batch"] = Relationship(back_populates="compound")
+    compound_synonyms: List["CompoundSynonym"] = Relationship(back_populates="compound")
 
 
 class BatchBase(SQLModel):
@@ -100,6 +102,7 @@ class BatchResponseBase(BatchBase):
 
 class BatchResponse(BatchResponseBase):
     batch_details: List["BatchDetail"] = []
+    batch_synonyms: List["BatchSynonym"] = []
 
 
 class Batch(BatchResponseBase, table=True):
@@ -114,6 +117,7 @@ class Batch(BatchResponseBase, table=True):
     compound: "Compound" = Relationship(back_populates="batches")
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
+    batch_synonyms: List["BatchSynonym"] = Relationship(back_populates="batch")
 
 
 class SemanticTypeBase(SQLModel):
@@ -366,3 +370,74 @@ class BatchAssayResultsResponse(SQLModel):
     batch_id: int
     assay_name: str
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
+
+class SynonymTypeBase(SQLModel):
+    synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
+    name: str = Field(nullable=False)
+    pattern: Optional[str] = Field(default=None)
+    description: str = Field(nullable=False)
+
+class SynonymTypeResponse(SynonymTypeBase):
+    id: int = Field(primary_key=True, index=True)
+
+    @validator('synonym_level')
+    def validate_synonym_level(cls, value):
+        allowed_values = ['BATCH', 'COMPOUND']
+        if value.upper() not in allowed_values:
+            raise ValueError(f"synonym_level must be one of {allowed_values}")
+        return value
+
+class SynonymType(SynonymTypeResponse, table=True):
+    __tablename__ = "synonym_types"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    # Relationships
+    compound_synonyms: "CompoundSynonym" = Relationship(back_populates="synonym_type")
+    batch_synonyms: "BatchSynonym" = Relationship(back_populates="synonym_type")
+
+class CompoundSynonymBase(SQLModel):
+    synonym_value: str = Field(nullable=False)
+    compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
+    synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
+
+class CompoundSynonymResponse(CompoundSynonymBase):
+    id: int = Field(primary_key=True, index=True)
+
+class CompoundSynonym(CompoundSynonymResponse, table=True):
+    __tablename__ = "compound_synonyms"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    # Relationships
+    compound: "Compound" = Relationship(back_populates="compound_synonyms")
+    synonym_type: "SynonymType" = Relationship(back_populates="compound_synonyms")
+
+class BatchSynonymBase(SQLModel):
+    synonym_value: str = Field(nullable=False)
+    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
+    synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
+
+class BatchSynonymResponse(BatchSynonymBase):
+    id: int = Field(primary_key=True, index=True)
+
+class BatchSynonym(BatchSynonymResponse, table=True):
+    __tablename__ = "batch_synonyms"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    # Relationships
+    batch: "Batch" = Relationship(back_populates="batch_synonyms")
+    synonym_type: "SynonymType" = Relationship(back_populates="batch_synonyms")

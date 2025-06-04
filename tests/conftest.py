@@ -69,27 +69,27 @@ def setup_test_db():
 
     # Create engine for the test database
     test_engine = create_engine(TEST_DATABASE_URL)
-    
+
     # Read the schema from db folder
     schema_paths = [
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db', 'schema.sql'),
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db', 'schema_rdkit.sql'),  # new file
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "schema.sql"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "schema_rdkit.sql"),  # new file
     ]
-    
+
     # Apply the schemas to the test database
     with test_engine.connect() as conn:
         for schema_path in schema_paths:
-            with open(schema_path, 'r') as f:
+            with open(schema_path, "r") as f:
                 schema_sql = f.read()
-            schema_sql = schema_sql.replace(':LOGIN', 'postgres')
+            schema_sql = schema_sql.replace(":LOGIN", "postgres")
 
             # Execute each statement in the schema
-            for statement in schema_sql.split(';'):
-                statement = statement.replace('^', ';')  # had to replace it for trigger function 
+            for statement in schema_sql.split(";"):
+                statement = statement.replace("^", ";")  # had to replace it for trigger function
                 if statement.strip():
                     conn.execute(text(statement))
             conn.execute(text("COMMIT"))
-    
+
     yield
 
     # Drop the test database after tests

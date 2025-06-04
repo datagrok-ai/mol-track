@@ -803,3 +803,83 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     db.commit()
     db.refresh(db_batch_detail)
     return db_batch_detail
+
+
+# SynonymType CRUD operations
+def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase):
+    db_synonym_type = models.SynonymType(
+        synonym_level=synonym_type.synonym_level,
+        name=synonym_type.name,
+        pattern=synonym_type.pattern,
+        description=synonym_type.description,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym_type)
+    db.commit()
+    db.refresh(db_synonym_type)
+    return db_synonym_type
+
+
+# Compound synonym CRUD operations
+def create_compound_synonym(db: Session, synonym: models.CompoundSynonymBase):
+    db_synonym = models.CompoundSynonym(
+        synonym_value=synonym.synonym_value,
+        compound_id=synonym.compound_id,
+        synonym_type_id=synonym.synonym_type_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym)
+    db.commit()
+    db.refresh(db_synonym)
+    return db_synonym
+
+
+# Batch synonym CRUD operations
+def create_batch_synonym(db: Session, synonym: models.BatchSynonymBase):
+    db_synonym = models.BatchSynonym(
+        synonym_value=synonym.synonym_value,
+        batch_id=synonym.batch_id,
+        synonym_type_id=synonym.synonym_type_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym)
+    db.commit()
+    db.refresh(db_synonym)
+    return db_synonym
+
+
+def search_compounds_by_synonym(db: Session, synonym_value: str, skip: int = 0, limit: int = 100):
+    """
+    Search compounds by their synonyms.
+
+    Returns:
+        List of compounds matching the synonym
+    """
+    return (
+        db.query(models.Compound)
+        .join(models.CompoundSynonym)
+        .filter(models.CompoundSynonym.synonym_value.ilike(f"%{synonym_value}%"))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def search_batches_by_synonym(db: Session, synonym_value: str, skip: int = 0, limit: int = 100):
+    """
+    Search batches by their synonyms.
+
+    Returns:
+        List of batches matching the synonym
+    """
+    return (
+        db.query(models.Batch)
+        .join(models.BatchSynonym)
+        .filter(models.BatchSynonym.synonym_value.ilike(f"%{synonym_value}%"))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
