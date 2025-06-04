@@ -370,15 +370,14 @@ class BatchAssayResultsResponse(SQLModel):
     assay_name: str
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
 
+
 class ExactSearchModel(SQLModel):
     query_smiles: str  # SMILES string for the molecule
     standardization_steps: Optional[List[str]] = None
     # hash_mol: Optional[str] = None
-    
+
     # Optional standardization steps
-    hash_mol: Optional[str] = (
-        None  # UUID hash generated from the standardized SMILES
-    )
+    hash_mol: Optional[str] = None  # UUID hash generated from the standardized SMILES
 
     @validator("hash_mol", always=True, pre=True)
     def validate_or_generate_hash(cls, v, values):
@@ -407,10 +406,9 @@ class ExactSearchModel(SQLModel):
             return GetMolHash(layers)
         return v
 
+
 class SearchCompoundStructure(SQLModel):
-    search_type: Literal[
-        "substructure", "tautomer", "stereo", "similarity"
-    ]  # Type of structure search
+    search_type: Literal["substructure", "tautomer", "stereo", "similarity"]  # Type of structure search
     query_smiles: str  # SMILES string for the structure search
     search_parameters: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
@@ -427,12 +425,11 @@ class SearchCompoundStructure(SQLModel):
     #         raise ValueError(f"Invalid SMILES string: {v}")
     #     return v
 
+
 class QueryCondition(SQLModel):
     table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
     field: str  # Field/column to filter on
-    operator: Literal[
-        "=", "!=", ">", "<", ">=", "<=", "LIKE", "IN"
-    ]  # expand for supported by rdkit cartridge like @>?
+    operator: Literal["=", "!=", ">", "<", ">=", "<=", "LIKE", "IN"]  # expand for supported by rdkit cartridge like @>?
     value: Optional[Any] = None  #
     query_smiles: Optional[str] = None
     columns: Optional[list[str]] = None  # List of columns to return for table
@@ -441,3 +438,8 @@ class QueryCondition(SQLModel):
 class ComplexQueryRequest(SQLModel):
     conditions: list[QueryCondition]
     logic: Literal["AND", "OR"] = "AND"
+
+
+class ExactSearchParameters(SQLModel):
+    field: str
+    value: Optional[str] = None
