@@ -335,43 +335,22 @@ def search_compound_structure(request: models.SearchCompoundStructure, db: Sessi
     - **search_parameters**: Additional parameters for the search.
     """
     try:
-        # Validate the SMILES string
         query_smiles = request.query_smiles
 
-        # Perform the search based on the specified type
-        if request.search_type == "substructure":
-            return crud.search_compounds_substructure(
-                db=db,
-                query_smiles=query_smiles,
-                search_parameters=request.search_parameters,
-            )
-        elif request.search_type == "tautomer":
-            return crud.search_compounds_tautomer(
-                db=db,
-                query_smiles=query_smiles,
-                search_parameters=request.search_parameters,
-            )
-        elif request.search_type == "stereo":
-            return crud.search_compounds_stereo(
-                db=db,
-                query_smiles=query_smiles,
-                search_parameters=request.search_parameters,
-            )
-        elif request.search_type == "connectivity":
-            return crud.search_compounds_connectivity(
-                db=db,
-                query_smiles=query_smiles,
-                search_parameters=request.search_parameters,
-            )
+        search_functions = {
+            "substructure": crud.search_compounds_substructure,
+            "tautomer": crud.search_compounds_tautomer,
+            "stereo": crud.search_compounds_stereo,
+            "connectivity": crud.search_compounds_connectivity,
+            "similarity": crud.search_compounds_similarity,
+        }
 
-        elif request.search_type == "similarity":
-            return crud.search_compounds_similarity(
-                db=db,
-                query_smiles=query_smiles,
-                search_parameters=request.search_parameters,
-            )
-        else:
+        search_func = search_functions.get(request.search_type)
+        if not search_func:
             raise HTTPException(status_code=400, detail="Invalid search type")
+
+        return search_func(db=db, query_smiles=query_smiles, search_parameters=request.search_parameters)
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
