@@ -429,7 +429,7 @@ class SearchCompoundStructure(SQLModel):
 
 class QueryCondition(SQLModel):
     table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
-    field: str  # Field/column to filter on
+    field: Literal["hash_tautomer", "hash_no_stereo_smiles"]  # Field/column to filter on
     operator: Literal["=", "!=", ">", "<", ">=", "<=", "LIKE", "IN"]  # expand for supported by rdkit cartridge like @>?
     value: Optional[Any] = None  #
     query_smiles: Optional[str] = None
