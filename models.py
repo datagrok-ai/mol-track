@@ -7,11 +7,9 @@ import enums
 import os
 from datetime import datetime
 import uuid
-from rdkit import Chem
 from rdkit.Chem.RegistrationHash import GetMolHash
-from chemistry_utils import standardize_mol, generate_hash_layers
 from logging_setup import logger
-
+import crud
 # # Handle both package imports and direct execution
 # try:
 #     # When imported as a package (for tests)
@@ -386,19 +384,7 @@ class ExactSearchModel(SQLModel):
         Validate or generate a UUID hash from the standardized SMILES.
         """
         query_smiles = values.get("query_smiles")
-        if not query_smiles:
-            raise ValueError("query_smiles is required to generate a hash.")
-
-        # Convert SMILES to RDKit molecule
-        mol = Chem.MolFromSmiles(query_smiles)
-        if mol is None:
-            raise ValueError(f"Invalid SMILES string: {query_smiles}")
-
-        # Standardize the molecule
-        standardized_mol = standardize_mol(mol)
-
-        # Generate molecular layers
-        layers = generate_hash_layers(standardized_mol)
+        layers = crud.get_standardized_mol_and_layers(query_smiles)
 
         # Generate the hash if not provided - this is a placeholder
         # this would be GetMolHash

@@ -863,20 +863,33 @@ def search_compounds_similarity(db: Session, query_smiles: str, search_parameter
     raise NotImplementedError("Similarity search is not implemented yet.")
 
 
-def search_compounds_by_hash(
-    db: Session, query_smiles: str, hash_layer: Any, hash_attr_name: str
-) -> List[models.Compound]:
+def get_standardized_mol_and_layers(query_smiles: str, http_errors: bool = False) -> dict:
+    missing_msg = "Query SMILES is required"
+    invalid_msg = "Invalid SMILES string"
+
     if not query_smiles:
-        raise HTTPException(status_code=400, detail="Query SMILES is required")
+        if http_errors:
+            raise HTTPException(status_code=400, detail=missing_msg)
+        else:
+            raise ValueError(missing_msg)
 
     mol = Chem.MolFromSmiles(query_smiles)
     if mol is None:
-        raise HTTPException(status_code=400, detail="Invalid SMILES string")
+        if http_errors:
+            raise HTTPException(status_code=400, detail=invalid_msg)
+        else:
+            raise ValueError(invalid_msg)
 
     standardized_mol = standardize_mol(mol)
     mol_layers = generate_hash_layers(standardized_mol)
-    hash_value = generate_uuid_from_string(mol_layers[hash_layer])
+    return mol_layers
 
+
+def search_compounds_by_hash(
+    db: Session, query_smiles: str, hash_layer: Any, hash_attr_name: str
+) -> List[models.Compound]:
+    mol_layers = get_standardized_mol_and_layers(query_smiles, http_errors=True)
+    hash_value = generate_uuid_from_string(mol_layers[hash_layer])
     return db.query(models.Compound).filter(getattr(models.Compound, hash_attr_name) == hash_value).all()
 
 
