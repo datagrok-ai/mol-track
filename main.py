@@ -10,6 +10,7 @@ from chemistry_utils import (
     calculate_tautomer_hash,
     standardize_mol,
 )
+from logging_setup import logger
 
 # Handle both package imports and direct execution
 try:
@@ -24,9 +25,7 @@ except ImportError:
 
 # models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(
-    title="MolTrack API", description="API for managing chemical compounds and batches"
-)
+app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 
 admin_user_id: str | None = None
 
@@ -34,8 +33,8 @@ admin_user_id: str | None = None
 # Dependency
 def get_db():
     db = SessionLocal()
-    print(db.bind.url)
-    print("Database connection successful")
+    logger.debug(db.bind.url)
+    logger.debug("Database connection successful")
     try:
         yield db
     finally:
@@ -305,19 +304,13 @@ def read_batch_details(batch_id: int, skip: int = 0, limit: int = 100, db: Sessi
     # Validate batch exists
     db_batch = crud.get_batch(db, batch_id=batch_id)
     if db_batch is None:
-        raise HTTPException(
-            status_code=404, detail=f"Batch with ID {batch_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Batch with ID {batch_id} not found")
 
-    return crud.get_batch_details_by_batch(
-        db, batch_id=batch_id, skip=skip, limit=limit
-    )
+    return crud.get_batch_details_by_batch(db, batch_id=batch_id, skip=skip, limit=limit)
 
 
 @app.post("/search/compounds/exact", response_model=list[models.Compound])
-def search_compounds_exact(
-    request: models.ExactSearchModel, db: Session = Depends(get_db)
-):
+def search_compounds_exact(request: models.ExactSearchModel, db: Session = Depends(get_db)):
     """
     Endpoint for exact compound search.
     """
@@ -333,9 +326,7 @@ def search_compounds_exact(
 
 # Less precise search
 @app.post("/search/compounds/structure", response_model=list[models.Compound])
-def search_compound_structure(
-    request: models.SearchCompoundStructure, db: Session = Depends(get_db)
-):
+def search_compound_structure(request: models.SearchCompoundStructure, db: Session = Depends(get_db)):
     """
     Perform a dynamic structure-based search for compounds.
 
@@ -386,9 +377,7 @@ def search_compound_structure(
 
 
 @app.post("/search/complex", response_model=list[dict[str, Any]])
-def search_complex_query(
-    request: models.ComplexQueryRequest, db: Session = Depends(get_db)
-):
+def search_complex_query(request: models.ComplexQueryRequest, db: Session = Depends(get_db)):
     """
     Perform a complex query across multiple tables (e.g., compounds, batch, assays).
     """
@@ -404,9 +393,7 @@ def search_complex_query(
             operator = condition.operator
             value = condition.value
             if table not in ["compounds", "batch", "assays"]:
-                raise HTTPException(
-                    status_code=400, detail=f"Invalid table name: {table}"
-                )
+                raise HTTPException(status_code=400, detail=f"Invalid table name: {table}")
 
             # Handle SMILES-based queries substructure, tautomer, similarity etc
             if condition.query_smiles:
@@ -424,9 +411,7 @@ def search_complex_query(
                 elif field == "hash_no_stereo_smiles":
                     value = calculate_no_stereo_smiles_hash(standardized_mol)
                 else:
-                    raise HTTPException(
-                        status_code=400, detail=f"Unsupported hash field: {field}"
-                    )
+                    raise HTTPException(status_code=400, detail=f"Unsupported hash field: {field}")
 
             # If the field is a UUID field, inline the UUID value directly into the query
             if field in ["hash_tautomer", "hash_no_stereo_smiles"]:
@@ -468,6 +453,4 @@ def search_complex_query(
         return json_result
 
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Error building or executing query: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Error building or executing query: {str(e)}")

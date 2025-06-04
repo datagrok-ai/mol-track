@@ -10,6 +10,7 @@ import uuid
 from rdkit import Chem
 from rdkit.Chem.RegistrationHash import GetMolHash
 from chemistry_utils import standardize_mol, generate_hash_layers
+from logging_setup import logger
 
 # # Handle both package imports and direct execution
 # try:
@@ -402,13 +403,13 @@ class ExactSearchModel(SQLModel):
         # Generate the hash if not provided - this is a placeholder
         # this would be GetMolHash
         if v is None:
-            print(GetMolHash(layers))
+            logger.debug(GetMolHash(layers))
             return GetMolHash(layers)
         return v
 
 
 class SearchCompoundStructure(SQLModel):
-    search_type: Literal["substructure", "tautomer", "stereo", "similarity"]  # Type of structure search
+    search_type: Literal["substructure", "tautomer", "stereo", "similarity", "connectivity"]  # Type of structure search
     query_smiles: str  # SMILES string for the structure search
     search_parameters: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
