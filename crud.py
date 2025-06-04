@@ -863,38 +863,34 @@ def search_compounds_similarity(db: Session, query_smiles: str, search_parameter
     raise NotImplementedError("Similarity search is not implemented yet.")
 
 
+def search_compounds_by_hash(
+    db: Session, query_smiles: str, hash_layer: Any, hash_attr_name: str
+) -> List[models.Compound]:
+    if not query_smiles:
+        raise HTTPException(status_code=400, detail="Query SMILES is required")
+
+    mol = Chem.MolFromSmiles(query_smiles)
+    if mol is None:
+        raise HTTPException(status_code=400, detail="Invalid SMILES string")
+
+    standardized_mol = standardize_mol(mol)
+    mol_layers = generate_hash_layers(standardized_mol)
+    hash_value = generate_uuid_from_string(mol_layers[hash_layer])
+
+    return db.query(models.Compound).filter(getattr(models.Compound, hash_attr_name) == hash_value).all()
+
+
 def search_compounds_tautomer(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
     """
     Perform a tautomer search for compounds. For a given molecule, find all compounds that have the same tautomer hash regardless of their stereochemistry.
     """
-    if not query_smiles:
-        raise HTTPException(status_code=400, detail="Query SMILES is required for tautomer search")
-
-    mol = Chem.MolFromSmiles(query_smiles)
-    if mol is None:
-        raise HTTPException(status_code=400, detail="Invalid SMILES string for tautomer search")
-    standarized_mol = standardize_mol(mol)
-    mol_layers = generate_hash_layers(standarized_mol)
-    hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
-
-    return db.query(models.Compound).filter(models.Compound.hash_tautomer == hash_tautomer).all()
+    return search_compounds_by_hash(db, query_smiles, HashLayer.TAUTOMER_HASH, "hash_tautomer")
 
 
 def search_compounds_stereo(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
     """
     Perform a stereo search for compounds regardless tautomeric state."""
-
-    if not query_smiles:
-        raise HTTPException(status_code=400, detail="Query SMILES is required for tautomer search")
-
-    mol = Chem.MolFromSmiles(query_smiles)
-    if mol is None:
-        raise HTTPException(status_code=400, detail="Invalid SMILES string for tautomer search")
-    standarized_mol = standardize_mol(mol)
-    mol_layers = generate_hash_layers(standarized_mol)
-    hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
-
-    return db.query(models.Compound).filter(models.Compound.hash_no_stereo_smiles == hash_no_stereo_smiles).all()
+    return search_compounds_by_hash(db, query_smiles, HashLayer.NO_STEREO_SMILES, "hash_no_stereo_smiles")
 
 
 def search_compounds_connectivity(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
@@ -902,15 +898,4 @@ def search_compounds_connectivity(db: Session, query_smiles: str, search_paramet
     Perform a connectivity search for compounds.
     This will find compounds that have the same connectivity regardless of their stereochemistry or tautomeric state.
     """
-    if not query_smiles:
-        raise HTTPException(status_code=400, detail="Query SMILES is required for connectivity search")
-
-    mol = Chem.MolFromSmiles(query_smiles)
-    if mol is None:
-        raise HTTPException(status_code=400, detail="Invalid SMILES string for connectivity search")
-
-    standarized_mol = standardize_mol(mol)
-    mol_layers = generate_hash_layers(standarized_mol)
-    hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
-
-    return db.query(models.Compound).filter(models.Compound.hash_no_stereo_tautomer == hash_no_stereo_tautomer).all()
+    return search_compounds_by_hash(db, query_smiles, HashLayer.NO_STEREO_TAUTOMER_HASH, "hash_no_stereo_tautomer")
