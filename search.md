@@ -15,7 +15,8 @@ Fields notation (applies to compounds.xxx, batches.xxx, assay.results):
 
 ## Supported criteria
 
-Most of the criteria are written in a form <field> <operator> <value>.
+Most of the criteria are written in a form (field, operator, value). Below, 
+"field" and "value" are often omitted for brevity
 
 * String: `=`, `!=`, `IN`, `STARTS WITH`, `ENDS WITH`, `LIKE`, `CONTAINS`
 * Number: 
