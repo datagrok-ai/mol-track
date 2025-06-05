@@ -7,11 +7,11 @@ from typing import List
 from sqlalchemy import insert, text
 from datetime import datetime, timezone
 import models as models
+from rdkit.Chem import Descriptors, rdMolDescriptors
 from rdkit.Chem.rdMolDescriptors import CalcMolFormula
 import main
 import enums
 
-from sqlalchemy.orm import load_only
 
 from typing import Type, Dict, Any
 
@@ -813,44 +813,6 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     return db_batch_detail
 
 
-def create_batch_addition(db: Session, batch_addition: models.BatchAdditionBase) -> models.BatchAddition:
-    batch_addition = models.BatchAddition(
-        **batch_addition.dict(),
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
-    )
-    db.add(batch_addition)
-    db.commit()
-    db.refresh(batch_addition)
-    return batch_addition
-
-
-def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase) -> models.SynonymType:
-    synonym_type = models.SynonymType(
-        synonym_level=synonym_type.synonym_level,
-        name=synonym_type.name,
-        description=synonym_type.description,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
-    )
-    db.add(synonym_type)
-    db.commit()
-    db.refresh(synonym_type)
-    return synonym_type
-
-
-def create_addition(db: Session, addition: models.AdditionBase) -> models.Addition:
-    db_addition = models.Addition(
-        **addition.dict(),
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
-    )
-    db.add(db_addition)
-    db.commit()
-    db.refresh(db_addition)
-    return db_addition
-
-
 "------------------NEW Logic ------------------"
 
 
@@ -888,11 +850,11 @@ def bulk_create_if_not_exists(
     if not to_insert:
         return []
 
-    stmt = insert(model_cls).values(to_insert).returning(model_cls.id, getattr(model_cls, name_attr))
+    stmt = insert(model_cls).values(to_insert).returning(model_cls)
     result = db.execute(stmt).fetchall()
     db.commit()
-
-    return [{"id": row.id, name_attr: getattr(row, name_attr)} for row in result]
+    return [model_cls.model_validate(row[0]) for row in result]
+    # return [{"id": row.id, name_attr: getattr(row, name_attr)} for row in result]
 
 
 def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase]) -> list[dict]:
@@ -903,12 +865,35 @@ def create_properties(db: Session, properties: list[models.PropertyBase]) -> lis
     return bulk_create_if_not_exists(db, models.Property, models.PropertyBase, properties)
 
 
+def enrich_addition(add: models.AdditionBase) -> models.AdditionBase:
+    smiles, molfile, formula, mw = add.smiles, add.molfile, add.formula, add.molecular_weight
+
+    mol = Chem.MolFromSmiles(smiles) if smiles else None
+    if not mol and molfile:
+        try:
+            mol = Chem.MolFromMolBlock(molfile, sanitize=True)
+        except Exception:
+            mol = None
+
+    if not mol:
+        return add
+
+    add.smiles = smiles or Chem.MolToSmiles(mol)
+    add.molfile = molfile or Chem.MolToMolBlock(mol)
+    add.formula = formula or rdMolDescriptors.CalcMolFormula(mol)
+    add.molecular_weight = mw or Descriptors.MolWt(mol)
+
+    return add
+
+
 def create_additions(db: Session, additions: list[models.AdditionBase]) -> list[dict]:
-    return bulk_create_if_not_exists(db, models.Addition, models.AdditionBase, additions, validate=False)
+    enriched_additions = [enrich_addition(add) for add in additions]
+    return bulk_create_if_not_exists(db, models.Addition, models.AdditionBase, enriched_additions, validate=False)
 
 
-def get_additions(db: Session, role: enums.AdditionsRole | None = None) -> List[models.AdditionResponse]:
-    query = db.query(models.Addition).options(load_only(models.Addition.id, models.Addition.name))
+def get_additions(db: Session, role: enums.AdditionsRole | None = None) -> List[models.AdditionBase]:
+    # query = db.query(models.Addition).options(load_only(models.Addition.id, models.Addition.name))
+    query = db.query(models.Addition)
     if role is None:
         return query.all()
     return query.filter_by(role=role).all()
@@ -937,24 +922,10 @@ def update_addition_by_id(db: Session, addition_id: int, addition_update: models
 def delete_addition_by_id(db: Session, addition_id: int):
     db_addition = get_addition_by_id(db, addition_id=addition_id)
     db_addition.deleted_at = datetime.now()
-    # Hard delete addition
-    # db.delete(db_addition)
+    db_addition.is_active = False
     db.commit()
+    db.refresh(db_addition)
     return db_addition
-
-
-def create_compound_synonyms(db: Session, compound_synonym: list[models.CompoundSynonymBase]) -> models.CompoundSynonym:
-    synonym = models.CompoundSynonym(
-        compound_id=compound_synonym.compound_id,
-        synonym_type_id=compound_synonym.synonym_type_id,
-        synonym_value=compound_synonym.synonym_value,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
-    )
-    db.add(synonym)
-    db.commit()
-    db.refresh(synonym)
-    return synonym
 
 
 def get_compounds_v1(db: Session, skip: int = 0, limit: int = 100):
@@ -990,10 +961,6 @@ def delete_compound(db: Session, compound_id: int):
         raise HTTPException(status_code=404, detail="Compound not found")
     db_compound.deleted_at = datetime.now()
 
-    # Hard delete compound, related synonyms and details
-    # db.delete(db_compound)
-    # db.query(models.CompoundSynonym).filter(models.CompoundSynonym.compound_id == compound_id).delete()
-    # db.query(models.CompoundDetail).filter(models.CompoundDetail.compound_id == compound_id).delete()
-
     db.commit()
+    db.refresh(db_compound)
     return db_compound
