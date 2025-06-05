@@ -1,3 +1,4 @@
+import random
 import uuid
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
@@ -38,7 +39,7 @@ class CompoundRegistrar(BaseRegistrar):
             "inchi": Chem.MolToInchi(mol),
             "inchikey": inchikey,
             "original_molfile": compound_data.get("original_molfile", ""),
-            "molregno": idx,
+            "molregno": random.randint(0, 100),
             "formula": rdMolDescriptors.CalcMolFormula(mol),
             # TODO: Replace this once hash merging logic is merged
             **{
@@ -120,31 +121,35 @@ class CompoundRegistrar(BaseRegistrar):
             records.append(detail)
         return records
 
-    def build_sql(self, rows: List[Dict[str, Any]]):
-        synonyms, details = [], []
+    def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
+        def chunked(lst, size):
+            for i in range(0, len(lst), size):
+                yield lst[i : i + size]
 
-        for idx, row in enumerate(rows):
-            try:
-                grouped = self._group_data(row)
-                compound_data = grouped.get("compounds", {})
-                compound = self._build_compound_record(compound_data, idx)
-                self.compounds_to_insert.append(compound)
+        for batch in chunked(rows, batch_size):
+            self.compounds_to_insert = []
+            synonyms, details = [], []
 
-                synonyms.extend(
-                    self._build_synonym_records(grouped.get("compounds_synonyms", {}), compound["inchikey"])
-                )
-                details.extend(self._build_details_records(grouped.get("properties", {}), compound["inchikey"]))
-                self._add_output_row(compound_data, grouped, "success")
+            for idx, row in enumerate(batch):
+                try:
+                    grouped = self._group_data(row)
+                    compound_data = grouped.get("compounds", {})
+                    compound = self._build_compound_record(compound_data, idx)
+                    self.compounds_to_insert.append(compound)
 
-            except Exception as e:
-                self._add_output_row(row, {}, "failed", str(e))
-                if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
-                    raise HTTPException(status_code=400, detail=self.result())
+                    synonyms.extend(
+                        self._build_synonym_records(grouped.get("compounds_synonyms", {}), compound["inchikey"])
+                    )
+                    details.extend(self._build_details_records(grouped.get("properties", {}), compound["inchikey"]))
+                    self._add_output_row(compound_data, grouped, "success")
+                except Exception as e:
+                    self._add_output_row(row, {}, "failed", str(e))
+                    if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
+                        raise HTTPException(status_code=400, detail=self.result())
 
-        if not self.compounds_to_insert:
-            return
-
-        self.sql = self.generate_sql(self.compounds_to_insert, synonyms, details)
+            if self.compounds_to_insert:
+                batch_sql = self.generate_sql(self.compounds_to_insert, synonyms, details)
+                self.sql_statements.append(batch_sql)
 
     def generate_sql(self, compounds, synonyms, details) -> str:
         c_cols = list(compounds[0].keys())
@@ -182,5 +187,6 @@ class CompoundRegistrar(BaseRegistrar):
                 FROM (VALUES {d_sql}) AS d(inchikey, {", ".join(d_cols)})
                 JOIN inserted_compounds ic ON d.inchikey = ic.inchikey
             )"""
-
+        combined_sql += """
+        SELECT 1;"""
         return combined_sql

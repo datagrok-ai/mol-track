@@ -25,7 +25,7 @@ class BaseRegistrar(ABC):
         self.error_handling = error_handling
         self.user_mapping = self._load_mapping(mapping)
         self.output_records: List[Dict[str, Any]] = []
-        self.sql = None
+        self.sql_statements = []
 
     # === Input processing methods ===
 
@@ -81,10 +81,10 @@ class BaseRegistrar(ABC):
 
     def register_all(self, rows: List[Dict[str, Any]]):
         self.build_sql(rows)
-        if self.sql:
-            self.sql += "\nSELECT count(*) FROM inserted_compounds;"
-            self.db.execute(text(self.sql))
-            self.db.commit()
+        if self.sql_statements:
+            for sql in self.sql_statements:
+                self.db.execute(text(sql))
+                self.db.commit()
 
     @abstractmethod
     def build_sql(self, rows: List[Dict[str, Any]]):
