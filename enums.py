@@ -45,3 +45,8 @@ class SynonymLevel(CaseInsensitiveEnum):
 class ErrorHandlingOptions(str, enum.Enum):
     reject_all = "reject_all"
     reject_row = "reject_row"
+
+
+class OutputFormat(str, enum.Enum):
+    json = "json"
+    csv = "csv"
