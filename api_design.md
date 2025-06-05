@@ -4,7 +4,7 @@
 
 We assemble some thinking about the general structure of APIs for [Moltrack](https://github.com/datagrok-ai/mol-track)
 
-What are the strategies?  Typical RESTful API design where there is a close connection between the underlying database design and the endpoint design.  For each database table, there are corresponding CRUD needs fulfilled by CRUD endpoints. (CRUD - create, read, update, delete).  The corresponding REST method are POST, GET, PUT or PATCH, and DELETE.  There is an open standards, that Revvity's API is modeled after.
+What are the strategies?  Typical RESTful API design where there is a close connection between the underlying database design and the endpoint design.  For each database table, there are corresponding CRUD needs fulfilled by CRUD endpoints. (CRUD - create, read, update, delete).  The corresponding REST method are POST, GET, PUT or PATCH, and DELETE.  There is an open standard, [json:api](https://jsonapi.org/), that Revvity's API is modeled after, that we may want to consider.
 
 We have a number of intents.
 
@@ -16,7 +16,7 @@ We have a number of intents.
 6. register assays and assay_results.
 7. search within a domain (compounds, batches, assay_results) or in combination
 
-**IMPORTANT: All paths should be prefixed by the appropriate version.**  Right now the version would be `/v1`.  In this document, the version prefix is assumed for clarity.
+**IMPORTANT: All paths should be prefixed by the appropriate version.**  Right now the version would be `/v1`.  In this document, the version prefix is assumed for clarity.  FASTAPI has a [router](https://fastapi.tiangolo.com/reference/apirouter/) concept that may allow us to declare versioning.
 
 ## Schema - WIP ##
 
@@ -48,29 +48,39 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
    }
    ```
 
+  - Output
+  The output should indicate the success of the overall request (`200 OK` or `201 Created`). *I can't identify the appropriate response for mixed suceess.* There should also be an item-by-item success status and if necessary a failure message:
+    - Success - new property or synonym type is successfully registered.
+    - Skipped - property or synonym type exists in MolTrack already.
+    - Failed - the insert of the property or synonym type failed.  A 'failure message' attribute should be added to the item.
+
 ### Getter endpoints for schema ###
 
 The GET endpoints allow us to see the configuration of MolTrack from perspective of the properties, synonyms, etc. associated with entities in the system.  At the moment we are provide resources specific to the entities but could also make it more dynamic with a query parameter.  We could also consider adding equivalent paths like `/compounds/schema` and `/batches/schema`
 
-- `GET /schema/compounds` - returns properties and synonym_types associated with the compounds entity_type
-- `GET /schema/batches` - returns properties, synonym_types and additions associated with the batches entity_type
+- `GET /schema/compounds` - returns properties and synonym_types associated with the compounds entity_type using the json form identified above.
+- `GET /schema/batches` - returns properties, synonym_types and additions associated with the batches entity_type using the json form identified above.
 
 ## Additions ##
 
-Additions are addtional chemical entities present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be preregistered into MolTrack.
+Additions are addtional chemical entities present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be preregistered into MolTrack.  One of smiles and molfile must exist.  Any missing values should be computed if possible.  The return will be an array of additions added including the addition_id. `Is_archived` is archived by default; `Is_active` is true by default.  The MolTrack administator may update an addition's `is_active` flag (via `PUT`) to `false` to disallow subsequent use of the addtion.  A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv).
 
-- `POST /additions` - used to register one or more additions into the MolTrack system.  The endpoint accepts an array of addition definitions in csv format (selected as the format for the MVP).  The return will be an array of additions added including the addition_id.
+- `POST /additions` - used to register one or more additions into the MolTrack system.  The endpoint accepts an array of addition definitions in csv format (selected as the format for the MVP).  The return will show the status of the overal request. There should also be an item-by-item success status and if necessary a failure message:
+  - Success - new addition is successfully registered.
+  - Skipped - addition exists in MolTrack already.
+  - Failed - the insert of the addition failed.  A 'failure message' attribute should be added to the item.
 
-  - A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv)
-
-- `PUT /additions` – updates one or more existing additions in the MolTrack system. Accepts an array of complete addition definitions, each including a valid addition_id. Returns an array of the updated additions.
+- `PUT /additions` – updates one or more existing additions in the MolTrack system. Accepts an array of complete addition definitions, each including a valid addition_id. Returns an array of the updated additions.  The return will show the status of the overal request. There should also be an item-by-item success status and if necessary a failure message:
+  - Success - new addition is successfully updated.
+  - Skipped - no addition update required; addition exists and all attributes match in MolTrack already.
+  - Failed - the addition update failed.  A 'failure message' attribute should be added to the item.
 
 - `GET /additions` - retrieve all the salts and solvates that have been registered.  Retrieve in a csv format.
 - `GET /additions/salts` - retrieve all additions with role of *salts*.
 - `GET /additions/solvates` - retrieve all additions with role of *solvates*.
 - `GET /additions/{addition_id}` - retrieve all information for a specific addition.
 
-- `DELETE /additions/{addition_id}` - soft delete from a given addition.
+- `DELETE /additions/{addition_id}` - soft delete from a given addition but only if there are no existing dependent batches.
 
 ## Register Batches ##
 
@@ -111,7 +121,7 @@ Mapping is optional, but assumes that the field names directly map to the databa
     - An example set of batches with addtions and batch properties to be registered can be found [2_batches_with_additions.csv](./demo-data/black/2_batches_with_additions.csv).  The additions are listed in columns with the cells showing the equivalents.  Schemas posts should be performed with [compounds_schema.json](./demo-data/black/compounds_schema.json) and [batches_schema.json](./demo-data/black/batches_schema.json) first to prepare the appropriate schema.
 
   - Output
-   The batches, batches_detail, batches_synonym, batch_additions, additions, compounds, compound_details, and compound_synonyms tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.
+   The batches, batches_detail, batches_synonym, batch_additions, additions, compounds, compound_details, and compound_synonyms tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.  The batch_regno and id should also be returned.  The row-by-row registration status and if necessary error message should be added as attributes.
     - 200
 
       ```json
@@ -373,12 +383,12 @@ An example CSV can be found here [assay_results.csv](./demo-data/black/assay_res
 
 ## Search - WIP ##
 
-We provide a generalized search capabilities across all the various entities in our model: compounds, batches, assay_results.  A simple or complex set of search criteria are presented in a json format.  ~~Query parameters provide pagination support and output format style.~~ For the MVP, pagination is not required and only the CSV style output will be provided.  
+We provide a generalized search capabilities across all the various entities in our model: compounds, batches, assay_results.  A simple or complex set of search criteria are presented in a json format.  ~~Query parameters provide pagination support and output format style.~~ For the MVP, pagination is not required and only the CSV style output will be provided.  Because our primary output is csv style output, the output content needs to be coherent and hence limited by the entity type row orientation.  If we were using json output we could imagine batches and compounds in one result set.
 
 User stories:
 
    1. Find all batches made for project X in the past week.
-   2. Find all stereo-similar compounds to I can determine whether I have expressed the stereo nature of my new molecule correctly.
+   2. Find all stereo-similar compounds to my molecule, so I can determine whether I have expressed the stereo nature of my new molecule correctly.
    3. Find all batches made by WuXi for project Y.
    4. Show me all details for batch with a specific corporate id.
    5. Find all batches made for project Y including details and assay results
@@ -387,6 +397,8 @@ User stories:
       2. similarity criteria
       3. batch property of source = WuXi
       4. kinase IC50 < 100 uM
+   7. Show me all the *in cellulo* assay_types with details
+   8. Shom me all the assay runs for a specific assay_type
 
 The endpoint path indicates the shape of the returned data: compound per row; batch per row; assay result value per row.
 
@@ -449,6 +461,40 @@ The endpoint path indicates the shape of the returned data: compound per row; ba
 - `POST /search/assay-data`
 
 logical conditions -> postgres sql condition phrases
+
+- operators
+  - AND
+  - OR
+  - NOT
+  - in
+  - "="
+  - "is similar"
+  - ">"
+  - "<"
+  - range ?
+  - exists
+  - like
+  - contains
+
+- conditions
+  - field
+  - operator
+  - value - required for all operators except exists
+  - threshold - required only for the "is similar" operator
+
+- level - is currently one of
+  - compounds
+  - batches
+  - assay_results
+
+  We may need
+  - assay_types
+  - assays
+
+- output
+  - "*" - means all fields
+
+- join - Joins may be reequired when including output fields from different levels
 
 ____________________________________________________________________________________________________________________
 ## *DEFERRED* ##
