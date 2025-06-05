@@ -1,24 +1,29 @@
-@echo on
+@echo off
 setlocal enabledelayedexpansion
+
 set IMAGE_NAME=moltrack
 set ENV_DIR=.moltrack-env
 
 echo Building Docker image: %IMAGE_NAME% from Dockerfile
 docker build -t %IMAGE_NAME% .
 
+echo Looking for a free port between 5432 and 5500...
+set "HOST_PORT="
 for /L %%p in (5432,1,5500) do (
-    netstat -ano | findstr :%%p >nul
+    netstat -an | findstr ":%%p " | findstr "LISTENING" >nul
     if errorlevel 1 (
-        set HOST_PORT=%%p
+        set "HOST_PORT=%%p"
+        echo Found free port: %%p
         goto :found_port
+    ) else (
+        echo Port %%p is in use.
     )
 )
 
 echo No free port found
 exit /b 1
 
-echo Found free host port: %HOST_PORT%
-
+:found_port
 set DB_PORT=%HOST_PORT%
 echo Set DB_PORT environment variable to %DB_PORT%
 
@@ -32,7 +37,7 @@ if not "%EXISTING_CONTAINER%"=="" (
     docker rm %IMAGE_NAME% >nul 2>&1
 )
 
-echo Running Docker container: %IMAGE_NAME%
+echo Running Docker container: %IMAGE_NAME% on port %HOST_PORT%
 docker run -d --name %IMAGE_NAME% -p %HOST_PORT%:5432 %IMAGE_NAME%
 
 echo Creating Python virtual environment at %ENV_DIR%
