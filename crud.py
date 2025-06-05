@@ -78,13 +78,13 @@ def create_compound(db: Session, compound: models.CompoundCreate):
     if existing_compound:
         raise HTTPException(status_code=400, detail=f"Compound with hash_mol {hash_mol} already exists")
 
-    existing_compound = get_compound_by_inchi_key(db, inchikey)
-    if existing_compound:
-        raise HTTPException(status_code=400, detail=f"Compound with InChIKey {inchikey} already exists")
+    # existing_compound = get_compound_by_inchi_key(db, inchikey)
+    # if existing_compound:
+    #     raise HTTPException(status_code=400, detail=f"Compound with InChIKey {inchikey} already exists")
 
-    existing_compound = get_compound_by_canonical_smiles(db, canonical_smiles)
-    if existing_compound:
-        raise HTTPException(status_code=400, detail=f"Compound with canonical SMILES {canonical_smiles} already exists")
+    # existing_compound = get_compound_by_canonical_smiles(db, canonical_smiles)
+    # if existing_compound:
+    #     raise HTTPException(status_code=400, detail=f"Compound with canonical SMILES {canonical_smiles} already exists")
 
     # Create the compound with calculated values
     # NOTE: The following UUID values are placeholders for hash fields

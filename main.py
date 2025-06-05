@@ -65,6 +65,7 @@ def create_compound(compound: models.CompoundCreate, db: Session = Depends(get_d
     return crud.create_compound(db=db, compound=compound)
 
 
+
 @app.post("/compounds/batch/", response_model=list[models.CompoundResponse])
 def create_compounds_batch(compounds: list[str] = Body(..., embed=True), db: Session = Depends(get_db)):
     """
