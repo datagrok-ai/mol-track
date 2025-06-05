@@ -9,7 +9,7 @@ from datetime import datetime
 import uuid
 from rdkit.Chem.RegistrationHash import GetMolHash
 from logging_setup import logger
-import crud
+# import crud
 # # Handle both package imports and direct execution
 # try:
 #     # When imported as a package (for tests)
@@ -371,6 +371,7 @@ class BatchAssayResultsResponse(SQLModel):
 
 
 class ExactSearchModel(SQLModel):
+    
     query_smiles: str  # SMILES string for the molecule
     standardization_steps: Optional[List[str]] = None
     # hash_mol: Optional[str] = None
@@ -383,6 +384,7 @@ class ExactSearchModel(SQLModel):
         """
         Validate or generate a UUID hash from the standardized SMILES.
         """
+        import crud
         query_smiles = values.get("query_smiles")
         layers = crud.get_standardized_mol_and_layers(query_smiles)
 
