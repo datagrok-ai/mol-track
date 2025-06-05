@@ -1,6 +1,5 @@
 # Import common data from conftest.py (fixtures are automatically available)
 from tests.conftest import aspirin_smiles, aspirin_smiles_noncanonical, caffeine_smiles
-import crud
 
 # Test data
 test_compound_data = {
@@ -166,14 +165,14 @@ def test_search_compound_structure_tautomer(client):
     # Step 1: Create compounds with different SMILES
     smiles_list = [
         "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
-        "C[C@@](F)(Cl)c1cc2cccnc2[nH]1",   # Tautomer1 S
-        "C[C@](F)(Cl)c1cc2ccc[nH]c-2n1",   # Tautomer2 R
-        "C[C@](F)(Cl)c1cc2cccnc2[nH]1",    # Tautomer2 S
+        "C[C@@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer1 S
+        "C[C@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer2 R
+        "C[C@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer2 S
     ]
 
     compound_ids = []
     for smiles in smiles_list:
-        response = client.post("/compounds/", json={"smiles": smiles, "is_archived": False}
+        response = client.post("/compounds/", json={"smiles": smiles, "is_archived": False})
         assert response.status_code == 200, f"Failed to create compound for SMILES: {smiles}"
         compound_ids.append(response.json()["id"])
 
@@ -197,8 +196,3 @@ def test_search_compound_structure_tautomer(client):
     # Tautomer 2R and 2S should have different hash_tautomer
     assert compound_ids[2] not in result_ids, "Tautomer2 R should NOT match the query"
     assert compound_ids[3] not in result_ids, "Tautomer2 S should NOT match the query"
-
-
-
-
-
