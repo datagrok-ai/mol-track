@@ -18,4 +18,4 @@ SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_P
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"options": f"-csearch_path={DB_SCHEMA}"})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base() 
+Base = declarative_base()

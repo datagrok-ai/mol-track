@@ -1,6 +1,11 @@
+import uuid
+
 import yaml
 from rdkit import Chem
+from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
+from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
+
 
 
 def standardize_mol(
@@ -61,3 +66,56 @@ def apply_standardizer_operation(mol: Chem.Mol, operation_type: str) -> Chem.Mol
         raise ValueError(f"Unknown operation type: {operation_type}")
 
     return operation_map[operation_type](mol)
+
+
+
+def generate_hash_layers(mol: Chem.Mol) -> dict:
+    """
+    Generate layers for a given molecule.
+
+    This function calculates the layers using the `RegistrationHash` module.
+
+    Args:
+        mol: An RDKit molecule object (`rdkit.Chem.Mol`) for which the layers
+                  will be generated.
+
+    Returns:
+        dict: A dictionary containing the layers used to compute the MolHash.
+    """
+
+    return RegistrationHash.GetMolLayers(mol, enable_tautomer_hash_v2=True)
+
+
+def generate_uuid_from_string(input_string: str) -> uuid.UUID:
+    """
+    Generate a UUID hash for a given input string, for hashing different molecule layers.
+
+    Args:
+        input_string (str): The input string to hash.
+
+    Returns:
+        uuid.UUID: The UUID hash of the input string, ready for PostgreSQL UUID type.
+    """
+    return uuid.uuid5(uuid.NAMESPACE_DNS, input_string)
+    
+
+def calculate_tautomer_hash(mol: Chem.Mol) -> str:
+    """
+    Calculate the tautomer hash for a given molecule.
+    """
+    return  generate_uuid_from_string(generate_hash_layers(mol)[HashLayer.TAUTOMER_HASH])
+
+
+def calculate_no_stereo_smiles_hash(mol: Chem.Mol) -> str:
+    
+    """Calculate the no-stereo SMILES hash for a given molecule."""
+
+    return generate_uuid_from_string(generate_hash_layers(mol)[HashLayer.NO_STEREO_SMILES])
+
+
+def calculate_no_stereo_tautomer_hash(mol: Chem.Mol) -> str:
+    """
+    Calculate the no-stereo tautomer hash for a given molecule.
+    """
+    return generate_uuid_from_string(generate_hash_layers(mol)[HashLayer.NO_STEREO_TAUTOMER_HASH])
+

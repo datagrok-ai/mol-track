@@ -15,6 +15,7 @@ dependencies = [
     "pyyaml==6.0.2",
     "rdkit>=2025.3.1",
     "sqlalchemy>=2.0.40",
+    "sqlmodel>=0.0.24",
     "uvicorn>=0.34.2",
 ]
 

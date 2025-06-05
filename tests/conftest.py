@@ -5,6 +5,7 @@ import sys
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from logging_setup import logger
 
 # Set the DB_SCHEMA environment variable
 os.environ["DB_SCHEMA"] = "moltrack"
@@ -59,7 +60,7 @@ def setup_test_db():
         try:
             conn.execute(text(f"DROP DATABASE IF EXISTS {test_db_name}"))
         except Exception as e:
-            print(f"Error dropping database: {e}")
+            logger.error(f"Error dropping database: {e}")
 
         # Create the test database
         conn.execute(text(f"CREATE DATABASE {test_db_name}"))

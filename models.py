@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 from pydantic import validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
@@ -7,7 +7,9 @@ import enums
 import os
 from datetime import datetime
 import uuid
-
+from rdkit.Chem.RegistrationHash import GetMolHash
+from logging_setup import logger
+# import crud
 # # Handle both package imports and direct execution
 # try:
 #     # When imported as a package (for tests)
@@ -76,7 +78,7 @@ class Compound(CompoundResponseBase, table=True):
 
     molregno: int = Field(nullable=False)
     formula: str = Field(nullable=False)
-    hash_mol: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    hash_mol: str = Field(nullable=False)
     hash_tautomer: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     hash_canonical_smiles: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     hash_no_stereo_smiles: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
@@ -441,3 +443,55 @@ class BatchSynonym(BatchSynonymResponse, table=True):
     # Relationships
     batch: "Batch" = Relationship(back_populates="batch_synonyms")
     synonym_type: "SynonymType" = Relationship(back_populates="batch_synonyms")
+
+class ExactSearchModel(SQLModel):
+    
+    query_smiles: str  # SMILES string for the molecule
+    standardization_steps: Optional[List[str]] = None
+    # hash_mol: Optional[str] = None
+
+    # Optional standardization steps
+    hash_mol: Optional[str] = None  # UUID hash generated from the standardized SMILES
+
+    @validator("hash_mol", always=True, pre=True)
+    def validate_or_generate_hash(cls, v, values):
+        """
+        Validate or generate a UUID hash from the standardized SMILES.
+        """
+        import crud
+        query_smiles = values.get("query_smiles")
+        layers = crud.get_standardized_mol_and_layers(query_smiles)
+
+        # Generate the hash if not provided - this is a placeholder
+        # this would be GetMolHash
+        if v is None:
+            logger.debug(GetMolHash(layers))
+            return GetMolHash(layers)
+        return v
+
+
+class SearchCompoundStructure(SQLModel):
+    search_type: Literal["substructure", "tautomer", "stereo", "similarity", "connectivity"]  # Type of structure search
+    query_smiles: str  # SMILES string for the structure search
+    search_parameters: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Additional parameters for the search (e.g., similarity threshold, tautomer options)",
+    )
+
+class QueryCondition(SQLModel):
+    table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
+    field: Literal["hash_tautomer", "hash_no_stereo_smiles"]  # Field/column to filter on
+    operator: Literal["=", "!=", ">", "<", ">=", "<=", "LIKE", "IN"]  # expand for supported by rdkit cartridge like @>?
+    value: Optional[Any] = None  #
+    query_smiles: Optional[str] = None
+    columns: Optional[list[str]] = None  # List of columns to return for table
+
+
+class ComplexQueryRequest(SQLModel):
+    conditions: list[QueryCondition]
+    logic: Literal["AND", "OR"] = "AND"
+
+
+class ExactSearchParameters(SQLModel):
+    field: str
+    value: Optional[str] = None
