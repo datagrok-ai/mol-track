@@ -1,4 +1,6 @@
 # Import common data from conftest.py (fixtures are automatically available)
+import pytest
+
 from tests.conftest import aspirin_smiles, aspirin_smiles_noncanonical, caffeine_smiles
 
 # Test data
@@ -133,3 +135,126 @@ def test_substructure_search(client):
     assert compound1_id in result_ids, "Molecule 1 should match the substructure"
     assert compound2_id in result_ids, "Molecule 2 should match the substructure"
     assert compound3_id not in result_ids, "Molecule 3 should NOT match the substructure"
+
+
+def test_create_compound_and_get_hash(client):
+    """Test creating a compound and retrieving its hash using the exact search endpoint"""
+    compound_data = {
+        "smiles": "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",
+        "is_archived": False,
+    }
+
+    # Step 1: Create the compound
+    response = client.post("/compounds/", json=compound_data)
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+    # compound_id = response.json()["id"]
+
+    # Step 2: Use the /search/compounds/exact endpoint to retrieve the hash_mol
+    search_payload = {"query_smiles": compound_data["smiles"]}
+    search_response = client.post("/search/compounds/exact", json=search_payload)
+    assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
+    search_results = search_response.json()
+
+    # Verify the hash_mol matches the expected value
+    assert len(search_results) == 1, "Expected exactly one result"
+    mol_hash = search_results[0]["hash_mol"]
+    expected_hash = "9871427f8720e3b4b3219964869a6301377f6908"
+    assert mol_hash == expected_hash, f"Expected hash {expected_hash}, got {mol_hash}"
+
+
+@pytest.fixture()
+def predefined_compounds(client):
+    """Fixture to insert predefined compounds into the database."""
+    smiles_list = [
+        "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
+        "C[C@@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer1 S
+        "C[C@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer2 R
+        "C[C@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer2 S
+    ]
+
+    compound_ids = []
+    for smiles in smiles_list:
+        response = client.post("/compounds/", json={"smiles": smiles, "is_archived": False})
+        assert response.status_code == 200, f"Failed to create compound for SMILES: {smiles}"
+        compound_ids.append(response.json()["id"])
+
+    yield compound_ids
+
+    # Cleanup after tests
+    for compound_id in compound_ids:
+        client.delete(f"/compounds/{compound_id}")
+
+
+def test_search_compound_structure_tautomer(client, predefined_compounds):
+    """Test tautomer search using the /search/compounds/structure endpoint"""
+    smiles_list = [
+        "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
+        "C[C@@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer1 S
+        "C[C@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer2 R
+        "C[C@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer2 S
+    ]
+
+    search_payload = {
+        "search_type": "tautomer",
+        "query_smiles": smiles_list[0],
+        "search_parameters": {},
+    }
+    search_response = client.post("/search/compounds/structure", json=search_payload)
+    assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
+    search_results = search_response.json()
+    result_ids = [compound["id"] for compound in search_results]
+
+    assert predefined_compounds[0] in result_ids, "Tautomer1 R should match the query"
+    assert predefined_compounds[1] in result_ids, "Tautomer1 S should match the query"
+    assert predefined_compounds[2] not in result_ids, "Tautomer2 R should NOT match the query"
+    assert predefined_compounds[3] not in result_ids, "Tautomer2 S should NOT match the query"
+
+
+def test_search_compound_structure_stero(client, predefined_compounds):
+    """Test stereo search using the /search/compounds/structure endpoint"""
+    smiles_list = [
+        "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
+        "C[C@@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer1 S
+        "C[C@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer2 R
+        "C[C@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer2 S
+    ]
+
+    search_payload = {
+        "search_type": "stereo",
+        "query_smiles": smiles_list[0],
+        "search_parameters": {},
+    }
+    search_response = client.post("/search/compounds/structure", json=search_payload)
+    assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
+    search_results = search_response.json()
+    result_ids = [compound["id"] for compound in search_results]
+
+    assert predefined_compounds[0] in result_ids, "Tautomer1 R should match the query"
+    assert predefined_compounds[2] in result_ids, "Tautomer2 R should match the query"
+    assert predefined_compounds[1] not in result_ids, "Tautomer1 S should NOT match the query"
+    assert predefined_compounds[3] not in result_ids, "Tautomer2 S should NOT match the query"
+
+
+def test_search_compound_structure_connectivity(client, predefined_compounds):
+    """Test connectivity search using the /search/compounds/structure endpoint"""
+    smiles_list = [
+        "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
+        "C[C@@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer1 S
+        "C[C@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer2 R
+        "C[C@](F)(Cl)c1cc2cccnc2[nH]1",  # Tautomer2 S
+    ]
+
+    search_payload = {
+        "search_type": "connectivity",
+        "query_smiles": smiles_list[0],
+        "search_parameters": {},
+    }
+    search_response = client.post("/search/compounds/structure", json=search_payload)
+    assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
+    search_results = search_response.json()
+    result_ids = [compound["id"] for compound in search_results]
+
+    assert predefined_compounds[0] in result_ids, "Tautomer1 R should match the query"
+    assert predefined_compounds[1] in result_ids, "Tautomer1 S should match the query"
+    assert predefined_compounds[2] in result_ids, "Tautomer2 R should match the query"
+    assert predefined_compounds[3] in result_ids, "Tautomer2 S should match the query"
