@@ -1,5 +1,6 @@
 # Import common data from conftest.py (fixtures are automatically available)
 from tests.conftest import aspirin_smiles, aspirin_smiles_noncanonical, caffeine_smiles
+import crud
 
 # Test data
 test_compound_data = {
@@ -133,3 +134,72 @@ def test_substructure_search(client):
     assert compound1_id in result_ids, "Molecule 1 should match the substructure"
     assert compound2_id in result_ids, "Molecule 2 should match the substructure"
     assert compound3_id not in result_ids, "Molecule 3 should NOT match the substructure"
+
+
+def test_create_compound_and_get_hash(client):
+    """Test creating a compound and retrieving its hash using the exact search endpoint"""
+    compound_data = {
+        "smiles": "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",
+        "is_archived": False,
+    }
+
+    # Step 1: Create the compound
+    response = client.post("/compounds/", json=compound_data)
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}"
+    # compound_id = response.json()["id"]
+
+    # Step 2: Use the /search/compounds/exact endpoint to retrieve the hash_mol
+    search_payload = {"query_smiles": compound_data["smiles"]}
+    search_response = client.post("/search/compounds/exact", json=search_payload)
+    assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
+    search_results = search_response.json()
+
+    # Verify the hash_mol matches the expected value
+    assert len(search_results) == 1, "Expected exactly one result"
+    mol_hash = search_results[0]["hash_mol"]
+    expected_hash = "9871427f8720e3b4b3219964869a6301377f6908"
+    assert mol_hash == expected_hash, f"Expected hash {expected_hash}, got {mol_hash}"
+
+
+def test_search_compound_structure_tautomer(client):
+    """Test tautomer search using the /search/compounds/structure endpoint"""
+    # Step 1: Create compounds with different SMILES
+    smiles_list = [
+        "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
+        "C[C@@](F)(Cl)c1cc2cccnc2[nH]1",   # Tautomer1 S
+        "C[C@](F)(Cl)c1cc2ccc[nH]c-2n1",   # Tautomer2 R
+        "C[C@](F)(Cl)c1cc2cccnc2[nH]1",    # Tautomer2 S
+    ]
+
+    compound_ids = []
+    for smiles in smiles_list:
+        response = client.post("/compounds/", json={"smiles": smiles, "is_archived": False})
+        print(response.status_code, response.json()) 
+        assert response.status_code == 200, f"Failed to create compound for SMILES: {smiles}"
+        compound_ids.append(response.json()["id"])
+
+    # Step 2: Perform tautomer search using the first SMILES
+    search_payload = {
+        "search_type": "tautomer",
+        "query_smiles": "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",
+        "search_parameters": {},
+    }
+    search_response = client.post("/search/compounds/structure", json=search_payload)
+    assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
+    search_results = search_response.json()
+
+    # Step 3: Verify the results
+    result_ids = [compound["id"] for compound in search_results]
+
+    # Tautomer 1R and 1S should have the same hash_tautomer
+    assert compound_ids[0] in result_ids, "Tautomer1 R should match the query"
+    assert compound_ids[1] in result_ids, "Tautomer1 S should match the query"
+
+    # Tautomer 2R and 2S should have different hash_tautomer
+    assert compound_ids[2] not in result_ids, "Tautomer2 R should NOT match the query"
+    assert compound_ids[3] not in result_ids, "Tautomer2 S should NOT match the query"
+
+
+
+
+
