@@ -126,6 +126,7 @@ class CompoundRegistrar(BaseRegistrar):
             for i in range(0, len(lst), size):
                 yield lst[i : i + size]
 
+        global_idx = 0
         for batch in chunked(rows, batch_size):
             self.compounds_to_insert = []
             synonyms, details = [], []
@@ -145,7 +146,11 @@ class CompoundRegistrar(BaseRegistrar):
                 except Exception as e:
                     self._add_output_row(row, {}, "failed", str(e))
                     if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
+                        remaining_rows = rows[global_idx + 1 :]
+                        for remaining_row in remaining_rows:
+                            self._add_output_row(remaining_row, {}, "not_processed")
                         raise HTTPException(status_code=400, detail=self.result())
+                global_idx += 1
 
             if self.compounds_to_insert:
                 batch_sql = self.generate_sql(self.compounds_to_insert, synonyms, details)
