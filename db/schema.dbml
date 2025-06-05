@@ -220,7 +220,7 @@ Table moltrack.synonym_types as SynonymTypes {
     synonym_level text [not null, note: "('BATCH','COMPOUND')"]
     name text [not null, note: 'e.g., "CAS", "USAN", "INN", "tradename"']
     pattern text [not null, note: 'regex for identifier: CHEMBL.*']
-    description text [not null]
+    description text
 
     Note: '''
     Synonym types table - for batch and compound synonym types

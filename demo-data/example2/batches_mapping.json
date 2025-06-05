@@ -1,0 +1,7 @@
+{
+   "smiles": "smiles",
+   "Compound ID": "compound_synonyms.xyz_id",
+   "Compound Batch ID": "batch_corporate_id",
+   "Compound QC": "batch_properties.Batch QC",
+   "Acquisition Date": "batch_properties.acquired_date"
+}

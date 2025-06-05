@@ -69,6 +69,7 @@ class CompoundResponseBase(CompoundBase):
 
 class CompoundResponse(CompoundResponseBase):
     batches: List["Batch"] = []
+    compound_synonyms: List["CompoundSynonym"] = []
 
 
 class Compound(CompoundResponseBase, table=True):
@@ -88,6 +89,7 @@ class Compound(CompoundResponseBase, table=True):
     deleted_by: Optional[uuid.UUID] = Field(default=None)
 
     batches: List["Batch"] = Relationship(back_populates="compound")
+    compound_synonyms: List["CompoundSynonym"] = Relationship(back_populates="compound")
 
 
 class BatchBase(SQLModel):
@@ -102,6 +104,7 @@ class BatchResponseBase(BatchBase):
 
 class BatchResponse(BatchResponseBase):
     batch_details: List["BatchDetail"] = []
+    batch_synonyms: List["BatchSynonym"] = []
 
 
 class Batch(BatchResponseBase, table=True):
@@ -116,6 +119,7 @@ class Batch(BatchResponseBase, table=True):
     compound: "Compound" = Relationship(back_populates="batches")
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
+    batch_synonyms: List["BatchSynonym"] = Relationship(back_populates="batch")
 
 
 class SemanticTypeBase(SQLModel):
@@ -369,66 +373,73 @@ class BatchAssayResultsResponse(SQLModel):
     assay_name: str
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
 
+class SynonymTypeBase(SQLModel):
+    synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
+    name: str = Field(nullable=False)
+    pattern: Optional[str] = Field(default=None)
+    description: str = Field(nullable=False)
 
-class ExactSearchModel(SQLModel):
-    
-    query_smiles: str  # SMILES string for the molecule
-    standardization_steps: Optional[List[str]] = None
-    # hash_mol: Optional[str] = None
+class SynonymTypeResponse(SynonymTypeBase):
+    id: int = Field(primary_key=True, index=True)
 
-    # Optional standardization steps
-    hash_mol: Optional[str] = None  # UUID hash generated from the standardized SMILES
+    @validator('synonym_level')
+    def validate_synonym_level(cls, value):
+        allowed_values = ['BATCH', 'COMPOUND']
+        if value.upper() not in allowed_values:
+            raise ValueError(f"synonym_level must be one of {allowed_values}")
+        return value
 
-    @validator("hash_mol", always=True, pre=True)
-    def validate_or_generate_hash(cls, v, values):
-        """
-        Validate or generate a UUID hash from the standardized SMILES.
-        """
-        import crud
-        query_smiles = values.get("query_smiles")
-        layers = crud.get_standardized_mol_and_layers(query_smiles)
+class SynonymType(SynonymTypeResponse, table=True):
+    __tablename__ = "synonym_types"
+    __table_args__ = {"schema": DB_SCHEMA}
 
-        # Generate the hash if not provided - this is a placeholder
-        # this would be GetMolHash
-        if v is None:
-            logger.debug(GetMolHash(layers))
-            return GetMolHash(layers)
-        return v
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
+    # Relationships
+    compound_synonyms: "CompoundSynonym" = Relationship(back_populates="synonym_type")
+    batch_synonyms: "BatchSynonym" = Relationship(back_populates="synonym_type")
 
-class SearchCompoundStructure(SQLModel):
-    search_type: Literal["substructure", "tautomer", "stereo", "similarity", "connectivity"]  # Type of structure search
-    query_smiles: str  # SMILES string for the structure search
-    search_parameters: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Additional parameters for the search (e.g., similarity threshold, tautomer options)",
-    )
+class CompoundSynonymBase(SQLModel):
+    synonym_value: str = Field(nullable=False)
+    compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
+    synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
 
-    # @validator("query_smiles")
-    # def validate_smiles(cls, v):
-    #     """
-    #     Validate that the provided SMILES string is valid.
-    #     """
-    #     mol = Chem.MolFromSmiles(v)
-    #     if mol is None:
-    #         raise ValueError(f"Invalid SMILES string: {v}")
-    #     return v
+class CompoundSynonymResponse(CompoundSynonymBase):
+    id: int = Field(primary_key=True, index=True)
 
+class CompoundSynonym(CompoundSynonymResponse, table=True):
+    __tablename__ = "compound_synonyms"
+    __table_args__ = {"schema": DB_SCHEMA}
 
-class QueryCondition(SQLModel):
-    table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
-    field: Literal["hash_tautomer", "hash_no_stereo_smiles"]  # Field/column to filter on
-    operator: Literal["=", "!=", ">", "<", ">=", "<=", "LIKE", "IN"]  # expand for supported by rdkit cartridge like @>?
-    value: Optional[Any] = None  #
-    query_smiles: Optional[str] = None
-    columns: Optional[list[str]] = None  # List of columns to return for table
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
+    # Relationships
+    compound: "Compound" = Relationship(back_populates="compound_synonyms")
+    synonym_type: "SynonymType" = Relationship(back_populates="compound_synonyms")
 
-class ComplexQueryRequest(SQLModel):
-    conditions: list[QueryCondition]
-    logic: Literal["AND", "OR"] = "AND"
+class BatchSynonymBase(SQLModel):
+    synonym_value: str = Field(nullable=False)
+    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
+    synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
 
+class BatchSynonymResponse(BatchSynonymBase):
+    id: int = Field(primary_key=True, index=True)
 
-class ExactSearchParameters(SQLModel):
-    field: str
-    value: Optional[str] = None
+class BatchSynonym(BatchSynonymResponse, table=True):
+    __tablename__ = "batch_synonyms"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    # Relationships
+    batch: "Batch" = Relationship(back_populates="batch_synonyms")
+    synonym_type: "SynonymType" = Relationship(back_populates="batch_synonyms")

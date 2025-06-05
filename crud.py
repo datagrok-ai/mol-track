@@ -849,66 +849,81 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     return db_batch_detail
 
 
-def search_compounds_substructure(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+# SynonymType CRUD operations
+def create_synonym_type(db: Session, synonym_type: models.SynonymTypeBase):
+    db_synonym_type = models.SynonymType(
+        synonym_level=synonym_type.synonym_level,
+        name=synonym_type.name,
+        pattern=synonym_type.pattern,
+        description=synonym_type.description,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym_type)
+    db.commit()
+    db.refresh(db_synonym_type)
+    return db_synonym_type
+
+
+# Compound synonym CRUD operations
+def create_compound_synonym(db: Session, synonym: models.CompoundSynonymBase):
+    db_synonym = models.CompoundSynonym(
+        synonym_value=synonym.synonym_value,
+        compound_id=synonym.compound_id,
+        synonym_type_id=synonym.synonym_type_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym)
+    db.commit()
+    db.refresh(db_synonym)
+    return db_synonym
+
+
+# Batch synonym CRUD operations
+def create_batch_synonym(db: Session, synonym: models.BatchSynonymBase):
+    db_synonym = models.BatchSynonym(
+        synonym_value=synonym.synonym_value,
+        batch_id=synonym.batch_id,
+        synonym_type_id=synonym.synonym_type_id,
+        created_by=main.admin_user_id,
+        updated_by=main.admin_user_id,
+    )
+    db.add(db_synonym)
+    db.commit()
+    db.refresh(db_synonym)
+    return db_synonym
+
+
+def search_compounds_by_synonym(db: Session, synonym_value: str, skip: int = 0, limit: int = 100):
     """
-    Placeholder for substructure search.
+    Search compounds by their synonyms.
+
+    Returns:
+        List of compounds matching the synonym
     """
-    raise NotImplementedError("Substructure search is not implemented yet.")
+    return (
+        db.query(models.Compound)
+        .join(models.CompoundSynonym)
+        .filter(models.CompoundSynonym.synonym_value.ilike(f"%{synonym_value}%"))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
-def search_compounds_similarity(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+def search_batches_by_synonym(db: Session, synonym_value: str, skip: int = 0, limit: int = 100):
     """
-    Placeholder for similarity search.
+    Search batches by their synonyms.
+
+    Returns:
+        List of batches matching the synonym
     """
-    raise NotImplementedError("Similarity search is not implemented yet.")
-
-
-def get_standardized_mol_and_layers(query_smiles: str, http_errors: bool = False) -> dict:
-    missing_msg = "Query SMILES is required"
-    invalid_msg = "Invalid SMILES string"
-
-    if not query_smiles:
-        if http_errors:
-            raise HTTPException(status_code=400, detail=missing_msg)
-        else:
-            raise ValueError(missing_msg)
-
-    mol = Chem.MolFromSmiles(query_smiles)
-    if mol is None:
-        if http_errors:
-            raise HTTPException(status_code=400, detail=invalid_msg)
-        else:
-            raise ValueError(invalid_msg)
-
-    standardized_mol = standardize_mol(mol)
-    mol_layers = generate_hash_layers(standardized_mol)
-    return mol_layers
-
-
-def search_compounds_by_hash(
-    db: Session, query_smiles: str, hash_layer: Any, hash_attr_name: str
-) -> List[models.Compound]:
-    mol_layers = get_standardized_mol_and_layers(query_smiles, http_errors=True)
-    hash_value = generate_uuid_from_string(mol_layers[hash_layer])
-    return db.query(models.Compound).filter(getattr(models.Compound, hash_attr_name) == hash_value).all()
-
-
-def search_compounds_tautomer(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
-    """
-    Perform a tautomer search for compounds. For a given molecule, find all compounds that have the same tautomer hash regardless of their stereochemistry.
-    """
-    return search_compounds_by_hash(db, query_smiles, HashLayer.TAUTOMER_HASH, "hash_tautomer")
-
-
-def search_compounds_stereo(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
-    """
-    Perform a stereo search for compounds regardless tautomeric state."""
-    return search_compounds_by_hash(db, query_smiles, HashLayer.NO_STEREO_SMILES, "hash_no_stereo_smiles")
-
-
-def search_compounds_connectivity(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
-    """
-    Perform a connectivity search for compounds.
-    This will find compounds that have the same connectivity regardless of their stereochemistry or tautomeric state.
-    """
-    return search_compounds_by_hash(db, query_smiles, HashLayer.NO_STEREO_TAUTOMER_HASH, "hash_no_stereo_tautomer")
+    return (
+        db.query(models.Batch)
+        .join(models.BatchSynonym)
+        .filter(models.BatchSynonym.synonym_value.ilike(f"%{synonym_value}%"))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )

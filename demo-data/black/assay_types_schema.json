@@ -2,8 +2,8 @@
     "assay_type": {
         "name": "Hepatocyte Stability",
         "details": {
-            "form": "in vitro",
-            "biological_system": "cell"
+            "assay format": "in cellulo",
+            "biological_system": "hepatocyte"
         },
         "properties": [
             {
