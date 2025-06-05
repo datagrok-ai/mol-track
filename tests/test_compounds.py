@@ -173,8 +173,7 @@ def test_search_compound_structure_tautomer(client):
 
     compound_ids = []
     for smiles in smiles_list:
-        response = client.post("/compounds/", json={"smiles": smiles, "is_archived": False})
-        print(response.status_code, response.json()) 
+        response = client.post("/compounds/", json={"smiles": smiles, "is_archived": False}
         assert response.status_code == 200, f"Failed to create compound for SMILES: {smiles}"
         compound_ids.append(response.json()["id"])
 
