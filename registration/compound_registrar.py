@@ -108,9 +108,6 @@ class CompoundRegistrar(BaseRegistrar):
             detail = {
                 "inchikey": inchikey,
                 "property_id": getattr(prop, "id"),
-                "value_string": None,
-                "value_num": None,
-                "value_datetime": None,
                 "created_by": main.admin_user_id,
                 "updated_by": main.admin_user_id,
             }
@@ -172,7 +169,7 @@ class CompoundRegistrar(BaseRegistrar):
             combined_sql += f""",
             inserted_synonyms AS (
                 INSERT INTO compound_synonyms (compound_id, {", ".join(s_cols)})
-                SELECT ic.id, s.synonym_type_id, s.synonym_value, s.created_by, s.updated_by
+                SELECT ic.id, {", ".join([f"s.{col}" for col in s_cols])}
                 FROM (VALUES {s_sql}) AS s(inchikey, {", ".join(s_cols)})
                 JOIN inserted_compounds ic ON s.inchikey = ic.inchikey
             )"""
@@ -181,7 +178,7 @@ class CompoundRegistrar(BaseRegistrar):
             combined_sql += f""",
             inserted_details AS (
                 INSERT INTO compound_details (compound_id, {", ".join(d_cols)})
-                SELECT ic.id, d.property_id, d.value_string, d.value_num, d.value_datetime, d.created_by, d.updated_by
+                SELECT ic.id, {", ".join([f"d.{col}" for col in d_cols])}
                 FROM (VALUES {d_sql}) AS d(inchikey, {", ".join(d_cols)})
                 JOIN inserted_compounds ic ON d.inchikey = ic.inchikey
             )"""
