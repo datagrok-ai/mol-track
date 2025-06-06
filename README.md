@@ -36,42 +36,100 @@ Work in progress:
     * [ ] **Custom Reports**: Generates reports on compound libraries, registration statistics, and inventory statuses.
     * [ ] **Visualization Tools**: Includes dashboards and data visualization features for quick analysis and decision-making.
 
+## Automated setup
 
+To simplify and speed up the installation and launch process, we provide two automated setup scripts:
 
-## Setup
+* `setup.bat` for **Windows**
+* `setup.sh` for **macOS/Linux**
 
-1. Install `uv`:
-   ```
-   pip install uv
-   ```
-   *For other installation methods, refer to the [official docs](https://docs.astral.sh/uv/guides/install-python/#getting-started).*
+[Manual setup](#manual-setup) can be time-consuming and error-prone, requiring multiple steps such as building Docker images, running containers, configuring virtual environments, and starting the server. These scripts handle all of that automatically, so you can get your environment ready with a single command.
 
-2. Create a virtual environment:
-   ```
-   uv venv
-   ```
+> **Note:** Docker must be installed and running on your machine before running these scripts.
 
-3. Activate the virtual environment:
-   * **Windows**: `.venv\Scripts\activate`
-   * **macOS/Linux**: `source .venv/bin/activate`
+### On Windows
 
-4. Install dependencies:
-   ```
-   uv sync
-   ```
+1. Open CMD in the project directory.
+2. Run:
 
-5. Configure the database connection:
-   - Open `database.py` and update the `SQLALCHEMY_DATABASE_URL` with your PostgreSQL connection details.
-
-## Running the Server
-
-Start the server with:
-
+```cmd
+setup.bat
 ```
+
+### On macOS/Linux
+
+1. Open a terminal in the project directory.
+2. Make the script executable and run:
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+## Manual setup
+
+### 1. Create and activate a virtual environment
+
+Create a new virtual environment:
+
+```bash
+python3 -m venv .venv
+```
+
+Activate the environment:
+
+* **Windows (CMD):**
+
+  ```cmd
+  .venv\Scripts\activate
+  ```
+* **macOS/Linux:**
+
+  ```bash
+  source .venv/bin/activate
+  ```
+
+### 2. Install `uv`
+
+Install `uv` package using pip:
+
+```bash
+pip install uv
+```
+
+*For alternative installation options, see the [official docs](https://docs.astral.sh/uv/guides/install-python/#getting-started).*
+
+### 3. Initialize the project environment with `uv`
+
+Set up the virtual environment and dependencies using `uv` commands:
+
+```bash
+uv venv
+uv sync
+```
+
+* `uv venv` creates the virtual environment.
+* `uv sync` installs all required dependencies.
+
+### 4. Configure the database connection
+
+Edit the `database.py` file and update the `SQLALCHEMY_DATABASE_URL` variable with your PostgreSQL connection string:
+
+```python
+SQLALCHEMY_DATABASE_URL = "postgresql://user:password@host:port/database"
+```
+
+Make sure your database server is running and accessible.
+
+### 5. Run the server
+
+Start the FastAPI server with:
+
+```bash
 uvicorn main:app --reload
 ```
 
-The API will be available at http://localhost:8000
+You can now access the API at [http://localhost:8000](http://localhost:8000).
 
 ## API Documentation
 
