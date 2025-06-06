@@ -929,30 +929,11 @@ def delete_addition_by_id(db: Session, addition_id: int):
 
 
 def get_compounds_v1(db: Session, skip: int = 0, limit: int = 100):
-    return (
-        db.query(models.Compound)
-        .options(
-            joinedload(models.Compound.batches),
-            joinedload(models.Compound.compound_synonyms),
-            joinedload(models.Compound.properties),
-        )
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    return db.query(models.Compound).offset(skip).limit(limit).all()
 
 
 def get_compound(db: Session, compound_id: int):
-    return (
-        db.query(models.Compound)
-        .options(
-            joinedload(models.Compound.batches),
-            joinedload(models.Compound.compound_synonyms),
-            joinedload(models.Compound.properties),
-        )
-        .filter(models.Compound.id == compound_id)
-        .first()
-    )
+    return db.query(models.Compound).filter(models.Compound.id == compound_id).first()
 
 
 def delete_compound(db: Session, compound_id: int):

@@ -135,6 +135,7 @@ class BatchResponseBase(BatchBase):
 class BatchResponse(BatchResponseBase):
     batch_details: List["BatchDetail"] = []
     batch_synonyms: List["BatchSynonym"] = []
+    batch_additions: List["BatchAddition"] = []
 
 
 class Batch(BatchResponseBase, table=True):
@@ -150,6 +151,7 @@ class Batch(BatchResponseBase, table=True):
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
     batch_synonyms: List["BatchSynonym"] = Relationship(back_populates="batch")
+    batch_additions: List["BatchAddition"] = Relationship(back_populates="batch")
 
 
 class SemanticTypeBase(SQLModel):
@@ -477,6 +479,8 @@ class BatchAddition(BatchAdditionBase, table=True):
     )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    batch: "Batch" = Relationship(back_populates="batch_additions")
 
 
 class SynonymTypeBase(SQLModel):

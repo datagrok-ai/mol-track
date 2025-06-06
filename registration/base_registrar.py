@@ -38,7 +38,7 @@ class BaseRegistrar(ABC):
             raise HTTPException(status_code=400, detail="Invalid JSON for mapping")
 
     def process_csv(self, csv_content: str) -> List[Dict[str, Any]]:
-        rows = list(csv.DictReader(io.StringIO(csv_content)))
+        rows = list(csv.DictReader(io.StringIO(csv_content), skipinitialspace=True))
         if not rows:
             raise HTTPException(status_code=400, detail="CSV file is empty or invalid")
         self.normalized_mapping = self.user_mapping or {k: k for k in rows[0]}

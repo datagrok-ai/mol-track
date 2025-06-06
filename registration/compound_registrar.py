@@ -23,7 +23,7 @@ class CompoundRegistrar(BaseRegistrar):
         self.compounds_to_insert = []
         self.output_records: List[Dict[str, Any]] = []
 
-    def _build_compound_record(self, compound_data: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:
         mol = Chem.MolFromSmiles(compound_data.get("smiles"))
         if mol is None:
             raise HTTPException(status_code=400, detail="Invalid SMILES string")
@@ -53,15 +53,17 @@ class CompoundRegistrar(BaseRegistrar):
             "is_archived": compound_data.get("is_archived", False),
         }
 
-    def _build_synonym_records(self, synonyms: Dict[str, Any], inchikey: str) -> List[Dict[str, Any]]:
+    def _build_synonym_records(self, synonyms: Dict[str, Any], entity_id: Any, id_field: str) -> List[Dict[str, Any]]:
         records = []
         for name, value in synonyms.items():
             type = self.synonym_type_map.get(name)
             if type is None:
                 raise HTTPException(status_code=400, detail=f"Unknown synonym type: {name}")
+            # if getattr(type, "synonym_level") != enums.SynonymLevel.COMPOUND:
+            #     raise HTTPException(status_code=400, detail=f"The synonym type {name} is not defined for {enums.SynonymLevel.COMPOUND}")
             records.append(
                 {
-                    "inchikey": inchikey,
+                    id_field: entity_id,
                     "synonym_type_id": getattr(type, "id"),
                     "synonym_value": value,
                     "created_by": main.admin_user_id,
@@ -70,7 +72,7 @@ class CompoundRegistrar(BaseRegistrar):
             )
         return records
 
-    def _build_details_records(self, properties: Dict[str, Any], inchikey: str) -> List[Dict[str, Any]]:
+    def _build_details_records(self, properties: Dict[str, Any], entity_id: Any, id_field: str) -> List[Dict[str, Any]]:
         records = []
         value_type_to_field = {
             "datetime": "value_datetime",
@@ -107,7 +109,7 @@ class CompoundRegistrar(BaseRegistrar):
             field_name = value_type_to_field[value_type]
             cast_fn = value_type_cast_map[value_type]
             detail = {
-                "inchikey": inchikey,
+                id_field: entity_id,
                 "property_id": getattr(prop, "id"),
                 "created_by": main.admin_user_id,
                 "updated_by": main.admin_user_id,
@@ -135,13 +137,17 @@ class CompoundRegistrar(BaseRegistrar):
                 try:
                     grouped = self._group_data(row)
                     compound_data = grouped.get("compounds", {})
-                    compound = self._build_compound_record(compound_data, idx)
+                    compound = self._build_compound_record(compound_data)
                     self.compounds_to_insert.append(compound)
 
                     synonyms.extend(
-                        self._build_synonym_records(grouped.get("compounds_synonyms", {}), compound["inchikey"])
+                        self._build_synonym_records(
+                            grouped.get("compounds_synonyms", {}), compound["inchikey"], "inchikey"
+                        )
                     )
-                    details.extend(self._build_details_records(grouped.get("properties", {}), compound["inchikey"]))
+                    details.extend(
+                        self._build_details_records(grouped.get("properties", {}), compound["inchikey"], "inchikey")
+                    )
                     self._add_output_row(compound_data, grouped, "success")
                 except Exception as e:
                     self._add_output_row(row, {}, "failed", str(e))
@@ -153,45 +159,67 @@ class CompoundRegistrar(BaseRegistrar):
                 global_idx += 1
 
             if self.compounds_to_insert:
-                batch_sql = self.generate_sql(self.compounds_to_insert, synonyms, details)
+                # probably try catch here too
+                extra_sql = self.get_additional_cte(self.compounds_to_insert, rows)
+                batch_sql = self.generate_sql(self.compounds_to_insert, synonyms, details, extra_sql)
                 self.sql_statements.append(batch_sql)
 
-    def generate_sql(self, compounds, synonyms, details) -> str:
-        c_cols = list(compounds[0].keys())
-        s_cols = list(synonyms[0].keys()) if synonyms else []
-        d_cols = list(details[0].keys()) if details else []
+    def generate_sql(self, compounds, synonyms, details, extra_sql) -> str:
+        compound_sql = self._generate_compound_sql(compounds)
+        synonym_sql = self._generate_synonym_sql(synonyms)
+        details_sql = self._generate_details_sql(details)
 
-        c_sql = self._values_sql(compounds, c_cols)
-        s_sql = self._values_sql(synonyms, s_cols) if synonyms else ""
-        d_sql = self._values_sql(details, d_cols) if details else ""
+        combined_sql = compound_sql
+        if synonym_sql:
+            combined_sql += ",\n" + synonym_sql
+        if details_sql:
+            combined_sql += ",\n" + details_sql
+        if extra_sql:
+            combined_sql += ",\n" + extra_sql
 
-        s_cols = s_cols[1:]
-        d_cols = d_cols[1:]
+        combined_sql += "\nSELECT 1;"
+        return combined_sql
 
-        combined_sql = f"""
+    def _generate_compound_sql(self, compounds) -> str:
+        cols = list(compounds[0].keys())
+        values_sql = self._values_sql(compounds, cols)
+        return f"""
             WITH inserted_compounds AS (
-                INSERT INTO compounds ({", ".join(c_cols)})
-                VALUES {c_sql}
+                INSERT INTO compounds ({", ".join(cols)})
+                VALUES {values_sql}
                 RETURNING id, inchikey
             )"""
 
-        if len(s_cols) > 0:
-            combined_sql += f""",
+    def _generate_synonym_sql(self, synonyms) -> str:
+        if not synonyms:
+            return ""
+
+        cols = list(synonyms[0].keys())
+        inchikey, *cols_without_key = cols
+        values_sql = self._values_sql(synonyms, cols)
+
+        return f"""
             inserted_synonyms AS (
-                INSERT INTO compound_synonyms (compound_id, {", ".join(s_cols)})
-                SELECT ic.id, {", ".join([f"s.{col}" for col in s_cols])}
-                FROM (VALUES {s_sql}) AS s(inchikey, {", ".join(s_cols)})
+                INSERT INTO compound_synonyms (compound_id, {", ".join(cols_without_key)})
+                SELECT ic.id, {", ".join([f"s.{col}" for col in cols_without_key])}
+                FROM (VALUES {values_sql}) AS s(inchikey, {", ".join(cols_without_key)})
                 JOIN inserted_compounds ic ON s.inchikey = ic.inchikey
             )"""
 
-        if len(d_cols) > 0:
-            combined_sql += f""",
+    def _generate_details_sql(self, details) -> str:
+        if not details:
+            return ""
+
+        cols = list(details[0].keys())
+        inchikey, *cols_without_key = cols
+        values_sql = self._values_sql(details, cols)
+        return f"""
             inserted_details AS (
-                INSERT INTO compound_details (compound_id, {", ".join(d_cols)})
-                SELECT ic.id, {", ".join([f"d.{col}" for col in d_cols])}
-                FROM (VALUES {d_sql}) AS d(inchikey, {", ".join(d_cols)})
+                INSERT INTO compound_details (compound_id, {", ".join(cols_without_key)})
+                SELECT ic.id, {", ".join([f"d.{col}" for col in cols_without_key])}
+                FROM (VALUES {values_sql}) AS d(inchikey, {", ".join(cols_without_key)})
                 JOIN inserted_compounds ic ON d.inchikey = ic.inchikey
             )"""
-        combined_sql += """
-        SELECT 1;"""
-        return combined_sql
+
+    def get_additional_cte(self, compounds, rows):
+        pass
