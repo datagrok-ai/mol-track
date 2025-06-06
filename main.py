@@ -2,8 +2,7 @@ import csv
 import io
 from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from registration.batch_registrar import BatchRegistrar
+from typing import List, Optional, Type
 from registration.compound_registrar import CompoundRegistrar
 import models
 import enums
@@ -95,7 +94,7 @@ def on_startup():
 #     return db_compound
 
 
-# Batches endpoints
+# # Batches endpoints
 # @router.post("/batches/", response_model=models.BatchResponse)
 # def create_batch(batch: models.BatchBase, db: Session = Depends(get_db)):
 #     return crud.create_batch(db=db, batch=batch)
@@ -306,7 +305,11 @@ def on_startup():
 #     return crud.get_batch_details_by_batch(db, batch_id=batch_id, skip=skip, limit=limit)
 
 
-"-------------------New logic-----------------"
+def get_or_raise_exception(get_func, db, id, not_found_msg):
+    item = get_func(db, id)
+    if not item:
+        raise HTTPException(status_code=404, detail=not_found_msg)
+    return item
 
 
 @router.post("/schema/")
@@ -323,37 +326,18 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
     }
 
 
-# TODO: Move to the utils file
-def get_properties_by_scope(scope: enums.ScopeClass, db: Session) -> List[models.Property]:
-    return (
-        db.query(models.Property)
-        # .options(load_only(models.Property.id, models.Property.name, models.Property.scope))
-        .filter(models.Property.scope == scope)
-        .all()
-    )
-
-
-def get_synonyms_by_level(level: enums.SynonymLevel, db: Session) -> List[models.SynonymType]:
-    return (
-        db.query(models.SynonymType)
-        # .options(load_only(models.SynonymType.id, models.SynonymType.name, models.SynonymType.synonym_level))
-        .filter(models.SynonymType.synonym_level == level)
-        .all()
-    )
-
-
 @router.get("/schema/compounds", response_model=models.SchemaCompoundResponse)
 def get_schema_compounds(db: Session = Depends(get_db)):
     return models.SchemaCompoundResponse(
-        properties=get_properties_by_scope(enums.ScopeClass.COMPOUND, db),
-        synonym_types=get_synonyms_by_level(enums.SynonymLevel.COMPOUND, db),
+        properties=crud.get_properties_by_scope(enums.ScopeClass.COMPOUND, db),
+        synonym_types=crud.get_synonyms_by_level(enums.SynonymLevel.COMPOUND, db),
     )
 
 
 @router.get("/schema/batches", response_model=models.SchemaBatchResponse)
 def get_schema_batches(db: Session = Depends(get_db)):
-    properties = get_properties_by_scope(enums.ScopeClass.BATCH, db)
-    synonym_types = get_synonyms_by_level(enums.SynonymLevel.BATCH, db)
+    properties = crud.get_properties_by_scope(enums.ScopeClass.BATCH, db)
+    synonym_types = crud.get_synonyms_by_level(enums.SynonymLevel.BATCH, db)
 
     additions = (
         db.query(models.Addition)
@@ -364,48 +348,52 @@ def get_schema_batches(db: Session = Depends(get_db)):
     return models.SchemaBatchResponse(properties=properties, synonym_types=synonym_types, additions=additions)
 
 
+def process_registration(
+    registrar_class: Type,
+    csv_file: UploadFile,
+    mapping: Optional[str],
+    error_handling,
+    output_format,
+    db: Session,
+):
+    csv_content = csv_file.file.read().decode("utf-8")
+    registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling)
+    rows = registrar.process_csv(csv_content)
+    registrar.register_all(rows)
+    return registrar.result(output_format=output_format)
+
+
 @router.post("/compounds/")
-def register_compounds_v1(
+def register_compounds(
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    csv_content = csv_file.file.read().decode("utf-8")
-    registrar = CompoundRegistrar(db=db, mapping=mapping, error_handling=error_handling)
-    rows = registrar.process_csv(csv_content)
-    registrar.register_all(rows)
-    return registrar.result(output_format=output_format)
+    return process_registration(CompoundRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 @router.get("/compounds/", response_model=List[models.CompoundResponse])
-def read_compounds_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    compounds = crud.get_compounds_v1(db, skip=skip, limit=limit)
+def read_compounds(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    compounds = crud.read_compounds(db, skip=skip, limit=limit)
     return compounds
 
 
 @router.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
-def read_compound_v1(compound_id: int, db: Session = Depends(get_db)):
-    db_compound = crud.get_compound(db, compound_id=compound_id)
-    if db_compound is None:
-        raise HTTPException(status_code=404, detail="Compound not found")
-    return db_compound
+def get_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
+    return get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
 
 
 @router.get("/compounds/{compound_id}/synonyms", response_model=List[models.CompoundSynonym])
-def read_compound_synonyms_v1(compound_id: int, db: Session = Depends(get_db)):
-    compound = crud.get_compound(db, compound_id=compound_id)
-    if not compound:
-        raise HTTPException(status_code=404, detail="Compound not found")
+def get_compound_synonyms(compound_id: int, db: Session = Depends(get_db)):
+    compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
     return compound.compound_synonyms
 
 
 @router.get("/compounds/{compound_id}/properties", response_model=List[models.Property])
-def read_compound_properties_v1(compound_id: int, db: Session = Depends(get_db)):
-    compound = crud.get_compound(db, compound_id=compound_id)
-    if not compound:
-        raise HTTPException(status_code=404, detail="Compound not found")
+def get_compound_properties(compound_id: int, db: Session = Depends(get_db)):
+    compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
     return compound.properties
 
 
@@ -417,7 +405,7 @@ def delete_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
     return crud.delete_compound(db, compound_id=compound_id)
 
 
-# TODO: Move to utils
+# TODO: Create the utils model and move there
 def clean_empty_values(d: dict) -> dict:
     return {k: (None if isinstance(v, str) and v.strip() == "" else v) for k, v in d.items()}
 
@@ -485,11 +473,7 @@ def register_batches_v1(
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    csv_content = csv_file.file.read().decode("utf-8")
-    registrar = BatchRegistrar(db=db, mapping=mapping, error_handling=error_handling)
-    rows = registrar.process_csv(csv_content)
-    registrar.register_all(rows)
-    return registrar.result(output_format=output_format)
+    return process_registration(CompoundRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 @router.get("/batches/", response_model=List[models.BatchResponse])
@@ -500,33 +484,24 @@ def read_batches_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 
 @router.get("/batches/{batch_id}", response_model=models.BatchResponse)
 def read_batch_v1(batch_id: int, db: Session = Depends(get_db)):
-    db_batch = crud.get_batch(db, batch_id=batch_id)
-    if db_batch is None:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    return db_batch
+    return get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
 
 
 @router.get("/batches/{batch_id}/properties", response_model=List[models.BatchDetail])
 def read_batch_properties_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = crud.get_batch(db, batch_id=batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    batch = get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
     return batch.batch_details
 
 
 @router.get("/batches/{batch_id}/synonyms", response_model=List[models.BatchSynonym])
 def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = crud.get_batch(db, batch_id=batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    batch = get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
     return batch.batch_synonyms
 
 
 @router.get("/batches/{batch_id}/additions", response_model=List[models.BatchAddition])
 def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = crud.get_batch(db, batch_id=batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    batch = get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
     return batch.batch_additions
 
 

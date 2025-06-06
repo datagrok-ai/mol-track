@@ -243,20 +243,6 @@ def delete_batch(db: Session, batch_id: int):
     return db_batch
 
 
-def create_batch_synonym(db: Session, batch_synonym: models.BatchSynonymBase) -> models.BatchSynonym:
-    synonym = models.BatchSynonym(
-        batch_id=batch_synonym.batch_id,
-        synonym_type_id=batch_synonym.synonym_type_id,
-        synonym_value=batch_synonym.synonym_value,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
-    )
-    db.add(synonym)
-    db.commit()
-    db.refresh(synonym)
-    return synonym
-
-
 def create_semantic_type(db: Session, semantic_type: models.SemanticTypeBase):
     db_semantic_type = models.SemanticType(name=semantic_type.name, description=semantic_type.description)
 
@@ -854,11 +840,18 @@ def bulk_create_if_not_exists(
     result = db.execute(stmt).fetchall()
     db.commit()
     return [model_cls.model_validate(row[0]) for row in result]
-    # return [{"id": row.id, name_attr: getattr(row, name_attr)} for row in result]
 
 
 def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase]) -> list[dict]:
     return bulk_create_if_not_exists(db, models.SynonymType, models.SynonymTypeBase, synonym_types)
+
+
+def get_properties_by_scope(scope: enums.ScopeClass, db: Session) -> List[models.Property]:
+    return db.query(models.Property).filter(models.Property.scope == scope).all()
+
+
+def get_synonyms_by_level(level: enums.SynonymLevel, db: Session) -> List[models.SynonymType]:
+    return db.query(models.SynonymType).filter(models.SynonymType.synonym_level == level).all()
 
 
 def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:
@@ -892,7 +885,6 @@ def create_additions(db: Session, additions: list[models.AdditionBase]) -> list[
 
 
 def get_additions(db: Session, role: enums.AdditionsRole | None = None) -> List[models.AdditionBase]:
-    # query = db.query(models.Addition).options(load_only(models.Addition.id, models.Addition.name))
     query = db.query(models.Addition)
     if role is None:
         return query.all()
@@ -928,11 +920,11 @@ def delete_addition_by_id(db: Session, addition_id: int):
     return db_addition
 
 
-def get_compounds_v1(db: Session, skip: int = 0, limit: int = 100):
+def read_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).offset(skip).limit(limit).all()
 
 
-def get_compound(db: Session, compound_id: int):
+def get_compound_by_id(db: Session, compound_id: int):
     return db.query(models.Compound).filter(models.Compound.id == compound_id).first()
 
 

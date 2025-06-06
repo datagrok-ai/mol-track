@@ -53,17 +53,15 @@ class CompoundRegistrar(BaseRegistrar):
             "is_archived": compound_data.get("is_archived", False),
         }
 
-    def _build_synonym_records(self, synonyms: Dict[str, Any], entity_id: Any, id_field: str) -> List[Dict[str, Any]]:
+    def _build_synonym_records(self, synonyms: Dict[str, Any], value: Any, id_field: str) -> List[Dict[str, Any]]:
         records = []
         for name, value in synonyms.items():
             type = self.synonym_type_map.get(name)
             if type is None:
                 raise HTTPException(status_code=400, detail=f"Unknown synonym type: {name}")
-            # if getattr(type, "synonym_level") != enums.SynonymLevel.COMPOUND:
-            #     raise HTTPException(status_code=400, detail=f"The synonym type {name} is not defined for {enums.SynonymLevel.COMPOUND}")
             records.append(
                 {
-                    id_field: entity_id,
+                    id_field: value,
                     "synonym_type_id": getattr(type, "id"),
                     "synonym_value": value,
                     "created_by": main.admin_user_id,
@@ -159,7 +157,7 @@ class CompoundRegistrar(BaseRegistrar):
                 global_idx += 1
 
             if self.compounds_to_insert:
-                # probably try catch here too
+                # TODO: Improve error handling
                 extra_sql = self.get_additional_cte(self.compounds_to_insert, rows)
                 batch_sql = self.generate_sql(self.compounds_to_insert, synonyms, details, extra_sql)
                 self.sql_statements.append(batch_sql)
@@ -194,9 +192,7 @@ class CompoundRegistrar(BaseRegistrar):
         if not synonyms:
             return ""
 
-        cols = list(synonyms[0].keys())
-        inchikey, *cols_without_key = cols
-        values_sql = self._values_sql(synonyms, cols)
+        cols_without_key, values_sql = self._prepare_sql_parts(synonyms)
 
         return f"""
             inserted_synonyms AS (
@@ -210,9 +206,7 @@ class CompoundRegistrar(BaseRegistrar):
         if not details:
             return ""
 
-        cols = list(details[0].keys())
-        inchikey, *cols_without_key = cols
-        values_sql = self._values_sql(details, cols)
+        cols_without_key, values_sql = self._prepare_sql_parts(details)
         return f"""
             inserted_details AS (
                 INSERT INTO compound_details (compound_id, {", ".join(cols_without_key)})
@@ -223,3 +217,9 @@ class CompoundRegistrar(BaseRegistrar):
 
     def get_additional_cte(self, compounds, rows):
         pass
+
+    def _prepare_sql_parts(self, records: List[Dict[str, Any]]):
+        cols = list(records[0].keys())
+        key, *cols_without_key = cols
+        values_sql = self._values_sql(records, cols)
+        return cols_without_key, values_sql

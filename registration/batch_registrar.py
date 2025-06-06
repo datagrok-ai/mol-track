@@ -89,10 +89,7 @@ class BatchRegistrar(CompoundRegistrar):
         return batch_cte
 
     def _build_inserted_batches_cte(self, batches) -> str:
-        cols = list(batches[0].keys())
-        inchikey, *cols_without_key = cols
-        values_sql = self._values_sql(batches, cols)
-
+        cols_without_key, values_sql = self._prepare_sql_parts(batches)
         return f"""
             inserted_batches AS (
                 INSERT INTO batches (compound_id, {", ".join(cols_without_key)})
@@ -103,10 +100,7 @@ class BatchRegistrar(CompoundRegistrar):
             )"""
 
     def _build_batch_synonyms_cte(self, synonyms) -> str:
-        cols = list(synonyms[0].keys())
-        batch_regno, *cols_without_key = cols
-        values_sql = self._values_sql(synonyms, cols)
-
+        cols_without_key, values_sql = self._prepare_sql_parts(synonyms)
         return f""",
             inserted_batch_synonyms AS (
                 INSERT INTO batch_synonyms (batch_id, {", ".join(cols_without_key)})
@@ -116,10 +110,7 @@ class BatchRegistrar(CompoundRegistrar):
             )"""
 
     def _build_batch_details_cte(self, details) -> str:
-        cols = list(details[0].keys())
-        batch_regno, *cols_without_key = cols
-        values_sql = self._values_sql(details, cols)
-
+        cols_without_key, values_sql = self._prepare_sql_parts(details)
         return f""",
             inserted_batch_details AS (
                 INSERT INTO batch_details (batch_id, {", ".join(cols_without_key)})
@@ -129,10 +120,7 @@ class BatchRegistrar(CompoundRegistrar):
             )"""
 
     def _build_batch_additions_cte(self, additions) -> str:
-        cols = list(additions[0].keys())
-        batch_regno, *cols_without_key = cols
-        values_sql = self._values_sql(additions, cols)
-
+        cols_without_key, values_sql = self._prepare_sql_parts(additions)
         return f""",
             inserted_batch_additions AS (
                 INSERT INTO batch_additions (batch_id, {", ".join(cols_without_key)})
