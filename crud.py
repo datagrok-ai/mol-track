@@ -37,7 +37,7 @@ def get_compounds(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Compound).options(joinedload(models.Compound.batches)).offset(skip).limit(limit).all()
 
 
-def create_compound(db: Session, compound: models.CompoundCreate, idx: int):
+def create_compound(db: Session, compound: models.CompoundCreate):
     # Create RDKit molecule from SMILES
     mol = Chem.MolFromSmiles(compound.smiles)
     if mol is None:
@@ -65,7 +65,7 @@ def create_compound(db: Session, compound: models.CompoundCreate, idx: int):
         original_molfile=compound.original_molfile,
         inchi=inchi,
         inchikey=inchikey,
-        molregno=idx,
+        molregno=random.randint(1, 100),
         formula=CalcMolFormula(mol),
         hash_mol=uuid.uuid4(),
         hash_tautomer=uuid.uuid4(),
@@ -79,10 +79,9 @@ def create_compound(db: Session, compound: models.CompoundCreate, idx: int):
         is_archived=compound.is_archived,
     )
 
-    # db.add(db_compound)
-    # db.commit()
-    # db.refresh(db_compound)
-
+    db.add(db_compound)
+    db.commit()
+    db.refresh(db_compound)
     return db_compound
 
 
@@ -797,9 +796,6 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     db.commit()
     db.refresh(db_batch_detail)
     return db_batch_detail
-
-
-"------------------NEW Logic ------------------"
 
 
 def bulk_create_if_not_exists(

@@ -92,7 +92,7 @@ class BatchRegistrar(CompoundRegistrar):
         cols_without_key, values_sql = self._prepare_sql_parts(batches)
         return f"""
             inserted_batches AS (
-                INSERT INTO batches (compound_id, {", ".join(cols_without_key)})
+                INSERT INTO moltrack.batches (compound_id, {", ".join(cols_without_key)})
                 SELECT ic.id, {", ".join([f"b.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS b (inchikey, {", ".join(cols_without_key)})
                 JOIN inserted_compounds ic ON b.inchikey = ic.inchikey
@@ -103,7 +103,7 @@ class BatchRegistrar(CompoundRegistrar):
         cols_without_key, values_sql = self._prepare_sql_parts(synonyms)
         return f""",
             inserted_batch_synonyms AS (
-                INSERT INTO batch_synonyms (batch_id, {", ".join(cols_without_key)})
+                INSERT INTO moltrack.batch_synonyms (batch_id, {", ".join(cols_without_key)})
                 SELECT ib.id, {", ".join([f"bs.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS bs(batch_regno, {", ".join(cols_without_key)})
                 JOIN inserted_batches ib ON bs.batch_regno = ib.batch_regno
@@ -113,7 +113,7 @@ class BatchRegistrar(CompoundRegistrar):
         cols_without_key, values_sql = self._prepare_sql_parts(details)
         return f""",
             inserted_batch_details AS (
-                INSERT INTO batch_details (batch_id, {", ".join(cols_without_key)})
+                INSERT INTO moltrack.batch_details (batch_id, {", ".join(cols_without_key)})
                 SELECT ib.id, {", ".join([f"bd.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS bd(batch_regno, {", ".join(cols_without_key)})
                 JOIN inserted_batches ib ON bd.batch_regno = ib.batch_regno
@@ -123,7 +123,7 @@ class BatchRegistrar(CompoundRegistrar):
         cols_without_key, values_sql = self._prepare_sql_parts(additions)
         return f""",
             inserted_batch_additions AS (
-                INSERT INTO batch_additions (batch_id, {", ".join(cols_without_key)})
+                INSERT INTO moltrack.batch_additions (batch_id, {", ".join(cols_without_key)})
                 SELECT ib.id, {", ".join([f"ba.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS ba(batch_regno, {", ".join(cols_without_key)})
                 JOIN inserted_batches ib ON ba.batch_regno = ib.batch_regno

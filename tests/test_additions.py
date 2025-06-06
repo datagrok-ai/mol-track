@@ -6,7 +6,7 @@ import enums
 
 @pytest.fixture
 def additions_csv():
-    file_path = "demo-data/additions_test.csv"
+    file_path = "demo-data/additions.csv"
     csv_data = load_csv_file(file_path)
     return file_path, csv_data
 

@@ -53,7 +53,7 @@ class CompoundRegistrar(BaseRegistrar):
             "is_archived": compound_data.get("is_archived", False),
         }
 
-    def _build_synonym_records(self, synonyms: Dict[str, Any], value: Any, id_field: str) -> List[Dict[str, Any]]:
+    def _build_synonym_records(self, synonyms: Dict[str, Any], entity_id: Any, id_field: str) -> List[Dict[str, Any]]:
         records = []
         for name, value in synonyms.items():
             type = self.synonym_type_map.get(name)
@@ -61,7 +61,7 @@ class CompoundRegistrar(BaseRegistrar):
                 raise HTTPException(status_code=400, detail=f"Unknown synonym type: {name}")
             records.append(
                 {
-                    id_field: value,
+                    id_field: entity_id,
                     "synonym_type_id": getattr(type, "id"),
                     "synonym_value": value,
                     "created_by": main.admin_user_id,
@@ -183,7 +183,7 @@ class CompoundRegistrar(BaseRegistrar):
         values_sql = self._values_sql(compounds, cols)
         return f"""
             WITH inserted_compounds AS (
-                INSERT INTO compounds ({", ".join(cols)})
+                INSERT INTO moltrack.compounds ({", ".join(cols)})
                 VALUES {values_sql}
                 RETURNING id, inchikey
             )"""
@@ -196,7 +196,7 @@ class CompoundRegistrar(BaseRegistrar):
 
         return f"""
             inserted_synonyms AS (
-                INSERT INTO compound_synonyms (compound_id, {", ".join(cols_without_key)})
+                INSERT INTO moltrack.compound_synonyms (compound_id, {", ".join(cols_without_key)})
                 SELECT ic.id, {", ".join([f"s.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS s(inchikey, {", ".join(cols_without_key)})
                 JOIN inserted_compounds ic ON s.inchikey = ic.inchikey
@@ -209,7 +209,7 @@ class CompoundRegistrar(BaseRegistrar):
         cols_without_key, values_sql = self._prepare_sql_parts(details)
         return f"""
             inserted_details AS (
-                INSERT INTO compound_details (compound_id, {", ".join(cols_without_key)})
+                INSERT INTO moltrack.compound_details (compound_id, {", ".join(cols_without_key)})
                 SELECT ic.id, {", ".join([f"d.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS d(inchikey, {", ".join(cols_without_key)})
                 JOIN inserted_compounds ic ON d.inchikey = ic.inchikey
