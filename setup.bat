@@ -7,7 +7,7 @@ set ENV_DIR=.moltrack-env
 echo Building Docker image: %IMAGE_NAME% from Dockerfile
 docker build -t %IMAGE_NAME% .
 
-echo Looking for a free port between 5432 and 5500...
+echo Looking for a free port
 set "HOST_PORT="
 for /L %%p in (5432,1,5500) do (
     netstat -an | findstr ":%%p " | findstr "LISTENING" >nul
