@@ -14,6 +14,8 @@ import enums
 
 
 from typing import Type, Dict, Any
+from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
+from chemistry_utils import standardize_mol, generate_hash_layers, generate_uuid_from_string
 
 # Handle both package imports and direct execution
 try:
@@ -29,8 +31,22 @@ def get_compound_by_inchi_key(db: Session, inchikey: str):
     return db.query(models.Compound).filter(models.Compound.inchikey == inchikey).first()
 
 
+def get_compound_by_hash(db: Session, hash_mol: str):
+    """
+    Search for compounds in the database by hash_mol.
+    """
+    if not isinstance(hash_mol, str) or len(hash_mol) != 40:
+        raise HTTPException(status_code=400, detail=f"Invalid hash_mol format: {hash_mol}")
+
+    return db.query(models.Compound).filter(models.Compound.hash_mol == hash_mol).all()
+
+
 def get_compound_by_canonical_smiles(db: Session, canonical_smiles: str):
     return db.query(models.Compound).filter(models.Compound.canonical_smiles == canonical_smiles).first()
+
+
+def get_compound_by_tautomer(db: Session, tautomer: str):
+    return db.query(models.Compound).filter(models.Compound.tautomer == tautomer).all()
 
 
 def get_compounds(db: Session, skip: int = 0, limit: int = 100):
@@ -43,19 +59,33 @@ def create_compound(db: Session, compound: models.CompoundCreate):
     if mol is None:
         raise HTTPException(status_code=400, detail="Invalid SMILES string")
 
-    # Calculate canonical SMILES, InChI, and InChIKey
-    canonical_smiles = Chem.MolToSmiles(mol, isomericSmiles=True, canonical=True)
-    inchi = Chem.MolToInchi(mol)
+    # Standardize mol and calculate hashes
+
+    standarized_mol = standardize_mol(mol)
+    mol_layers = generate_hash_layers(standarized_mol)
+    hash_mol = GetMolHash(mol_layers)
+    formula = CalcMolFormula(standarized_mol)
+    canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
+    hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
+    hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
+    hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
+    hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
+    # sgroup_data = mol_layers[HashLayer.SGROUP_DATA]
+
+    inchi = Chem.MolToInchi(standarized_mol)
     inchikey = Chem.InchiToInchiKey(inchi)
 
-    # Check if compound with this InChIKey already exists
-    existing_compound = get_compound_by_inchi_key(db, inchikey)
+    existing_compound = get_compound_by_hash(db, hash_mol)
     if existing_compound:
-        raise HTTPException(status_code=400, detail=f"Compound with InChIKey {inchikey} already exists")
+        raise HTTPException(status_code=400, detail=f"Compound with hash_mol {hash_mol} already exists")
 
-    existing_compound = get_compound_by_canonical_smiles(db, canonical_smiles)
-    if existing_compound:
-        raise HTTPException(status_code=400, detail=f"Compound with canonical SMILES {canonical_smiles} already exists")
+    # existing_compound = get_compound_by_inchi_key(db, inchikey)
+    # if existing_compound:
+    #     raise HTTPException(status_code=400, detail=f"Compound with InChIKey {inchikey} already exists")
+
+    # existing_compound = get_compound_by_canonical_smiles(db, canonical_smiles)
+    # if existing_compound:
+    #     raise HTTPException(status_code=400, detail=f"Compound with canonical SMILES {canonical_smiles} already exists")
 
     # Create the compound with calculated values
     # NOTE: The following UUID values are placeholders for hash fields
@@ -66,12 +96,12 @@ def create_compound(db: Session, compound: models.CompoundCreate):
         inchi=inchi,
         inchikey=inchikey,
         molregno=random.randint(1, 100),
-        formula=CalcMolFormula(mol),
-        hash_mol=uuid.uuid4(),
-        hash_tautomer=uuid.uuid4(),
-        hash_canonical_smiles=uuid.uuid4(),
-        hash_no_stereo_smiles=uuid.uuid4(),
-        hash_no_stereo_tautomer=uuid.uuid4(),
+        formula=formula,
+        hash_mol=hash_mol,
+        hash_tautomer=hash_tautomer,
+        hash_canonical_smiles=hash_canonical_smiles,
+        hash_no_stereo_smiles=hash_no_stereo_smiles,
+        hash_no_stereo_tautomer=hash_no_stereo_tautomer,
         created_at=datetime.now(),
         updated_at=datetime.now(),
         created_by=main.admin_user_id,
@@ -522,9 +552,23 @@ def get_compounds_ex(db: Session, query_params: models.CompoundQueryParams):
             compounds.append(compound)
 
         return compounds
+
     else:
         # If no substructure provided, use regular get_compounds function
         return get_compounds(db, skip=query_params.skip, limit=query_params.limit)
+
+
+def search_compounds_exact(query_smiles: str, search_parameters: models.ExactSearchParameters, db: Session):
+    """
+    Perform an exact search for compounds.
+
+    - **query_smiles**: The SMILES string to search against.
+    - **search_parameters**: Parameters for the exact search.
+    """
+    if not search_parameters:
+        raise HTTPException(status_code=400, detail="Search parameters are required for exact search")
+    exact_params = models.ExactSearchParameters(**search_parameters)
+    return db.query(db=db, query_smiles=query_smiles, fields=exact_params.field)
 
 
 # AssayResult CRUD operations
@@ -933,3 +977,68 @@ def delete_compound(db: Session, compound_id: int):
     db.commit()
     db.refresh(db_compound)
     return db_compound
+
+
+def search_compounds_substructure(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Placeholder for substructure search.
+    """
+    raise NotImplementedError("Substructure search is not implemented yet.")
+
+
+def search_compounds_similarity(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Placeholder for similarity search.
+    """
+    raise NotImplementedError("Similarity search is not implemented yet.")
+
+
+def get_standardized_mol_and_layers(query_smiles: str, http_errors: bool = False) -> dict:
+    missing_msg = "Query SMILES is required"
+    invalid_msg = "Invalid SMILES string"
+
+    if not query_smiles:
+        if http_errors:
+            raise HTTPException(status_code=400, detail=missing_msg)
+        else:
+            raise ValueError(missing_msg)
+
+    mol = Chem.MolFromSmiles(query_smiles)
+    if mol is None:
+        if http_errors:
+            raise HTTPException(status_code=400, detail=invalid_msg)
+        else:
+            raise ValueError(invalid_msg)
+
+    standardized_mol = standardize_mol(mol)
+    mol_layers = generate_hash_layers(standardized_mol)
+    return mol_layers
+
+
+def search_compounds_by_hash(
+    db: Session, query_smiles: str, hash_layer: Any, hash_attr_name: str
+) -> List[models.Compound]:
+    mol_layers = get_standardized_mol_and_layers(query_smiles, http_errors=True)
+    hash_value = generate_uuid_from_string(mol_layers[hash_layer])
+    return db.query(models.Compound).filter(getattr(models.Compound, hash_attr_name) == hash_value).all()
+
+
+def search_compounds_tautomer(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Perform a tautomer search for compounds. For a given molecule, find all compounds that have the same tautomer hash regardless of their stereochemistry.
+    """
+    return search_compounds_by_hash(db, query_smiles, HashLayer.TAUTOMER_HASH, "hash_tautomer")
+
+
+def search_compounds_stereo(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Perform a stereo search for compounds regardless tautomeric state."""
+    return search_compounds_by_hash(db, query_smiles, HashLayer.NO_STEREO_SMILES, "hash_no_stereo_smiles")
+
+
+def search_compounds_connectivity(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):
+    """
+    Perform a connectivity search for compounds.
+    This will find compounds that have the same connectivity regardless of their stereochemistry or tautomeric state.
+    """
+    return search_compounds_by_hash(db, query_smiles, HashLayer.NO_STEREO_TAUTOMER_HASH, "hash_no_stereo_tautomer")

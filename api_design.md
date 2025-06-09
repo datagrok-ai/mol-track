@@ -41,7 +41,7 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
        "synonym_types": [
             {"name": "batch_corporate_id", "level": "batch", "pattern": ""},
             {"name": "corporate_id", "level": "compound", "pattern": ""},
-            {"name": "CAS number", "level": "compound", "pattern": r"\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b"},
+            {"name": "CAS number", "level": "compound", "pattern": "r'\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b'"},
             {"name": "common name", "level": "compound", "pattern": ""},
             {"name": "USAN", "level": "compound", "pattern": ""}
             ]
@@ -117,7 +117,7 @@ Mapping is optional, but assumes that the field names directly map to the databa
 
       ```json
       {
-         "status_message" = "Success",
+         "status_message": "Success",
          "data": "\"batch_corporate_id\",smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id\n\"EPA-001-001\",\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",1,2,\"EPA-001\"\n\"EPA-120-001\",\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",2,4,\"EPA-120\"\n"
       }
       ```
@@ -197,7 +197,7 @@ Registrations could be executed synchronously or asynchronously.  In general, re
 
       ```json
       {
-         "status_messge" = "Success",
+         "status_messge": "Success",
          "data": "smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id,registration_status,registration_error_message\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",2,\"EPA-001\","success",""\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",4,\"EPA-120\","success",""\n"
       }
       ```
@@ -206,7 +206,7 @@ Registrations could be executed synchronously or asynchronously.  In general, re
 
       ```json
       {
-         "status_messge" = "Failed",
+         "status_messge": "Failed",
          "data": "smiles,common_name,cas,usan,batch_id,compound_id,compound_corporate_id,registration_status,registration_error_message\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",\"121-91-5\",2,\"EPA-001\","success",""\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\",4,\"EPA-120\","failed","invalid structure"\n"
       }
       ```
@@ -374,14 +374,9 @@ An example CSV can be found here [assay_results.csv](./demo-data/black/assay_res
 
 ## Search - WIP ##
 
-Can we provide a generalized search capabilities across all the various entities in our model: compounds, batches, assay_results.  The endpoint path indicates the shape of the returned data: compound per row; batch per row; assay result value per row.
+We provide a generalized search capabilities across all the various entities in our model: compounds, batches, assay_results.  A simple or complex set of search criteria are presented in a json format.  ~~Query parameters provide pagination support and output format style.~~ For the MVP, pagination is not required and only the CSV style output will be provided.  
 
-- `/search/compounds`
-- `/search/batches`
-- `/search/assay-data`
-
-- `POST /search`
-A simple or complex set of search criteria are presented in a json format.  ~~Query parameters provide pagination support and output format style.~~ For the MVP, pagination is not required and only the CSV style output will be provided.  User stories:
+User stories:
 
    1. Find all batches made for project X in the past week.
    2. Find all stereo-similar compounds to I can determine whether I have expressed the stereo nature of my new molecule correctly.
@@ -394,11 +389,62 @@ A simple or complex set of search criteria are presented in a json format.  ~~Qu
       3. batch property of source = WuXi
       4. kinase IC50 < 100 uM
 
+The endpoint path indicates the shape of the returned data: compound per row; batch per row; assay result value per row.
+
+- `/search/compounds` - compound per row, batch data aggregated or pivoted to the compound row.
+- `/search/batches` - batch per row, compound data denormalized to each batch row, assay results aggreated or pivoted to the batch row
+- `/search/assay-data` -
+
+- `POST /search`
 - `POST /search/compounds/structure`
   - exact  -->  smiles + standardized by Moltrack settings.  optional pattern of standardization  [array of standardization steps].  uses all layers of the registration mol hash
     - returns - 0 or 1 compound entries, exact match might return multiple tautomers
-  - less precise  -- substructure, tautomer, no-stereo
-substructure + similar to a key compound
+  - less precise  -- substructure, tautomer, no-stereo, similar to a key compound
+    - returns multiple rows
+
+   Caller does not need to how we call the fields and parameters
+
+    - exact( query_molecule: smiles)
+    - substructure( query_molecule: smarts)
+    - tautomer( query_molecule: smiles)
+    - no-stereo( query_molecule: smiles )
+    - similar( query_molecule: smiles, similarity_threshold: float = 0.9)
+
+   How to structure the json?
+
+   ```json
+    {
+      "query_mol": "smiles | smarts",
+      "structure_search": "exact (default) | substructure | tautomer | no-stereo | similar "
+    },
+    { "structure_search_type": ""}
+    ```
+   If we can decide on the proper structure search condition expression then these can just be part of the `/search/compounds` body and we don't need the `/search/compounds/structure` path
+
+- `POST /search/complex` - should this be the generalized search?  Krzysztof has implement body like
+
+```json
+{
+  "conditions": [
+    {
+      "table": "compounds",
+      "field": "hash_tautomer",
+      "operator": "=",
+      "query_smiles": "Cc1ccc(NC(=O)c2ccc(CN3CCN(C)CC3)cc2)cc1Nc1nccc(-c2cccnc2)n1",
+      "columns": ["id", "canonical_smiles"]
+    },
+    {
+      "table": "assays",
+      "field": "IC50",
+      "operator": "<",
+      "unit": "nM"
+      "value": 100,
+      "columns": ["assay_id", "IC50", "target"]
+    }
+  ],
+  "logic": "AND"
+}
+```
 
 - `POST /search/batches`
 - `POST /search/assay-data`
@@ -446,7 +492,7 @@ Properties and synonym types can probably follow the standard approaches:
 
    ```json
    {
-      "batches-collection-job-id": id,
+      "batches-collection-job-id": 123456,
       "global-status": "In Progress",
       "individual-statuses": [
          { "batch1": "Success"},
@@ -477,7 +523,7 @@ A simplified json example is presented here to demonstrate the input structure:
          "smiles": "c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N",
          "synonyms": [
             {"USAN": "celecoxib"},
-            {"CAS Number": "169590-42-5}"
+            {"CAS Number": "169590-42-5"}
          ],
          "properties": []
       }
@@ -503,7 +549,7 @@ A simplified json example is presented here to demonstrate the input structure:
 
    ```json
    {
-      "compounds-collection-job-id": id,
+      "compounds-collection-job-id": 123456,
       "global-status": "In Progress",
       "individual-statuses": [
          { "molecule1": "Success"},
