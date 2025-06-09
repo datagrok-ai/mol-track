@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 
+from chemistry_utils import generate_hash_layers, generate_uuid_from_string, standardize_mol
+from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
 import enums
 import main
 import models
@@ -34,18 +36,27 @@ class CompoundRegistrar(BaseRegistrar):
             raise HTTPException(status_code=400, detail=f"Compound with InChIKey {inchikey} already exists")
 
         now = datetime.utcnow()
+        standarized_mol = standardize_mol(mol)
+        mol_layers = generate_hash_layers(standarized_mol)
+        hash_mol = GetMolHash(mol_layers)
+        canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
+        hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
+        hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
+        hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
+        hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
+        
         return {
-            "canonical_smiles": Chem.MolToSmiles(mol, isomericSmiles=True, canonical=True),
+            "canonical_smiles": canonical_smiles,
             "inchi": Chem.MolToInchi(mol),
             "inchikey": inchikey,
             "original_molfile": compound_data.get("original_molfile", ""),
             "molregno": random.randint(0, 100),
             "formula": rdMolDescriptors.CalcMolFormula(mol),
-            # TODO: Replace this once hash merging logic is merged
-            **{
-                f"hash_{key}": uuid.uuid4()
-                for key in ["mol", "tautomer", "canonical_smiles", "no_stereo_smiles", "no_stereo_tautomer"]
-            },
+            "hash_mol": hash_mol,
+            "hash_tautomer": hash_tautomer,
+            "hash_canonical_smiles": hash_canonical_smiles,
+            "hash_no_stereo_smiles": hash_no_stereo_smiles,
+            "hash_no_stereo_tautomer": hash_no_stereo_tautomer,
             "created_at": now,
             "updated_at": now,
             "created_by": main.admin_user_id,
