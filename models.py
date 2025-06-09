@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from pydantic import validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
@@ -410,11 +410,6 @@ class BatchAssayResultsResponse(SQLModel):
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
 
 
-# class AdditionResponse(SQLModel):
-#     id: int
-#     name: str
-
-
 class AdditionFields(SQLModel):
     name: Optional[str] = Field(default=None, unique=True)
     description: Optional[str] = None
@@ -577,8 +572,3 @@ class SchemaCompoundResponse(SQLModel):
 
 class SchemaBatchResponse(SchemaCompoundResponse):
     additions: List["AdditionBase"] = Field(default_factory=list)
-
-
-class CompoundBoolFilter(SQLModel):
-    fields: List[str]  # e.g. ["is_active", "is_archived"], or ["all"] to select all
-    logic: Literal["and", "or"] = "and"
