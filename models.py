@@ -590,7 +590,6 @@ class ExactSearchModel(SQLModel):
         Validate or generate a UUID hash from the standardized SMILES.
         """
         import crud
-
         query_smiles = values.get("query_smiles")
         layers = crud.get_standardized_mol_and_layers(query_smiles)
 
@@ -609,7 +608,6 @@ class SearchCompoundStructure(SQLModel):
         default_factory=dict,
         description="Additional parameters for the search (e.g., similarity threshold, tautomer options)",
     )
-
 
 class QueryCondition(SQLModel):
     table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
