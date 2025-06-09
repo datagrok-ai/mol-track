@@ -146,6 +146,7 @@ class CompoundRegistrar(BaseRegistrar):
                     details.extend(
                         self._build_details_records(grouped.get("properties", {}), compound["inchikey"], "inchikey")
                     )
+                    self.get_additional_records(grouped, compound["inchikey"])
                     self._add_output_row(compound_data, grouped, "success")
                 except Exception as e:
                     self._add_output_row(row, {}, "failed", str(e))
@@ -157,8 +158,7 @@ class CompoundRegistrar(BaseRegistrar):
                 global_idx += 1
 
             if self.compounds_to_insert:
-                # TODO: Improve error handling
-                extra_sql = self.get_additional_cte(self.compounds_to_insert, rows)
+                extra_sql = self.get_additional_cte()
                 batch_sql = self.generate_sql(self.compounds_to_insert, synonyms, details, extra_sql)
                 self.sql_statements.append(batch_sql)
 
@@ -215,7 +215,10 @@ class CompoundRegistrar(BaseRegistrar):
                 JOIN inserted_compounds ic ON d.inchikey = ic.inchikey
             )"""
 
-    def get_additional_cte(self, compounds, rows):
+    def get_additional_cte(self):
+        pass
+
+    def get_additional_records(self, grouped, inchikey):
         pass
 
     def _prepare_sql_parts(self, records: List[Dict[str, Any]]):

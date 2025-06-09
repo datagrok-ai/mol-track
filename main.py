@@ -3,6 +3,7 @@ import io
 from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
+from registration.batch_registrar import BatchRegistrar
 from registration.compound_registrar import CompoundRegistrar
 import models
 import enums
@@ -472,7 +473,7 @@ def register_batches_v1(
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(CompoundRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(BatchRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 @router.get("/batches/", response_model=List[models.BatchResponse])

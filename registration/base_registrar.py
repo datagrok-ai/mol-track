@@ -104,6 +104,8 @@ class BaseRegistrar(ABC):
             "registration_status": status,
             "registration_error_message": error_msg,
         }
+        if hasattr(self, "get_additional_output_info"):
+            output.update(self.get_additional_output_info(grouped))
         self.output_records.append(output)
 
     def result(self, output_format: str = enums.OutputFormat.json) -> Dict[str, str]:

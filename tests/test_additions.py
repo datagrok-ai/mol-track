@@ -11,19 +11,10 @@ def additions_csv():
     return file_path, csv_data
 
 
-def test_create_additions_csv(client, additions_csv):
-    file_path, csv_data = additions_csv
-    files = {"file": (file_path, csv_data, "text/csv")}
-    response = client.post("/v1/additions/", files=files)
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "success"
-    assert "created" in data
-
-    expected_additions = pd.read_csv(file_path)["name"].tolist()
-    actual_additions = [addition["name"] for addition in data["created"]["additions"]]
-    assert sorted(actual_additions) == sorted(expected_additions)
+def test_create_additions(client, uploaded_additions):
+    actual_additions, expected_names = uploaded_additions
+    actual_names = [addition["name"] for addition in actual_additions]
+    assert sorted(actual_names) == sorted(expected_names)
 
 
 def test_get_all_additions(client, additions_csv):

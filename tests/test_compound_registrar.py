@@ -1,21 +1,8 @@
 import json
-import pytest
+from tests.conftest import TEST_SCHEMA_DATA
 
 import enums
 from tests.conftest import load_csv_file
-
-TEST_SCHEMA_DATA = {
-    "properties": [
-        {"name": "MolLogP", "scope": "COMPOUND", "property_class": "CALCULATED", "value_type": "double", "unit": ""}
-    ],
-    "synonym_types": [
-        {"name": "batch_corporate_id", "synonym_level": "BATCH", "pattern": ""},
-        {"name": "corporate_id", "synonym_level": "COMPOUND", "pattern": ""},
-        {"name": "CAS", "synonym_level": "COMPOUND", "pattern": r"\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b"},
-        {"name": "common name", "synonym_level": "COMPOUND", "pattern": ""},
-        {"name": "USAN", "synonym_level": "COMPOUND", "pattern": ""},
-    ],
-}
 
 DEFAULT_MAPPING = {
     "smiles": "smiles",
@@ -24,11 +11,6 @@ DEFAULT_MAPPING = {
     "usan": "compounds_synonyms.usan",
     "MolLogP": "properties.MolLogP",
 }
-
-
-@pytest.fixture
-def preload_schema(client):
-    return client.post("v1/schema/", json=TEST_SCHEMA_DATA)
 
 
 def post_compound_data(client, file_path, error_handling):
@@ -48,8 +30,8 @@ def test_preload_schema(client):
     data = response.json()
     assert data["status"] == "success"
 
-    expected_synonyms = ["batch_corporate_id", "corporate_id", "common name", "CAS", "USAN"]
-    expected_properties = ["MolLogP"]
+    expected_synonyms = ["batch_corporate_id", "corporate_id", "common_name", "cas", "usan"]
+    expected_properties = ["MolLogP", "acquired_date"]
     actual_synonyms = [s["name"] for s in data["created"]["synonym_types"]]
     actual_properties = [p["name"] for p in data["created"]["property_types"]]
 
@@ -69,17 +51,14 @@ def test_register_compounds_reject_all(client, preload_schema):
     assert len(data) == 3
 
     item0 = data[0]
-    assert item0["batch_corporate_id"] == "EPA-001-002"
     assert item0["registration_status"] == "failed"
     assert item0["registration_error_message"] == "400: Invalid SMILES string"
 
     item1 = data[1]
-    assert item1["batch_corporate_id"] == "EPA-001-001"
     assert item1["registration_status"] == "not_processed"
     assert item1["registration_error_message"] is None
 
     item2 = data[2]
-    assert item2["batch_corporate_id"] == "EPA-120-001"
     assert item2["registration_status"] == "not_processed"
     assert item2["registration_error_message"] is None
 
@@ -93,20 +72,14 @@ def test_register_compounds_reject_row(client, preload_schema):
     assert isinstance(data, list)
     assert len(data) == 3
 
-    failed = [item for item in data if item["registration_status"] == "failed"]
-    successful = [item for item in data if item["registration_status"] == "successful"]
+    item0 = data[0]
+    assert item0["registration_status"] == "failed"
+    assert item0["registration_error_message"] == "400: Invalid SMILES string"
 
-    assert len(failed) == 3
-    assert len(successful) == 0
+    item1 = data[1]
+    assert item1["registration_status"] == "success"
+    assert item1["registration_error_message"] is None
 
-    assert data[0]["batch_corporate_id"] == "EPA-001-002"
-    assert data[0]["registration_status"] == "failed"
-    assert data[0]["registration_error_message"] == "400: Invalid SMILES string"
-
-    assert data[1]["batch_corporate_id"] == "EPA-001-001"
-    assert data[1]["registration_status"] == "failed"
-    assert data[1]["registration_error_message"] == "400: Unknown synonym type: common_name"
-
-    assert data[2]["batch_corporate_id"] == "EPA-120-001"
-    assert data[2]["registration_status"] == "failed"
-    assert data[2]["registration_error_message"] == "400: Unknown synonym type: common_name"
+    item2 = data[2]
+    assert item2["registration_status"] == "success"
+    assert item2["registration_error_message"] is None

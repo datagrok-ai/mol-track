@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pytest import Session
 from registration.compound_registrar import CompoundRegistrar
-import enums
 import main
 import models
 
@@ -14,6 +13,11 @@ class BatchRegistrar(CompoundRegistrar):
         super().__init__(db, mapping, error_handling)
         self.batch_records_map = self._load_reference_map(models.Batch, "batch_regno")
         self.additions_map = self._load_reference_map(models.Addition, "name")
+
+        self.batches_to_insert = []
+        self.batch_synonyms = []
+        self.batch_details = []
+        self.batch_additions = []
 
     def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
         batch_regno = random.randint(0, 1000)
@@ -39,43 +43,35 @@ class BatchRegistrar(CompoundRegistrar):
                 {
                     "batch_regno": batch_regno,
                     "addition_id": getattr(addition, "id"),
-                    "addition_equivalent": float(value),
+                    "addition_equivalent": float(value) if value not in (None, "") else 1,
                     "created_by": main.admin_user_id,
                     "updated_by": main.admin_user_id,
                 }
             )
         return records
 
-    def get_additional_cte(self, compounds, rows):
-        batches_to_insert, batch_synonyms, batch_details, batch_additions = [], [], [], []
+    def get_additional_records(self, grouped, inchikey):
+        batch_record = self._build_batch_record(inchikey)
+        self.batches_to_insert.append(batch_record)
 
-        for idx, compound in enumerate(compounds):
-            grouped = self._group_data(rows[idx])
-            try:
-                batch_record = self._build_batch_record(compound["inchikey"])
-                batches_to_insert.append(batch_record)
+        self.batch_synonyms.extend(
+            self._build_synonym_records(grouped.get("batches_synonyms", {}), batch_record["batch_regno"], "batch_regno")
+        )
+        self.batch_details.extend(
+            self._build_details_records(
+                grouped.get("batches_properties", {}), batch_record["batch_regno"], "batch_regno"
+            )
+        )
+        self.batch_additions.extend(
+            self._build_batch_addition_record(grouped.get("batches_additions", {}), batch_record["batch_regno"])
+        )
 
-                batch_synonyms.extend(
-                    self._build_synonym_records(
-                        grouped.get("batches_synonyms", {}), batch_record["batch_regno"], "batch_regno"
-                    )
-                )
-                batch_details.extend(
-                    self._build_details_records(
-                        grouped.get("batches_properties", {}), batch_record["batch_regno"], "batch_regno"
-                    )
-                )
-                batch_additions.extend(
-                    self._build_batch_addition_record(grouped.get("batches_additions", {}), batch_record["batch_regno"])
-                )
-            except Exception:
-                if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
-                    raise HTTPException(status_code=400, detail=self.result())
-
-        if not batches_to_insert:
+    def get_additional_cte(self):
+        if not self.batches_to_insert:
             return ""
-
-        return self._build_batch_ctes(batches_to_insert, batch_synonyms, batch_details, batch_additions)
+        return self._build_batch_ctes(
+            self.batches_to_insert, self.batch_synonyms, self.batch_details, self.batch_additions
+        )
 
     def _build_batch_ctes(self, batches, synonyms, details, additions) -> str:
         batch_cte = self._build_inserted_batches_cte(batches)
@@ -128,3 +124,15 @@ class BatchRegistrar(CompoundRegistrar):
                 FROM (VALUES {values_sql}) AS ba(batch_regno, {", ".join(cols_without_key)})
                 JOIN inserted_batches ib ON ba.batch_regno = ib.batch_regno
             )"""
+
+    def get_additional_output_info(self, grouped) -> dict:
+        if not self.batches_to_insert:
+            return {}
+        last_batch = self.batches_to_insert[-1]
+        subset = {k: last_batch[k] for k in ("notes", "batch_regno")}
+        return {
+            **subset,
+            **{f"batch_synonym_{k}": v for k, v in grouped.get("batches_synonyms", {}).items()},
+            **{f"batch_property_{k}": v for k, v in grouped.get("batches_properties", {}).items()},
+            **{f"batch_addition_{k}": v for k, v in grouped.get("batches_additions", {}).items()},
+        }
