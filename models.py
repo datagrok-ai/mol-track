@@ -373,21 +373,24 @@ class BatchAssayResultsResponse(SQLModel):
     assay_name: str
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
 
+
 class SynonymTypeBase(SQLModel):
     synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
     name: str = Field(nullable=False)
     pattern: Optional[str] = Field(default=None)
     description: str = Field(nullable=False)
 
+
 class SynonymTypeResponse(SynonymTypeBase):
     id: int = Field(primary_key=True, index=True)
 
-    @validator('synonym_level')
+    @validator("synonym_level")
     def validate_synonym_level(cls, value):
-        allowed_values = ['BATCH', 'COMPOUND']
+        allowed_values = ["BATCH", "COMPOUND"]
         if value.upper() not in allowed_values:
             raise ValueError(f"synonym_level must be one of {allowed_values}")
         return value
+
 
 class SynonymType(SynonymTypeResponse, table=True):
     __tablename__ = "synonym_types"
@@ -402,13 +405,16 @@ class SynonymType(SynonymTypeResponse, table=True):
     compound_synonyms: "CompoundSynonym" = Relationship(back_populates="synonym_type")
     batch_synonyms: "BatchSynonym" = Relationship(back_populates="synonym_type")
 
+
 class CompoundSynonymBase(SQLModel):
     synonym_value: str = Field(nullable=False)
     compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
     synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
 
+
 class CompoundSynonymResponse(CompoundSynonymBase):
     id: int = Field(primary_key=True, index=True)
+
 
 class CompoundSynonym(CompoundSynonymResponse, table=True):
     __tablename__ = "compound_synonyms"
@@ -423,13 +429,16 @@ class CompoundSynonym(CompoundSynonymResponse, table=True):
     compound: "Compound" = Relationship(back_populates="compound_synonyms")
     synonym_type: "SynonymType" = Relationship(back_populates="compound_synonyms")
 
+
 class BatchSynonymBase(SQLModel):
     synonym_value: str = Field(nullable=False)
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
     synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
 
+
 class BatchSynonymResponse(BatchSynonymBase):
     id: int = Field(primary_key=True, index=True)
+
 
 class BatchSynonym(BatchSynonymResponse, table=True):
     __tablename__ = "batch_synonyms"
@@ -444,8 +453,8 @@ class BatchSynonym(BatchSynonymResponse, table=True):
     batch: "Batch" = Relationship(back_populates="batch_synonyms")
     synonym_type: "SynonymType" = Relationship(back_populates="batch_synonyms")
 
+
 class ExactSearchModel(SQLModel):
-    
     query_smiles: str  # SMILES string for the molecule
     standardization_steps: Optional[List[str]] = None
     # hash_mol: Optional[str] = None
@@ -459,6 +468,7 @@ class ExactSearchModel(SQLModel):
         Validate or generate a UUID hash from the standardized SMILES.
         """
         import crud
+
         query_smiles = values.get("query_smiles")
         layers = crud.get_standardized_mol_and_layers(query_smiles)
 
@@ -478,6 +488,7 @@ class SearchCompoundStructure(SQLModel):
         description="Additional parameters for the search (e.g., similarity threshold, tautomer options)",
     )
 
+
 class QueryCondition(SQLModel):
     table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
     field: Literal["hash_tautomer", "hash_no_stereo_smiles"]  # Field/column to filter on
@@ -495,3 +506,33 @@ class ComplexQueryRequest(SQLModel):
 class ExactSearchParameters(SQLModel):
     field: str
     value: Optional[str] = None
+
+
+class FilterCondition(SQLModel):
+    """
+    Represents a single condition in the filter.
+    """
+
+    field: str  # Literal?
+    operator: Literal["=", "!=", ">", "<", ">=", "<=", "LIKE", "IN", "is similar"]  # Supported operators
+    value: Optional[Any] = None  # Value to compare against
+    threshold: Optional[float] = None  # Threshold for similarity (if applicable)
+
+
+class FilterGroup(SQLModel):
+    """
+    Represents a group of conditions with a logical operator.
+    """
+
+    operator: Literal["AND", "OR"]  # Logical operator for combining conditions
+    conditions: List[Union["FilterCondition", "FilterGroup"]]  # Nested conditions or groups
+
+
+class DynamicQueryRequest(SQLModel):
+    """
+    Represents the entire query payload.
+    """
+
+    level: Literal["compounds", "batches", "assay_results"]  # Query level
+    output: List[str]  # Fields to include in the result, Literal?
+    filter: FilterGroup  # Filter group

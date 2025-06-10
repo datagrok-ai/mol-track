@@ -2,14 +2,8 @@ from typing import Any
 from fastapi import FastAPI, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
-from rdkit import Chem
 
 import models
-from chemistry_utils import (
-    calculate_no_stereo_smiles_hash,
-    calculate_tautomer_hash,
-    standardize_mol,
-)
 from logging_setup import logger
 
 # Handle both package imports and direct execution
@@ -63,7 +57,6 @@ def on_startup():
 @app.post("/compounds/", response_model=models.CompoundResponse)
 def create_compound(compound: models.CompoundCreate, db: Session = Depends(get_db)):
     return crud.create_compound(db=db, compound=compound)
-
 
 
 @app.post("/compounds/batch/", response_model=list[models.CompoundResponse])
@@ -356,73 +349,113 @@ def search_compound_structure(request: models.SearchCompoundStructure, db: Sessi
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/search/complex", response_model=list[dict[str, Any]])
-def search_complex_query(request: models.ComplexQueryRequest, db: Session = Depends(get_db)):
+def parse_conditions(conditions: list[models.FilterCondition], parent_level: str):
     """
-    Perform a complex query across multiple tables (e.g., compounds, batch, assays).
+    Parse individual conditions into SQL query parts and parameters.
+    """
+    query_parts = []
+    query_params = {}
+    for idx, condition in enumerate(conditions):
+        field = condition.field
+        operator = condition.operator
+        value = condition.value
+        # threshold = condition.threshold
+
+        # Validate field level
+        if not field.startswith(parent_level):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Field {field} does not match the query level {parent_level}",
+            )
+
+        # Handle structure-based queries
+        if field.endswith(".structure") and operator == "is similar":
+            raise HTTPException(status_code=501, detail="This feature is not implemented yet.")
+
+        # Handle dynamic properties
+        elif ".details." in field:
+            table, dynamic_field = field.split(".details.")
+            query_parts.append(f"{table}_details.{dynamic_field} {operator} :param_{idx}")
+            query_params[f"param_{idx}"] = value
+
+        # Handle standard fields
+        else:
+            query_parts.append(f"{field} {operator} :param_{idx}")
+            query_params[f"param_{idx}"] = value
+
+    return query_parts, query_params
+
+
+def parse_filter(filter_group: models.FilterGroup, parent_level: str):
+    """
+    Parse filter groups recursively into SQL query parts and parameters.
+    """
+    operator = filter_group.operator
+    conditions = filter_group.conditions
+    if not conditions:
+        raise HTTPException(status_code=400, detail="Filter conditions must be specified")
+
+    query_parts = []
+    query_params = {}
+    for condition in conditions:
+        if isinstance(condition, models.FilterGroup):  # Nested group
+            nested_query, nested_params = parse_filter(condition, parent_level)
+            query_parts.append(f"({nested_query})")
+            query_params.update(nested_params)
+        else:  # Single condition
+            single_query, single_params = parse_conditions([condition], parent_level)
+            query_parts.append(single_query[0])
+            query_params.update(single_params)
+
+    combined_query = f" {operator} ".join(query_parts)
+    return combined_query, query_params
+
+
+def build_sql_query(level, output_fields, filter_query, filter_params):
+    """
+    Build the final SQL query based on the level, output fields, and filter.
+    """
+    select_clause = ", ".join(output_fields)
+
+    from_clause = level
+    if any(".details." in field for field in output_fields):
+        from_clause += f" LEFT JOIN {level}_details ON {level}.id = {level}_details.{level}_id"
+
+    sql_query = f"""
+        SELECT {select_clause}
+        FROM {from_clause}
+        WHERE {filter_query}
+    """
+    return sql_query, filter_params
+
+
+@app.post("/search/dynamic", response_model=list[dict[str, Any]])
+def search_dynamic_query(request: models.DynamicQueryRequest, db: Session = Depends(get_db)):
+    """
+    Perform a dynamic query across multiple levels (compounds, batches, assay_results).
     """
     try:
-        # Validate and build the query
-        query_parts = []
-        query_params = {}  # Dictionary to hold query parameters
-        selected_columns = {}  # Dictionary to track selected columns for each table
+        # Validate the query level
+        level = request.level
+        if level not in ["compounds", "batches", "assay_results"]:
+            raise HTTPException(status_code=400, detail=f"Invalid query level: {level}")
 
-        for idx, condition in enumerate(request.conditions):
-            table = condition.table
-            field = condition.field
-            operator = condition.operator
-            value = condition.value
-            if table not in ["compounds", "batch", "assays"]:
-                raise HTTPException(status_code=400, detail=f"Invalid table name: {table}")
+        # Validate the output fields
+        output_fields = request.output
+        if not output_fields:
+            raise HTTPException(status_code=400, detail="Output fields must be specified")
 
-            # Handle SMILES-based queries substructure, tautomer, similarity etc
-            if condition.query_smiles:
-                mol = Chem.MolFromSmiles(condition.query_smiles)
-                if mol is None:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Invalid SMILES string: {condition.query_smiles}",
-                    )
-                standardized_mol = standardize_mol(mol)
+        # Validate the filter
+        filter_criteria = request.filter
+        if not filter_criteria:
+            raise HTTPException(status_code=400, detail="Filter criteria must be specified")
 
-                # Calculate the appropriate hash based on the field
-                if field == "hash_tautomer":
-                    value = calculate_tautomer_hash(standardized_mol)
-                elif field == "hash_no_stereo_smiles":
-                    value = calculate_no_stereo_smiles_hash(standardized_mol)
-                else:
-                    raise HTTPException(status_code=400, detail=f"Unsupported hash field: {field}")
+        # Parse the filter
+        filter_query, filter_params = parse_filter(filter_criteria, level)
 
-            # If the field is a UUID field, inline the UUID value directly into the query
-            if field in ["hash_tautomer", "hash_no_stereo_smiles"]:
-                query_parts.append(f"{table}.{field} {operator} '{value}'")
-            else:
-                # For non-UUID fields, use parameterized queries
-                param_name = f"param_{idx}"  # Unique parameter name
-                query_parts.append(f"{table}.{field} {operator} :{param_name}")
-                query_params[param_name] = value  # Store the parameter value
-
-            if condition.columns:
-                selected_columns[table] = condition.columns
-            elif table == "compounds":
-                # Default columns to return for the compounds table
-                selected_columns[table] = ["id", "canonical_smiles"]
-
-        # Combine conditions with the specified logic
-        combined_conditions = f" {request.logic} ".join(query_parts)
-
-        select_clauses = []
-        for table, columns in selected_columns.items():
-            for column in columns:
-                select_clauses.append(f"{table}.{column}")
-        select_clause = ", ".join(select_clauses)
-
-        # Build the final SQL query
-        sql_query = f"""
-            SELECT {select_clause}
-            FROM {", ".join(set([cond.table for cond in request.conditions]))}
-            WHERE {combined_conditions}
-        """
+        # Build the SQL query
+        sql_query, query_params = build_sql_query(level, output_fields, filter_query, filter_params)
+        logger.debug(f"Generated SQL Query: {sql_query}")
 
         # Execute the query
         result = db.execute(text(sql_query), query_params)
