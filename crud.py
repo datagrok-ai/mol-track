@@ -3,13 +3,18 @@ import uuid
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
-from rdkit.Chem.rdMolDescriptors import CalcMolFormula
-from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
-from typing import List, Dict, Any
-from sqlalchemy import text
+from typing import List
+from sqlalchemy import insert, text
 from datetime import datetime, timezone
 import models as models
+from rdkit.Chem import Descriptors, rdMolDescriptors
+from rdkit.Chem.rdMolDescriptors import CalcMolFormula
 import main
+import enums
+
+
+from typing import Type, Dict, Any
+from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
 from chemistry_utils import standardize_mol, generate_hash_layers, generate_uuid_from_string
 
 # Handle both package imports and direct execution
@@ -22,10 +27,6 @@ except ImportError:
 
 
 # Compound CRUD operations
-def get_compound(db: Session, compound_id: int):
-    return db.query(models.Compound).filter(models.Compound.id == compound_id).first()
-
-
 def get_compound_by_inchi_key(db: Session, inchikey: str):
     return db.query(models.Compound).filter(models.Compound.inchikey == inchikey).first()
 
@@ -111,7 +112,6 @@ def create_compound(db: Session, compound: models.CompoundCreate):
     db.add(db_compound)
     db.commit()
     db.refresh(db_compound)
-
     return db_compound
 
 
@@ -220,13 +220,6 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
 #     db.commit()
 #     db.refresh(db_compound)
 #     return db_compound
-
-
-def delete_compound(db: Session, compound_id: int):
-    db_compound = db.query(models.Compound).filter(models.Compound.id == compound_id).first()
-    db.delete(db_compound)
-    db.commit()
-    return db_compound
 
 
 # Batch CRUD operations
@@ -847,6 +840,143 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
     db.commit()
     db.refresh(db_batch_detail)
     return db_batch_detail
+
+
+def bulk_create_if_not_exists(
+    db: Session,
+    model_cls: Type,
+    base_model_cls: Type,
+    items: List[Any],
+    *,
+    name_attr: str = "name",
+    validate: bool = True,
+) -> List[Dict[str, Any]]:
+    input_names = [getattr(item, name_attr) for item in items]
+    existing_names = {
+        name
+        for (name,) in db.query(getattr(model_cls, name_attr))
+        .filter(getattr(model_cls, name_attr).in_(input_names))
+        .all()
+    }
+
+    to_insert = []
+    for item in items:
+        item_name = getattr(item, name_attr)
+        if item_name not in existing_names:
+            validated = base_model_cls.model_validate(item) if validate else item
+            data = validated.model_dump()
+            data.update(
+                {
+                    "created_by": main.admin_user_id,
+                    "updated_by": main.admin_user_id,
+                }
+            )
+            to_insert.append(data)
+
+    if not to_insert:
+        return []
+
+    stmt = insert(model_cls).values(to_insert).returning(model_cls)
+    result = db.execute(stmt).fetchall()
+    db.commit()
+    return [model_cls.model_validate(row[0]) for row in result]
+
+
+def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase]) -> list[dict]:
+    return bulk_create_if_not_exists(db, models.SynonymType, models.SynonymTypeBase, synonym_types)
+
+
+def get_properties_by_scope(scope: enums.ScopeClass, db: Session) -> List[models.Property]:
+    return db.query(models.Property).filter(models.Property.scope == scope).all()
+
+
+def get_synonyms_by_level(level: enums.SynonymLevel, db: Session) -> List[models.SynonymType]:
+    return db.query(models.SynonymType).filter(models.SynonymType.synonym_level == level).all()
+
+
+def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:
+    return bulk_create_if_not_exists(db, models.Property, models.PropertyBase, properties)
+
+
+def enrich_addition(add: models.AdditionBase) -> models.AdditionBase:
+    smiles, molfile, formula, mw = add.smiles, add.molfile, add.formula, add.molecular_weight
+
+    mol = Chem.MolFromSmiles(smiles) if smiles else None
+    if not mol and molfile:
+        try:
+            mol = Chem.MolFromMolBlock(molfile, sanitize=True)
+        except Exception:
+            mol = None
+
+    if not mol:
+        return add
+
+    add.smiles = smiles or Chem.MolToSmiles(mol)
+    add.molfile = molfile or Chem.MolToMolBlock(mol)
+    add.formula = formula or rdMolDescriptors.CalcMolFormula(mol)
+    add.molecular_weight = mw or Descriptors.MolWt(mol)
+
+    return add
+
+
+def create_additions(db: Session, additions: list[models.AdditionBase]) -> list[dict]:
+    enriched_additions = [enrich_addition(add) for add in additions]
+    return bulk_create_if_not_exists(db, models.Addition, models.AdditionBase, enriched_additions, validate=False)
+
+
+def get_additions(db: Session, role: enums.AdditionsRole | None = None) -> List[models.AdditionBase]:
+    query = db.query(models.Addition)
+    if role is None:
+        return query.all()
+    return query.filter_by(role=role).all()
+
+
+def get_addition_by_id(db: Session, addition_id: int) -> models.Addition:
+    db_addition = db.get(models.Addition, addition_id)
+    if db_addition is None:
+        raise HTTPException(status_code=404, detail="Addition not found")
+    return db_addition
+
+
+def update_addition_by_id(db: Session, addition_id: int, addition_update: models.AdditionUpdate):
+    db_addition = get_addition_by_id(db, addition_id=addition_id)
+    update_data = addition_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_addition, key, value)
+
+    db_addition.updated_at = datetime.now()
+    db.add(db_addition)
+    db.commit()
+    db.refresh(db_addition)
+    return db_addition
+
+
+def delete_addition_by_id(db: Session, addition_id: int):
+    db_addition = get_addition_by_id(db, addition_id=addition_id)
+    db_addition.deleted_at = datetime.now()
+    db_addition.is_active = False
+    db.commit()
+    db.refresh(db_addition)
+    return db_addition
+
+
+def read_compounds(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Compound).offset(skip).limit(limit).all()
+
+
+def get_compound_by_id(db: Session, compound_id: int):
+    return db.query(models.Compound).filter(models.Compound.id == compound_id).first()
+
+
+def delete_compound(db: Session, compound_id: int):
+    db_compound = db.get(models.Compound, compound_id)
+    if db_compound is None:
+        raise HTTPException(status_code=404, detail="Compound not found")
+    db_compound.deleted_at = datetime.now()
+
+    db.commit()
+    db.refresh(db_compound)
+    return db_compound
 
 
 def search_compounds_substructure(db: Session, query_smiles: str, search_parameters: Dict[str, Any]):

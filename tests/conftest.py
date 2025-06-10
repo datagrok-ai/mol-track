@@ -1,7 +1,9 @@
+from pathlib import Path
 import pytest
 import os
 import uuid
 import sys
+import pandas as pd
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -153,7 +155,46 @@ def client(test_db):
     app.dependency_overrides.clear()
 
 
+@pytest.fixture
+def preload_schema(client):
+    return client.post("v1/schema/", json=TEST_SCHEMA_DATA)
+
+
+@pytest.fixture
+def uploaded_additions(client):
+    file_path = "demo-data/additions.csv"
+    csv_data = load_csv_file(file_path)
+    files = {"file": (file_path, csv_data, "text/csv")}
+
+    response = client.post("/v1/additions/", files=files)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert "created" in data
+
+    return data["created"]["additions"], pd.read_csv(file_path)["name"].tolist()
+
+
+def load_csv_file(file_path: str) -> str:
+    path = Path(__file__).parent.parent / file_path
+    return path.read_text(encoding="utf-8")
+
+
 # Common test data
 aspirin_smiles = "CC(=O)OC1=CC=CC=C1C(=O)O"
 aspirin_smiles_noncanonical = "CC(Oc1c(C(O)=O)cccc1)=O"
 caffeine_smiles = "CN1C=NC2=C1C(=O)N(C(=O)N2C)C"
+
+TEST_SCHEMA_DATA = {
+    "properties": [
+        {"name": "MolLogP", "scope": "COMPOUND", "property_class": "CALCULATED", "value_type": "double", "unit": ""},
+        {"name": "acquired_date", "scope": "BATCH", "property_class": "MEASURED", "value_type": "datetime", "unit": ""},
+    ],
+    "synonym_types": [
+        {"name": "batch_corporate_id", "synonym_level": "BATCH", "pattern": ""},
+        {"name": "corporate_id", "synonym_level": "COMPOUND", "pattern": ""},
+        {"name": "cas", "synonym_level": "COMPOUND", "pattern": r"\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b"},
+        {"name": "common_name", "synonym_level": "COMPOUND", "pattern": ""},
+        {"name": "usan", "synonym_level": "COMPOUND", "pattern": ""},
+    ],
+}
