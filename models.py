@@ -70,6 +70,34 @@ class CompoundResponseBase(CompoundBase):
 class CompoundResponse(CompoundResponseBase):
     batches: List["Batch"] = []
     compound_synonyms: List["CompoundSynonym"] = []
+    properties: List["Property"] = []
+
+
+class CompoundDetailBase(SQLModel):
+    compound_id: int = Field(foreign_key="moltrack.compounds.id", nullable=False)
+    property_id: int = Field(foreign_key="moltrack.properties.id", nullable=False)
+
+
+class CompoundDetailCreate(CompoundDetailBase):
+    value: Any
+
+
+class CompoundDetail(CompoundDetailBase, table=True):
+    __tablename__ = "compound_details"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id: int = Field(primary_key=True, index=True)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    )
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    value_datetime: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
+    value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
+    value_num: Optional[float]
+    value_string: Optional[str]
 
 
 class Compound(CompoundResponseBase, table=True):
@@ -90,6 +118,10 @@ class Compound(CompoundResponseBase, table=True):
 
     batches: List["Batch"] = Relationship(back_populates="compound")
     compound_synonyms: List["CompoundSynonym"] = Relationship(back_populates="compound")
+    properties: List["Property"] = Relationship(
+        back_populates="compounds",
+        link_model=CompoundDetail,
+    )
 
 
 class BatchBase(SQLModel):
@@ -105,6 +137,7 @@ class BatchResponseBase(BatchBase):
 class BatchResponse(BatchResponseBase):
     batch_details: List["BatchDetail"] = []
     batch_synonyms: List["BatchSynonym"] = []
+    batch_additions: List["BatchAddition"] = []
 
 
 class Batch(BatchResponseBase, table=True):
@@ -120,6 +153,7 @@ class Batch(BatchResponseBase, table=True):
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
     batch_synonyms: List["BatchSynonym"] = Relationship(back_populates="batch")
+    batch_additions: List["BatchAddition"] = Relationship(back_populates="batch")
 
 
 class SemanticTypeBase(SQLModel):
@@ -140,7 +174,7 @@ class PropertyBase(SQLModel):
     property_class: enums.PropertyClass = Field(sa_column=Column(Enum(enums.PropertyClass), nullable=False))
     unit: Optional[str] = Field(default=None)
     scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
-    semantic_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id")
+    semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
 
 
 class PropertyResponse(PropertyBase):
@@ -302,6 +336,10 @@ class Property(PropertyResponse, table=True):
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     assay_types: List["AssayType"] = Relationship(link_model=AssayTypeProperty)
     assays: List["Assay"] = Relationship(back_populates="properties", link_model=AssayDetail)
+    compounds: List["Compound"] = Relationship(
+        back_populates="properties",
+        link_model=CompoundDetail,
+    )
 
 
 class AssayResultBase(SQLModel):
@@ -373,79 +411,172 @@ class BatchAssayResultsResponse(SQLModel):
     assay_name: str
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
 
-class SynonymTypeBase(SQLModel):
-    synonym_level: enums.SynonymLevel = Field(sa_column=Column(Enum(enums.SynonymLevel)))
-    name: str = Field(nullable=False)
-    pattern: Optional[str] = Field(default=None)
-    description: str = Field(nullable=False)
 
-class SynonymTypeResponse(SynonymTypeBase):
+class AdditionFields(SQLModel):
+    name: Optional[str] = Field(default=None, unique=True)
+    description: Optional[str] = None
+    code: Optional[str] = None
+    smiles: Optional[str] = None
+    role: Optional[enums.AdditionsRole] = Field(default=None, sa_column=Column(Enum(enums.AdditionsRole)))
+    molfile: Optional[str] = None
+    formula: Optional[str] = None
+    # Issue related to alias not working properly in SQLModel: https://github.com/fastapi/sqlmodel/issues/374
+    molecular_weight: Optional[float] = Field(
+        default=None,
+        schema_extra={"validation_alias": "molecular weight"},
+    )
+
+    class Config:
+        populate_by_name = True
+
+
+class AdditionBase(AdditionFields):
+    name: str = Field(nullable=False, unique=True)
+    role: enums.AdditionsRole = Field(sa_column=Column(Enum(enums.AdditionsRole)))
+
+
+class AdditionUpdate(AdditionFields):
+    pass
+
+
+class Addition(AdditionBase, table=True):
+    __tablename__ = "additions"
+    __table_args__ = (
+        CheckConstraint("role IN ('SALT', 'SOLVATE')", name="additions_role_check"),
+        {"schema": DB_SCHEMA},
+    )
+
     id: int = Field(primary_key=True, index=True)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    )
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    is_active: bool = Field(default=True)
+    is_archived: bool = Field(default=False)
+    deleted_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    deleted_by: Optional[uuid.UUID] = Field(default=None)
 
-    @validator('synonym_level')
-    def validate_synonym_level(cls, value):
-        allowed_values = ['BATCH', 'COMPOUND']
-        if value.upper() not in allowed_values:
-            raise ValueError(f"synonym_level must be one of {allowed_values}")
-        return value
 
-class SynonymType(SynonymTypeResponse, table=True):
-    __tablename__ = "synonym_types"
+class BatchAdditionBase(SQLModel):
+    batch_id: int = Field(foreign_key="moltrack.batches.id", nullable=False, unique=True)
+    addition_id: int = Field(foreign_key="moltrack.additions.id", nullable=False, unique=True)
+    addition_equivalent: float = Field(default=1)
+
+
+class BatchAddition(BatchAdditionBase, table=True):
+    __tablename__ = "batch_additions"
     __table_args__ = {"schema": DB_SCHEMA}
 
+    id: int = Field(primary_key=True, index=True)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
-    # Relationships
-    compound_synonyms: "CompoundSynonym" = Relationship(back_populates="synonym_type")
-    batch_synonyms: "BatchSynonym" = Relationship(back_populates="synonym_type")
+    batch: "Batch" = Relationship(back_populates="batch_additions")
+
+
+class SynonymTypeBase(SQLModel):
+    synonym_level: enums.SynonymLevel = Field(
+        sa_column=Column(Enum(enums.SynonymLevel)),
+        schema_extra={
+            "validation_alias": "level",
+        },
+    )
+    name: str = Field(nullable=False)
+    pattern: Optional[str] = None
+    description: str = Field(default="")
+
+    class Config:
+        populate_by_name = True
+
+
+class SynonymTypeResponse(SQLModel):
+    id: int
+    name: str
+
+
+class SynonymType(SynonymTypeBase, table=True):
+    __tablename__ = "synonym_types"
+    __table_args__ = (
+        CheckConstraint("synonym_level IN ('BATCH', 'COMPOUND')", name="synonym_types_synonym_level_check"),
+        {"schema": DB_SCHEMA},
+    )
+
+    id: int = Field(primary_key=True, index=True)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    )
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
 
 class CompoundSynonymBase(SQLModel):
+    compound_id: int = Field(foreign_key="moltrack.compounds.id", nullable=False)
+    synonym_type_id: int = Field(foreign_key="moltrack.synonym_types.id", nullable=False)
     synonym_value: str = Field(nullable=False)
-    compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
-    synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
 
-class CompoundSynonymResponse(CompoundSynonymBase):
-    id: int = Field(primary_key=True, index=True)
 
-class CompoundSynonym(CompoundSynonymResponse, table=True):
+class CompoundSynonym(CompoundSynonymBase, table=True):
     __tablename__ = "compound_synonyms"
     __table_args__ = {"schema": DB_SCHEMA}
 
+    id: int = Field(primary_key=True, index=True)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
-    # Relationships
     compound: "Compound" = Relationship(back_populates="compound_synonyms")
-    synonym_type: "SynonymType" = Relationship(back_populates="compound_synonyms")
+
 
 class BatchSynonymBase(SQLModel):
+    batch_id: int = Field(foreign_key="moltrack.batches.id", nullable=False)
+    synonym_type_id: int = Field(foreign_key="moltrack.synonym_types.id", nullable=False)
     synonym_value: str = Field(nullable=False)
-    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
-    synonym_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.synonym_types.id", nullable=False)
 
-class BatchSynonymResponse(BatchSynonymBase):
-    id: int = Field(primary_key=True, index=True)
 
-class BatchSynonym(BatchSynonymResponse, table=True):
+class BatchSynonym(BatchSynonymBase, table=True):
     __tablename__ = "batch_synonyms"
     __table_args__ = {"schema": DB_SCHEMA}
 
+    id: int = Field(primary_key=True, index=True)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    )
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
-    # Relationships
     batch: "Batch" = Relationship(back_populates="batch_synonyms")
-    synonym_type: "SynonymType" = Relationship(back_populates="batch_synonyms")
+
+
+class SchemaPayload(SQLModel):
+    properties: List["PropertyBase"] = Field(default_factory=list)
+    synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
+
+
+class AdditionsPayload(SQLModel):
+    additions: List["AdditionBase"] = Field(default_factory=list)
+
+
+class SchemaCompoundResponse(SQLModel):
+    properties: List["PropertyBase"] = Field(default_factory=list)
+    synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
+
+
+class SchemaBatchResponse(SchemaCompoundResponse):
+    additions: List["AdditionBase"] = Field(default_factory=list)
+
 
 class ExactSearchModel(SQLModel):
-    
     query_smiles: str  # SMILES string for the molecule
     standardization_steps: Optional[List[str]] = None
     # hash_mol: Optional[str] = None

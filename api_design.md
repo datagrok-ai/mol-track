@@ -63,14 +63,14 @@ The GET endpoints allow us to see the configuration of MolTrack from perspective
 
 ## Additions ##
 
-Additions are addtional chemical entities present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be preregistered into MolTrack.  One of smiles and molfile must exist.  Any missing values should be computed if possible.  The return will be an array of additions added including the addition_id. `Is_archived` is archived by default; `Is_active` is true by default.  The MolTrack administator may update an addition's `is_active` flag (via `PUT`) to `false` to disallow subsequent use of the addtion.  A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv).
+Additions are addtional chemical entities present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be pre-registered into MolTrack.  One of smiles and molfile must exist.  Any missing values should be computed if possible.  The return will be an array of additions added including the addition_id. `Is_archived` is archived by default; `Is_active` is true by default.  The MolTrack administator may update an addition's `is_active` flag (via `PUT`) to `false` to disallow subsequent use of the addtion.  A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv).
 
 - `POST /additions` - used to register one or more additions into the MolTrack system.  The endpoint accepts an array of addition definitions in csv format (selected as the format for the MVP).  The return will show the status of the overal request. There should also be an item-by-item success status and if necessary a failure message:
   - Success - new addition is successfully registered.
   - Skipped - addition exists in MolTrack already.
   - Failed - the insert of the addition failed.  A 'failure message' attribute should be added to the item.
 
-- `PUT /additions` – updates one or more existing additions in the MolTrack system. Accepts an array of complete addition definitions, each including a valid addition_id. Returns an array of the updated additions.  The return will show the status of the overal request. There should also be an item-by-item success status and if necessary a failure message:
+- `PUT /additions` – updates one or more existing additions in the MolTrack system. Accepts an array of complete addition definitions, each including a valid addition_id. Returns an array of the updated additions. The return will show the status of the overal request. There should also be an item-by-item success status and if necessary a failure message:
   - Success - new addition is successfully updated.
   - Skipped - no addition update required; addition exists and all attributes match in MolTrack already.
   - Failed - the addition update failed.  A 'failure message' attribute should be added to the item.
@@ -80,6 +80,9 @@ Additions are addtional chemical entities present in the batch/lot of a material
 - `GET /additions/solvates` - retrieve all additions with role of *solvates*.
 - `GET /additions/{addition_id}` - retrieve all information for a specific addition.
 
+### Update endpoints ###
+
+- `PUT /additions/{addition_id}` – Used to update information for the provided addition_id.
 - `DELETE /additions/{addition_id}` - soft delete from a given addition but only if there are no existing dependent batches.
 
 ## Register Batches ##
