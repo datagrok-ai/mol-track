@@ -37,7 +37,7 @@ COMMIT;
 -- Explains the meaning of a scalar property.
 CREATE TABLE moltrack.semantic_types (
   id serial PRIMARY KEY,
-  name text NOT NULL, -- e.g., Synonym, Molecule, Cell, Tissue, Organism, Treatment, Drug, Image...
+  name text NOT NULL UNIQUE, -- e.g., Synonym, Molecule, Cell, Tissue, Organism, Treatment, Drug, Image...
   description text
 );
 
@@ -66,7 +66,7 @@ CREATE TABLE moltrack.properties (
   property_class text check (property_class in ('DECLARED','CALCULATED', 'MEASURED', 'PREDICTED')) NOT NULL,
   unit text,
   scope text check (scope in ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')) NOT NULL,
-  pattern text -- regex for validating string value_type properties, e.g., identifier: CHEMBL.* 
+  pattern text, -- regex for validating string value_type properties, e.g., identifier: CHEMBL.* 
   UNIQUE(name, scope) -- Ensure unique property names within each scope
 );
 
