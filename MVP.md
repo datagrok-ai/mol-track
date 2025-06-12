@@ -59,4 +59,4 @@ We describe here the capabilities that we see as appropriate for a minimal viabl
 
 8. UX
     - [x] Swagger based API calling
-    - [ ]python command line client
+    - [ ] python command line client
