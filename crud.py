@@ -851,6 +851,25 @@ def bulk_create_if_not_exists(
     name_attr: str = "name",
     validate: bool = True,
 ) -> List[Dict[str, Any]]:
+    """
+    Bulk insert records into the database for the given SQLModel class, only if records with the same
+    unique identifier (specified by `name_attr`) do not already exist.
+
+    This function is designed for efficient batch creation of SQLModel instances,
+    validating input items against a base SQLModel class before insertion, and
+    adding audit fields such as created_by and updated_by automatically.
+
+    Args:
+        db (Session): SQLAlchemy session used to query and insert data.
+        model_cls (Type[SQLModel]): The SQLModel ORM model class representing the target table.
+        base_model_cls (Type[SQLModel]): The SQLModel base class used for validation and serialization.
+        items (List[SQLModel]): List of SQLModel instances to insert.
+        name_attr (str, optional): Attribute name used to check uniqueness (default: "name").
+        validate (bool, optional): Whether to validate each item using `base_model_cls` before insert (default: True).
+
+    Returns:
+        List[Dict[str, Any]]: List of inserted records.
+    """
     input_names = [getattr(item, name_attr) for item in items]
     existing_names = {
         name

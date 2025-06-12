@@ -82,7 +82,7 @@ Additions are addtional chemical entities present in the batch/lot of a material
 
 ### Update endpoints ###
 
-- `PUT /additions/{addition_id}` – Used to update information for the provided addition_id.
+- `PUT /additions/{addition_id}` – update information for the specified addition_id.
 - `DELETE /additions/{addition_id}` - soft delete from a given addition but only if there are no existing dependent batches.
 
 ## Register Batches ##
