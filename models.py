@@ -324,7 +324,7 @@ class Property(PropertyResponse, table=True):
             "value_type IN ('int', 'double', 'bool', 'datetime', 'string')", name="properties_value_type_check"
         ),
         CheckConstraint(
-            "property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')", name="properties_property_class_check"
+            "property_class IN ('DECLARED', 'CALCULATED', 'MEASURED', 'PREDICTED')", name="properties_property_class_check"
         ),
         CheckConstraint("scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')", name="properties_scope_check"),
         {"schema": DB_SCHEMA},
@@ -485,7 +485,7 @@ class BatchAddition(BatchAdditionBase, table=True):
 class SynonymTypeBase(PropertyBase):
     """A specialized type of PropertyBase for synonyms with fixed constraints"""
     value_type: enums.ValueType = Field(default=enums.ValueType.string)
-    property_class: enums.PropertyClass = Field(default=enums.PropertyClass.CALCULATED)
+    property_class: enums.PropertyClass = Field(default=enums.PropertyClass.DECLARED)
     unit: Optional[str] = Field(default="")
     semantic_type_id: Optional[int] = Field(default=1)  # 1 is the synonym type id
     scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
@@ -503,8 +503,8 @@ class SynonymTypeBase(PropertyBase):
 
     @validator('property_class')
     def validate_property_class(cls, v):
-        if v != enums.PropertyClass.CALCULATED:
-            raise ValueError('SynonymType must have property_class of CALCULATED')
+        if v != enums.PropertyClass.DECLARED:
+            raise ValueError('SynonymType must have property_class of DECLARED')
         return v
 
     @validator('unit')

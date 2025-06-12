@@ -46,7 +46,7 @@ INSERT INTO moltrack.semantic_types (name, description)
 VALUES ('Synonym', 'A semantic type representing a synonym or alternative identifier')
 ON CONFLICT (name) DO NOTHING;
 
--- Properties table - for calculated and measured properties
+-- Properties table - for declared, calculated, predicted and measured properties
 CREATE TABLE moltrack.properties (
   id serial PRIMARY KEY,
   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
@@ -63,7 +63,7 @@ CREATE TABLE moltrack.properties (
   -- * [value_string] for "string"
   value_type text check (value_type in ('int', 'double', 'datetime', 'uuid', 'string')) NOT NULL,
   semantic_type_id INTEGER REFERENCES moltrack.semantic_types (id),
-  property_class text check (property_class in ('CALCULATED', 'MEASURED', 'PREDICTED')) NOT NULL,
+  property_class text check (property_class in ('DECLARED','CALCULATED', 'MEASURED', 'PREDICTED')) NOT NULL,
   unit text,
   scope text check (scope in ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')) NOT NULL,
   pattern text -- regex for validating string value_type properties, e.g., identifier: CHEMBL.* 
@@ -126,7 +126,7 @@ CREATE TABLE moltrack.compounds (
 --   synonym_value text NOT NULL
 -- );
 
--- Compound details table - for calculated and measured properties
+-- Compound details table - for declared, calculated, predicted and measured properties
 CREATE TABLE moltrack.compound_details (
   id serial PRIMARY KEY,
   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
@@ -187,7 +187,7 @@ CREATE TABLE moltrack.batch_additions (
   unique (batch_id, addition_id)
 );
 
--- Batch details table - for calculated and measured properties
+-- Batch details table - for declared, calculated, predicted and measured properties
 CREATE TABLE moltrack.batch_details (
   id serial PRIMARY KEY,
   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
@@ -255,7 +255,7 @@ CREATE TABLE moltrack.assays (
   updated_by uuid NOT NULL REFERENCES moltrack.users (id)
 );
 
--- Assay details table - for calculated and measured properties
+-- Assay details table - for declared, calculated, and measured properties
 -- This is the level of the experiment executed by the user.
 -- Details like assayer, eln reference, calculation date
 -- experimental conditions like temperature, time, cell lot, protein lot, etc.
