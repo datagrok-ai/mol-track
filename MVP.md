@@ -3,7 +3,7 @@
 We describe here the capabilities that we see as appropriate for a minimal viable product that can be used to test the chemistry, synonym, property, and assay features and provide feedback on evolution and hackability.  We use the terminology of a role (implementer, admin, chemist, biologist).  *In this MVP, this will be a single global trusted user.*
 
 1. Implementor can
-    - [ ] deploy postgres database with RDkit
+    - [x] deploy postgres database with RDkit
     - [ ] configure business rules
         - [x] compound standardization rules
         - [ ] compound uniqueness rules
@@ -25,33 +25,38 @@ We describe here the capabilities that we see as appropriate for a minimal viabl
     - ~~Users managed by Datagrok can be used within MolTrack~~
 
 3. Permissions can be managed by the system or related systems
-    1. Global trusted user will have all permissions.
-    2. ~~Role based permissions can be managed within MolTrack.~~
-    3. ~~Permissions managed by Datagrok can be used within MolTrack.~~
+    - [x] Global trusted user will have all permissions.
+    - ~~Role based permissions can be managed within MolTrack.~~
+    - ~~Permissions managed by Datagrok can be used within MolTrack.~~
 
 4. Admin can *(for MVP, global user)*
     - [ ] manage controlled vocabularies - add allowed values to database tables.
 
-5. Users can *(for MVP, global user)*
+5. Chemists can *(for MVP, global user)*
+    - [x] Register compounds by csv with smiles or ctab including compounds, properties, synonyms. ~~or sd-file (ctab + properties)~~
+    - [x] Register batches  with compound, compound synonyms, batch, batch synonyms, batch properties, batch additions with csv, ~~smiles+json or sd-file with v3000-ctab and properties~~
+    - [x] Update compound based on business rules and permissions
+      - Hard coded business rule to specify that only compounds without batches can be updated.
+    - [x] Delete compounds based on business rules
+    - [ ] Update batches based on business rules and permissions
+    - [ ] Delete batches
+
+6. Biologists can *(for MVP, global user)*
+    - [ ] configure result_types (properties).
+    - [ ] configure assay_types and property associations.
+    - [ ] register assays
+    - [ ] register assay_results
+
+7. Users can *(for MVP, global user)*
     - [ ] Search for compounds by exact search, substructure search, no stereo, tautomer, similarity
     - [ ] Search for compounds by synonyms.
     - [ ] Search for batches based on compounds using above criteria.
     - [ ] Search for batches based on synonyms.
     - [ ] Search for batches based on properties.
     - [ ] Search for compounds or batches using a combination of search conditions
-6. Chemists can *(for MVP, global user)*
-    - [x] Register compounds by csv with smiles or ctab including compounds, properties, synonyms. ~~or sd-file (ctab + properties)~~
-    - [ ] Register batches  with compound, compound synonyms, batch, batch synonyms, batch properties, batch additions with csv, ~~smiles+json or sd-file with v3000-ctab and properties~~
-    - [ ] Update compound based on business rules and permissions
-    - [ ] Update batches based on business rules and permissions
-7. Biologists can *(for MVP, global user)*
-    - [ ] configure result_types (properties).
-    - [ ] configure assay_types and property associations.
-    - [ ] register assays
-    - [ ] register assay_results
-8. Biologists and chemists can *(for MVP, global user)*
-    - [ ] search, list assay_types and associated properties
-    - [ ] retrieve assay_results based on compound criteria and/or batch criteria and/or assay_type criteria
-9. UX
-    - [ ] Swagger based API calling
+    - [ ] Search, list assay_types and associated properties
+    - [ ] Retrieve assay_results based on compound criteria and/or batch criteria and/or assay_type criteria
+
+8. UX
+    - [x] Swagger based API calling
     - [ ]python command line client
