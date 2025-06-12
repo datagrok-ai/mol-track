@@ -335,19 +335,25 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
         },
     }
 
+@router.get("/schema", response_model=models.SchemaQueryResponse)
+def get_schema(db: Session = Depends(get_db)):
+    return models.SchemaQueryResponse(
+        properties=crud.get_properties(db),
+        synonym_types=crud.get_synonym_types(db),
+    )
 
 @router.get("/schema/compounds", response_model=models.SchemaCompoundResponse)
 def get_schema_compounds(db: Session = Depends(get_db)):
     return models.SchemaCompoundResponse(
         properties=crud.get_properties_by_scope(enums.ScopeClass.COMPOUND, db),
-        synonym_types=crud.get_synonyms_by_level(enums.SynonymLevel.COMPOUND, db),
+        synonym_types=crud.get_synonyms_by_scope(enums.ScopeClass.COMPOUND, db),
     )
 
 
 @router.get("/schema/batches", response_model=models.SchemaBatchResponse)
 def get_schema_batches(db: Session = Depends(get_db)):
     properties = crud.get_properties_by_scope(enums.ScopeClass.BATCH, db)
-    synonym_types = crud.get_synonyms_by_level(enums.SynonymLevel.BATCH, db)
+    synonym_types = crud.get_synonyms_by_scope(enums.ScopeClass.BATCH, db)
 
     additions = (
         db.query(models.Addition)

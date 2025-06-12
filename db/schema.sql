@@ -37,9 +37,14 @@ COMMIT;
 -- Explains the meaning of a scalar property.
 CREATE TABLE moltrack.semantic_types (
   id serial PRIMARY KEY,
-  name text NOT NULL, -- e.g., Molecule, Cell, Tissue, Organism, Treatment, Drug, Image...
+  name text NOT NULL, -- e.g., Synonym, Molecule, Cell, Tissue, Organism, Treatment, Drug, Image...
   description text
 );
+
+-- Create a semantic type for synonyms
+INSERT INTO moltrack.semantic_types (name, description) 
+VALUES ('Synonym', 'A semantic type representing a synonym or alternative identifier')
+ON CONFLICT (name) DO NOTHING;
 
 -- Properties table - for calculated and measured properties
 CREATE TABLE moltrack.properties (
@@ -49,7 +54,7 @@ CREATE TABLE moltrack.properties (
   created_by uuid NOT NULL REFERENCES moltrack.users (id),
   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
   name text NOT NULL,
-
+  description text,
   -- value_type defines the colummn in the batch_details, assay_details and assay_results 
   -- tables that store the property value:
   -- * [value_num] for "int" and "double", 
@@ -60,7 +65,9 @@ CREATE TABLE moltrack.properties (
   semantic_type_id INTEGER REFERENCES moltrack.semantic_types (id),
   property_class text check (property_class in ('CALCULATED', 'MEASURED', 'PREDICTED')) NOT NULL,
   unit text,
-  scope text check (scope in ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')) NOT NULL
+  scope text check (scope in ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')) NOT NULL,
+  pattern text -- regex for validating string value_type properties, e.g., identifier: CHEMBL.* 
+  UNIQUE(name, scope) -- Ensure unique property names within each scope
 );
 
 -- System settings like compound standardization rules, compound uniqueness rules, compound identification rules and synonym generation rules.
@@ -72,17 +79,17 @@ CREATE TABLE moltrack.settings (
 );
 
 -- Synonym types table - for batch and compound synonym types
-CREATE TABLE moltrack.synonym_types (
-  id serial PRIMARY KEY,
-  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-  created_by uuid NOT NULL REFERENCES moltrack.users (id),
-  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
-  synonym_level text check (synonym_level in ('BATCH', 'COMPOUND')) NOT NULL,
-  name text NOT NULL, -- e.g., CAS, USAN, INN, tradename ,source code
-  pattern text, -- regex for identifier: CHEMBL.*
-  description text
-);
+-- CREATE TABLE moltrack.synonym_types (
+--   id serial PRIMARY KEY,
+--   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+--   updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+--   created_by uuid NOT NULL REFERENCES moltrack.users (id),
+--   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+--   synonym_level text check (synonym_level in ('BATCH', 'COMPOUND')) NOT NULL,
+--   name text NOT NULL, -- e.g., CAS, USAN, INN, tradename ,source code
+--   pattern text, -- regex for identifier: CHEMBL.*
+--   description text
+-- );
 
 -- Compounds table - unique chemical structures
 CREATE TABLE moltrack.compounds (
@@ -108,16 +115,16 @@ CREATE TABLE moltrack.compounds (
 );
 
 -- Compound synonyms table - for compound synonym types: CAS, USAN, INN, tradename, source code
-CREATE TABLE moltrack.compound_synonyms (
-  id serial PRIMARY KEY,
-  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-  created_by uuid NOT NULL REFERENCES moltrack.users (id),
-  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
-  compound_id int NOT NULL REFERENCES moltrack.compounds (id),
-  synonym_type_id int NOT NULL REFERENCES moltrack.synonym_types (id),
-  synonym_value text NOT NULL
-);
+-- CREATE TABLE moltrack.compound_synonyms (
+--   id serial PRIMARY KEY,
+--   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+--   updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+--   created_by uuid NOT NULL REFERENCES moltrack.users (id),
+--   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+--   compound_id int NOT NULL REFERENCES moltrack.compounds (id),
+--   synonym_type_id int NOT NULL REFERENCES moltrack.synonym_types (id),
+--   synonym_value text NOT NULL
+-- );
 
 -- Compound details table - for calculated and measured properties
 CREATE TABLE moltrack.compound_details (
@@ -198,16 +205,16 @@ CREATE TABLE moltrack.batch_details (
 );
 
 -- Batch synonyms table - for batch synonym types: CAS, USAN, INN, tradename, source code
-CREATE TABLE moltrack.batch_synonyms (
-  id serial PRIMARY KEY,
-  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-  created_by uuid NOT NULL REFERENCES moltrack.users (id),
-  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
-  batch_id int NOT NULL REFERENCES moltrack.batches (id),
-  synonym_type_id int NOT NULL REFERENCES moltrack.synonym_types (id),
-  synonym_value text NOT NULL
-);
+-- CREATE TABLE moltrack.batch_synonyms (
+--   id serial PRIMARY KEY,
+--   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+--   updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+--   created_by uuid NOT NULL REFERENCES moltrack.users (id),
+--   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+--   batch_id int NOT NULL REFERENCES moltrack.batches (id),
+--   synonym_type_id int NOT NULL REFERENCES moltrack.synonym_types (id),
+--   synonym_value text NOT NULL
+-- );
 
 -- Assay types table - for assay types: kinase inhibition, cell viability, etc.
 -- this is the level for the protocol such as hepatocyte stability
@@ -286,7 +293,6 @@ CREATE TABLE moltrack.assay_results (
   value_string text,
   value_bool boolean
 );
-
 
 
 GRANT ALL PRIVILEGES ON SCHEMA moltrack TO CURRENT_USER;

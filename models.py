@@ -170,11 +170,13 @@ class SemanticType(SemanticTypeBase, table=True):
 
 class PropertyBase(SQLModel):
     name: str = Field(nullable=False)
+    description: Optional[str] = Field(default=None)
     value_type: enums.ValueType = Field(sa_column=Column(Enum(enums.ValueType), nullable=False))
     property_class: enums.PropertyClass = Field(sa_column=Column(Enum(enums.PropertyClass), nullable=False))
     unit: Optional[str] = Field(default=None)
     scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
+    pattern: Optional[str] = Field(default=None)
 
 
 class PropertyResponse(PropertyBase):
@@ -480,46 +482,71 @@ class BatchAddition(BatchAdditionBase, table=True):
     batch: "Batch" = Relationship(back_populates="batch_additions")
 
 
-class SynonymTypeBase(SQLModel):
-    synonym_level: enums.SynonymLevel = Field(
-        sa_column=Column(Enum(enums.SynonymLevel)),
-        schema_extra={
-            "validation_alias": "level",
-        },
-    )
-    name: str = Field(nullable=False)
-    pattern: Optional[str] = None
-    description: str = Field(default="")
+class SynonymTypeBase(PropertyBase):
+    """A specialized type of PropertyBase for synonyms with fixed constraints"""
+    value_type: enums.ValueType = Field(default=enums.ValueType.string)
+    property_class: enums.PropertyClass = Field(default=enums.PropertyClass.CALCULATED)
+    unit: Optional[str] = Field(default="")
+    semantic_type_id: Optional[int] = Field(default=1)  # 1 is the synonym type id
+    scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
+    pattern: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
 
     class Config:
         populate_by_name = True
 
+    @validator('value_type')
+    def validate_value_type(cls, v):
+        if v != enums.ValueType.string:
+            raise ValueError('SynonymType must have value_type of string')
+        return v
+
+    @validator('property_class')
+    def validate_property_class(cls, v):
+        if v != enums.PropertyClass.CALCULATED:
+            raise ValueError('SynonymType must have property_class of CALCULATED')
+        return v
+
+    @validator('unit')
+    def validate_unit(cls, v):
+        if v != "":
+            raise ValueError('SynonymType must have empty unit')
+        return v
+
+class SynonymTypeQueryResponse(SQLModel):
+    # id: int
+    name: str
+    description: str
+    scope: enums.ScopeClass
+    pattern: Optional[str] = None
+    # value_type: enums.ValueType
+    # property_class: enums.PropertyClass
 
 class SynonymTypeResponse(SQLModel):
     id: int
     name: str
 
 
-class SynonymType(SynonymTypeBase, table=True):
-    __tablename__ = "synonym_types"
-    __table_args__ = (
-        CheckConstraint("synonym_level IN ('BATCH', 'COMPOUND')", name="synonym_types_synonym_level_check"),
-        {"schema": DB_SCHEMA},
-    )
+# class SynonymType(SynonymTypeBase, table=True):
+#     __tablename__ = "properties"
+#     __table_args__ = (
+#         CheckConstraint("scope IN ('BATCH', 'COMPOUND')", name="properties_scope_check"),
+#         {"schema": DB_SCHEMA},
+#     )
 
-    id: int = Field(primary_key=True, index=True)
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    updated_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    )
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+#     id: int = Field(primary_key=True, index=True)
+#     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+#     updated_at: datetime = Field(
+#         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+#     )
+#     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+#     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
 
 class CompoundSynonymBase(SQLModel):
-    compound_id: int = Field(foreign_key="moltrack.compounds.id", nullable=False)
-    synonym_type_id: int = Field(foreign_key="moltrack.synonym_types.id", nullable=False)
-    synonym_value: str = Field(nullable=False)
+    compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
+    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
+    value_string: str = Field(nullable=False)
 
 
 class CompoundSynonym(CompoundSynonymBase, table=True):
@@ -538,9 +565,9 @@ class CompoundSynonym(CompoundSynonymBase, table=True):
 
 
 class BatchSynonymBase(SQLModel):
-    batch_id: int = Field(foreign_key="moltrack.batches.id", nullable=False)
-    synonym_type_id: int = Field(foreign_key="moltrack.synonym_types.id", nullable=False)
-    synonym_value: str = Field(nullable=False)
+    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
+    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
+    value_string: str = Field(nullable=False)
 
 
 class BatchSynonym(BatchSynonymBase, table=True):
@@ -562,6 +589,9 @@ class SchemaPayload(SQLModel):
     properties: List["PropertyBase"] = Field(default_factory=list)
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
 
+class SchemaQueryResponse(SQLModel):
+    properties: List["PropertyBase"] = Field(default_factory=list)
+    synonym_types: List["SynonymTypeQueryResponse"] = Field(default_factory=list)
 
 class AdditionsPayload(SQLModel):
     additions: List["AdditionBase"] = Field(default_factory=list)
@@ -569,7 +599,8 @@ class AdditionsPayload(SQLModel):
 
 class SchemaCompoundResponse(SQLModel):
     properties: List["PropertyBase"] = Field(default_factory=list)
-    synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
+    # synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
+    synonym_types: List["PropertyBase"] = Field(default_factory=list)
 
 
 class SchemaBatchResponse(SchemaCompoundResponse):
