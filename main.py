@@ -18,6 +18,8 @@ from chemistry_utils import (
     standardize_mol,
 )
 from logging_setup import logger
+import warnings
+from sqlalchemy.exc import SAWarning
 
 # Handle both package imports and direct execution
 try:
@@ -34,6 +36,7 @@ except ImportError:
 
 app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
+warnings.filterwarnings("ignore", category=SAWarning)
 
 admin_user_id: str | None = None
 

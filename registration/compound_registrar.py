@@ -1,5 +1,4 @@
 import random
-import uuid
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
@@ -43,7 +42,7 @@ class CompoundRegistrar(BaseRegistrar):
         hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
         hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
         hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
-        
+
         return {
             "canonical_smiles": canonical_smiles,
             "inchi": Chem.MolToInchi(mol),
@@ -104,6 +103,9 @@ class CompoundRegistrar(BaseRegistrar):
                 "property_id": getattr(prop, "id"),
                 "created_by": main.admin_user_id,
                 "updated_by": main.admin_user_id,
+                "value_datetime": datetime.now(),
+                "value_num": None,
+                "value_string": None,
             }
 
             try:
@@ -122,7 +124,7 @@ class CompoundRegistrar(BaseRegistrar):
         global_idx = 0
         for batch in chunked(rows, batch_size):
             self.compounds_to_insert = []
-            synonyms, details = [], []
+            details = []
 
             for idx, row in enumerate(batch):
                 try:
@@ -132,7 +134,9 @@ class CompoundRegistrar(BaseRegistrar):
                     self.compounds_to_insert.append(compound)
 
                     details.extend(
-                        self._build_details_records(grouped.get("compounds_details", {}), compound["inchikey"], "inchikey")
+                        self._build_details_records(
+                            grouped.get("compounds_details", {}), compound["inchikey"], "inchikey"
+                        )
                     )
                     self.get_additional_records(grouped, compound["inchikey"])
                     self._add_output_row(compound_data, grouped, "success")
