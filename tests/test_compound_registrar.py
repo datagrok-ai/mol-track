@@ -6,10 +6,10 @@ from tests.conftest import load_csv_file
 
 DEFAULT_MAPPING = {
     "smiles": "smiles",
-    "common_name": "compounds_synonyms.common_name",
-    "cas": "compounds_synonyms.cas",
-    "usan": "compounds_synonyms.usan",
-    "MolLogP": "properties.MolLogP",
+    "common_name": "compounds_details.common_name",
+    "cas": "compounds_details.cas",
+    "usan": "compounds_details.usan",
+    "MolLogP": "compounds_details.MolLogP",
 }
 
 

@@ -15,7 +15,6 @@ class BatchRegistrar(CompoundRegistrar):
         self.additions_map = self._load_reference_map(models.Addition, "name")
 
         self.batches_to_insert = []
-        self.batch_synonyms = []
         self.batch_details = []
         self.batch_additions = []
 
@@ -54,12 +53,9 @@ class BatchRegistrar(CompoundRegistrar):
         batch_record = self._build_batch_record(inchikey)
         self.batches_to_insert.append(batch_record)
 
-        self.batch_synonyms.extend(
-            self._build_synonym_records(grouped.get("batches_synonyms", {}), batch_record["batch_regno"], "batch_regno")
-        )
         self.batch_details.extend(
             self._build_details_records(
-                grouped.get("batches_properties", {}), batch_record["batch_regno"], "batch_regno"
+                grouped.get("batches_details", {}), batch_record["batch_regno"], "batch_regno"
             )
         )
         self.batch_additions.extend(
@@ -70,13 +66,11 @@ class BatchRegistrar(CompoundRegistrar):
         if not self.batches_to_insert:
             return ""
         return self._build_batch_ctes(
-            self.batches_to_insert, self.batch_synonyms, self.batch_details, self.batch_additions
+            self.batches_to_insert, self.batch_details, self.batch_additions
         )
 
-    def _build_batch_ctes(self, batches, synonyms, details, additions) -> str:
+    def _build_batch_ctes(self, batches, details, additions) -> str:
         batch_cte = self._build_inserted_batches_cte(batches)
-        if synonyms:
-            batch_cte += self._build_batch_synonyms_cte(synonyms)
         if details:
             batch_cte += self._build_batch_details_cte(details)
         if additions:
@@ -93,16 +87,6 @@ class BatchRegistrar(CompoundRegistrar):
                 FROM (VALUES {values_sql}) AS b (inchikey, {", ".join(cols_without_key)})
                 JOIN inserted_compounds ic ON b.inchikey = ic.inchikey
                 RETURNING id, batch_regno
-            )"""
-
-    def _build_batch_synonyms_cte(self, synonyms) -> str:
-        cols_without_key, values_sql = self._prepare_sql_parts(synonyms)
-        return f""",
-            inserted_batch_synonyms AS (
-                INSERT INTO moltrack.batch_synonyms (batch_id, {", ".join(cols_without_key)})
-                SELECT ib.id, {", ".join([f"bs.{col}" for col in cols_without_key])}
-                FROM (VALUES {values_sql}) AS bs(batch_regno, {", ".join(cols_without_key)})
-                JOIN inserted_batches ib ON bs.batch_regno = ib.batch_regno
             )"""
 
     def _build_batch_details_cte(self, details) -> str:
@@ -132,7 +116,6 @@ class BatchRegistrar(CompoundRegistrar):
         subset = {k: last_batch[k] for k in ("notes", "batch_regno")}
         return {
             **subset,
-            **{f"batch_synonym_{k}": v for k, v in grouped.get("batches_synonyms", {}).items()},
-            **{f"batch_property_{k}": v for k, v in grouped.get("batches_properties", {}).items()},
+            **{f"batch_property_{k}": v for k, v in grouped.get("batches_details", {}).items()},
             **{f"batch_addition_{k}": v for k, v in grouped.get("batches_additions", {}).items()},
         }

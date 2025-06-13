@@ -69,8 +69,7 @@ class CompoundResponseBase(CompoundBase):
 
 class CompoundResponse(CompoundResponseBase):
     batches: List["Batch"] = []
-    compound_synonyms: List["CompoundSynonym"] = []
-    properties: List["Property"] = []
+    properties: Optional[List["PropertyBase"]] = []
 
 
 class CompoundDetailBase(SQLModel):
@@ -117,11 +116,37 @@ class Compound(CompoundResponseBase, table=True):
     deleted_by: Optional[uuid.UUID] = Field(default=None)
 
     batches: List["Batch"] = Relationship(back_populates="compound")
-    compound_synonyms: List["CompoundSynonym"] = Relationship(back_populates="compound")
     properties: List["Property"] = Relationship(
         back_populates="compounds",
         link_model=CompoundDetail,
     )
+
+class BatchDetailBase(SQLModel):
+    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
+    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
+
+    value_qualifier: Optional[int] = Field(default=0, nullable=False)  # 0 for "=", 1 for "<", 2 for ">"
+    value_datetime: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
+    value_num: Optional[float] = Field(default=None)
+    value_string: Optional[str] = Field(default=None)
+
+
+class BatchDetailResponse(BatchDetailBase):
+    id: int = Field(primary_key=True, index=True)
+
+
+class BatchDetail(BatchDetailResponse, table=True):
+    __tablename__ = "batch_details"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    batch: "Batch" = Relationship(back_populates="batch_details")
+    property: "Property" = Relationship(back_populates="batch_details")
 
 
 class BatchBase(SQLModel):
@@ -136,8 +161,8 @@ class BatchResponseBase(BatchBase):
 
 class BatchResponse(BatchResponseBase):
     batch_details: List["BatchDetail"] = []
-    batch_synonyms: List["BatchSynonym"] = []
     batch_additions: List["BatchAddition"] = []
+    properties: Optional[List["PropertyBase"]] = []
 
 
 class Batch(BatchResponseBase, table=True):
@@ -152,8 +177,11 @@ class Batch(BatchResponseBase, table=True):
     compound: "Compound" = Relationship(back_populates="batches")
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
-    batch_synonyms: List["BatchSynonym"] = Relationship(back_populates="batch")
     batch_additions: List["BatchAddition"] = Relationship(back_populates="batch")
+    properties: List["Property"] = Relationship(
+        back_populates="batches",
+        link_model=BatchDetail
+    )
 
 
 class SemanticTypeBase(SQLModel):
@@ -177,6 +205,35 @@ class PropertyBase(SQLModel):
     scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
     pattern: Optional[str] = Field(default=None)
+    
+    
+class SynonymTypeBase(PropertyBase):
+    """A specialized type of PropertyBase for synonyms with fixed constraints"""
+    value_type: enums.ValueType = Field(default=enums.ValueType.string)
+    property_class: enums.PropertyClass = Field(default=enums.PropertyClass.DECLARED)
+    unit: Optional[str] = Field(default="")
+    semantic_type_id: Optional[int] = Field(default=1)  # 1 is the synonym type id
+
+    class Config:
+        populate_by_name = True
+
+    @validator('value_type')
+    def validate_value_type(cls, v):
+        if v != enums.ValueType.string:
+            raise ValueError('SynonymType must have value_type of string')
+        return v
+
+    @validator('property_class')
+    def validate_property_class(cls, v):
+        if v != enums.PropertyClass.DECLARED:
+            raise ValueError('SynonymType must have property_class of DECLARED')
+        return v
+
+    @validator('unit')
+    def validate_unit(cls, v):
+        if v != "":
+            raise ValueError('SynonymType must have empty unit')
+        return v
 
 
 class PropertyResponse(PropertyBase):
@@ -289,34 +346,6 @@ class Assay(AssayResponseBase, table=True):
     )
 
 
-class BatchDetailBase(SQLModel):
-    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
-
-    value_qualifier: Optional[int] = Field(default=0, nullable=False)  # 0 for "=", 1 for "<", 2 for ">"
-    value_datetime: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
-    value_num: Optional[float] = Field(default=None)
-    value_string: Optional[str] = Field(default=None)
-
-
-class BatchDetailResponse(BatchDetailBase):
-    id: int = Field(primary_key=True, index=True)
-
-
-class BatchDetail(BatchDetailResponse, table=True):
-    __tablename__ = "batch_details"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-
-    batch: "Batch" = Relationship(back_populates="batch_details")
-    property: "Property" = Relationship(back_populates="batch_details")
-
-
 class Property(PropertyResponse, table=True):
     __tablename__ = "properties"
     __table_args__ = (
@@ -341,6 +370,10 @@ class Property(PropertyResponse, table=True):
     compounds: List["Compound"] = Relationship(
         back_populates="properties",
         link_model=CompoundDetail,
+    )
+    batches: List["Batch"] = Relationship(
+        back_populates="properties",
+        link_model=BatchDetail,
     )
 
 
@@ -482,128 +515,23 @@ class BatchAddition(BatchAdditionBase, table=True):
     batch: "Batch" = Relationship(back_populates="batch_additions")
 
 
-class SynonymTypeBase(PropertyBase):
-    """A specialized type of PropertyBase for synonyms with fixed constraints"""
-    value_type: enums.ValueType = Field(default=enums.ValueType.string)
-    property_class: enums.PropertyClass = Field(default=enums.PropertyClass.DECLARED)
-    unit: Optional[str] = Field(default="")
-    semantic_type_id: Optional[int] = Field(default=1)  # 1 is the synonym type id
-    scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
-    pattern: Optional[str] = Field(default=None)
-    description: Optional[str] = Field(default=None)
-
-    class Config:
-        populate_by_name = True
-
-    @validator('value_type')
-    def validate_value_type(cls, v):
-        if v != enums.ValueType.string:
-            raise ValueError('SynonymType must have value_type of string')
-        return v
-
-    @validator('property_class')
-    def validate_property_class(cls, v):
-        if v != enums.PropertyClass.DECLARED:
-            raise ValueError('SynonymType must have property_class of DECLARED')
-        return v
-
-    @validator('unit')
-    def validate_unit(cls, v):
-        if v != "":
-            raise ValueError('SynonymType must have empty unit')
-        return v
-
-class SynonymTypeQueryResponse(SQLModel):
-    # id: int
-    name: str
-    description: str
-    scope: enums.ScopeClass
-    pattern: Optional[str] = None
-    # value_type: enums.ValueType
-    # property_class: enums.PropertyClass
-
-class SynonymTypeResponse(SQLModel):
-    id: int
-    name: str
-
-
-# class SynonymType(SynonymTypeBase, table=True):
-#     __tablename__ = "properties"
-#     __table_args__ = (
-#         CheckConstraint("scope IN ('BATCH', 'COMPOUND')", name="properties_scope_check"),
-#         {"schema": DB_SCHEMA},
-#     )
-
-#     id: int = Field(primary_key=True, index=True)
-#     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-#     updated_at: datetime = Field(
-#         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-#     )
-#     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-#     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-
-
-class CompoundSynonymBase(SQLModel):
-    compound_id: int = Field(foreign_key=f"{DB_SCHEMA}.compounds.id", nullable=False)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
-    value_string: str = Field(nullable=False)
-
-
-class CompoundSynonym(CompoundSynonymBase, table=True):
-    __tablename__ = "compound_synonyms"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id: int = Field(primary_key=True, index=True)
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    updated_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    )
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-
-    compound: "Compound" = Relationship(back_populates="compound_synonyms")
-
-
-class BatchSynonymBase(SQLModel):
-    batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
-    value_string: str = Field(nullable=False)
-
-
-class BatchSynonym(BatchSynonymBase, table=True):
-    __tablename__ = "batch_synonyms"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    id: int = Field(primary_key=True, index=True)
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    updated_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    )
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-
-    batch: "Batch" = Relationship(back_populates="batch_synonyms")
-
-
 class SchemaPayload(SQLModel):
     properties: List["PropertyBase"] = Field(default_factory=list)
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
 
+
 class SchemaQueryResponse(SQLModel):
     properties: List["PropertyBase"] = Field(default_factory=list)
-    synonym_types: List["SynonymTypeQueryResponse"] = Field(default_factory=list)
+    # synonym_types: List["SynonymTypeQueryResponse"] = Field(default_factory=list)
+
 
 class AdditionsPayload(SQLModel):
     additions: List["AdditionBase"] = Field(default_factory=list)
 
 
-class SchemaCompoundResponse(SQLModel):
-    properties: List["PropertyBase"] = Field(default_factory=list)
-    # synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
-    synonym_types: List["PropertyBase"] = Field(default_factory=list)
-
-
-class SchemaBatchResponse(SchemaCompoundResponse):
+class SchemaBatchResponse(SQLModel):
+    properties: Optional[List["PropertyBase"]] = Field(default_factory=list)
+    synonym_types: Optional[List["SynonymTypeBase"]] = Field(default_factory=list)
     additions: List["AdditionBase"] = Field(default_factory=list)
 
 

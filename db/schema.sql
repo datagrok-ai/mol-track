@@ -78,19 +78,6 @@ CREATE TABLE moltrack.settings (
   description text NOT NULL
 );
 
--- Synonym types table - for batch and compound synonym types
--- CREATE TABLE moltrack.synonym_types (
---   id serial PRIMARY KEY,
---   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
---   updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
---   created_by uuid NOT NULL REFERENCES moltrack.users (id),
---   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
---   synonym_level text check (synonym_level in ('BATCH', 'COMPOUND')) NOT NULL,
---   name text NOT NULL, -- e.g., CAS, USAN, INN, tradename ,source code
---   pattern text, -- regex for identifier: CHEMBL.*
---   description text
--- );
-
 -- Compounds table - unique chemical structures
 CREATE TABLE moltrack.compounds (
   id serial PRIMARY KEY,
@@ -113,18 +100,6 @@ CREATE TABLE moltrack.compounds (
   deleted_at timestamp with time zone,          -- should use current_timestamp
   deleted_by uuid REFERENCES moltrack.users (id) -- can this hand
 );
-
--- Compound synonyms table - for compound synonym types: CAS, USAN, INN, tradename, source code
--- CREATE TABLE moltrack.compound_synonyms (
---   id serial PRIMARY KEY,
---   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
---   updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
---   created_by uuid NOT NULL REFERENCES moltrack.users (id),
---   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
---   compound_id int NOT NULL REFERENCES moltrack.compounds (id),
---   synonym_type_id int NOT NULL REFERENCES moltrack.synonym_types (id),
---   synonym_value text NOT NULL
--- );
 
 -- Compound details table - for declared, calculated, predicted and measured properties
 CREATE TABLE moltrack.compound_details (
@@ -203,18 +178,6 @@ CREATE TABLE moltrack.batch_details (
   value_num float,
   value_string text
 );
-
--- Batch synonyms table - for batch synonym types: CAS, USAN, INN, tradename, source code
--- CREATE TABLE moltrack.batch_synonyms (
---   id serial PRIMARY KEY,
---   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
---   updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
---   created_by uuid NOT NULL REFERENCES moltrack.users (id),
---   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
---   batch_id int NOT NULL REFERENCES moltrack.batches (id),
---   synonym_type_id int NOT NULL REFERENCES moltrack.synonym_types (id),
---   synonym_value text NOT NULL
--- );
 
 -- Assay types table - for assay types: kinase inhibition, cell viability, etc.
 -- this is the level for the protocol such as hepatocyte stability

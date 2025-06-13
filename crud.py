@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from fastapi import HTTPException
 from rdkit import Chem
-from typing import List
+from typing import List, Optional
 from sqlalchemy import insert, text
 from datetime import datetime, timezone
 import models as models
@@ -883,43 +883,21 @@ def bulk_create_if_not_exists(
     return [model_cls.model_validate(row[0]) for row in result]
 
 
-def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase]) -> list[dict]:
-    # return bulk_create_if_not_exists(db, models.SynonymType, models.SynonymTypeBase, synonym_types)
-    return bulk_create_if_not_exists(db, models.Property, models.SynonymTypeBase, synonym_types)
-
-def get_properties(db: Session) -> List[models.Property]:
-    return db.query(models.Property).all()
-
-def get_synonym_types(db: Session) -> List[models.SynonymTypeQueryResponse]:
-    return db.execute(select(
-        models.Property.name,
-        models.Property.description,
-        models.Property.scope,
-        models.Property.pattern
-        ).where(models.Property.semantic_type_id == 1)).all()
+def get_synonym_id(db: Session) -> int:
+    result = db.query(models.SemanticType.id).filter(models.SemanticType.name == 'Synonym').scalar()
+    if result is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Semantic type 'Synonym' not found."
+        )
+    return result
 
 
-def get_properties_by_scope(scope: enums.ScopeClass, db: Session) -> List[models.Property]:
-    return db.query(models.Property).filter(models.Property.scope == scope).all()
-
-
-# def get_synonyms_by_level(level: enums.SynonymLevel, db: Session) -> List[models.SynonymType]:
-#     return db.query(models.SynonymType).filter(models.Property.scope == level).all()
-
-
-def get_synonyms_by_scope(scope: enums.ScopeClass, db: Session) -> List[models.SynonymTypeQueryResponse]:
-    # return db.query(models.Property).filter(models.Property.scope == scope, models.Property.semantic_type_id == 1).all()  # 1 is the synonym type id, which needs to be made future proof
-    return db.execute(
-        select(
-            models.Property.name,
-            models.Property.description,
-            models.Property.scope,
-            models.Property.pattern
-        ).where(
-            models.Property.semantic_type_id == 1,
-            models.Property.scope == scope
-            )
-        ).all()
+def get_entities_by_scope(db: Session, scope: enums.ScopeClass, semantic_type_id: Optional[int] = None):
+    query = db.query(models.Property).filter(models.Property.scope == scope)
+    if semantic_type_id is not None:
+        query = query.filter(models.Property.semantic_type_id == semantic_type_id)
+    return query.all()
 
 
 def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:

@@ -4,13 +4,13 @@ from tests.conftest import load_csv_file
 
 DEFAULT_MAPPING = {
     "smiles": "smiles",
-    "batch_corporate_id": "batches_synonyms.batch_corporate_id",
-    "acquistion_date": "batches_properties.acquired_date",
+    "batch_corporate_id": "batches_details.batch_corporate_id",
+    "acquistion_date": "batches_details.acquired_date",
     "HCl": "batches_additions.HCl",
-    "common_name": "compounds_synonyms.common_name",
-    "cas": "compounds_synonyms.cas",
-    "usan": "compounds_synonyms.usan",
-    "MolLogP": "properties.MolLogP",
+    "common_name": "compounds_details.common_name",
+    "cas": "compounds_details.cas",
+    "usan": "compounds_details.usan",
+    "MolLogP": "compounds_details.MolLogP",
 }
 
 
