@@ -69,7 +69,7 @@ class CompoundResponseBase(CompoundBase):
 
 class CompoundResponse(CompoundResponseBase):
     batches: List["Batch"] = []
-    properties: Optional[List["PropertyBase"]] = []
+    properties: Optional[List["PropertyWithValue"]] = []
 
 
 class CompoundDetailBase(SQLModel):
@@ -98,6 +98,9 @@ class CompoundDetail(CompoundDetailBase, table=True):
     value_num: Optional[float]
     value_string: Optional[str]
 
+    compound: "Compound" = Relationship(back_populates="compound_details")
+    property: "Property" = Relationship(back_populates="compound_details")
+
 
 class Compound(CompoundResponseBase, table=True):
     __tablename__ = "compounds"
@@ -116,10 +119,12 @@ class Compound(CompoundResponseBase, table=True):
     deleted_by: Optional[uuid.UUID] = Field(default=None)
 
     batches: List["Batch"] = Relationship(back_populates="compound")
+    compound_details: List["CompoundDetail"] = Relationship(back_populates="compound")
     properties: List["Property"] = Relationship(
         back_populates="compounds",
         link_model=CompoundDetail,
     )
+
 
 class BatchDetailBase(SQLModel):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
@@ -160,9 +165,8 @@ class BatchResponseBase(BatchBase):
 
 
 class BatchResponse(BatchResponseBase):
-    batch_details: List["BatchDetail"] = []
     batch_additions: List["BatchAddition"] = []
-    properties: Optional[List["PropertyBase"]] = []
+    properties: Optional[List["PropertyWithValue"]] = []
 
 
 class Batch(BatchResponseBase, table=True):
@@ -178,10 +182,7 @@ class Batch(BatchResponseBase, table=True):
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
     batch_additions: List["BatchAddition"] = Relationship(back_populates="batch")
-    properties: List["Property"] = Relationship(
-        back_populates="batches",
-        link_model=BatchDetail
-    )
+    properties: List["Property"] = Relationship(back_populates="batches", link_model=BatchDetail)
 
 
 class SemanticTypeBase(SQLModel):
@@ -205,34 +206,42 @@ class PropertyBase(SQLModel):
     scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
     pattern: Optional[str] = Field(default=None)
-    
-    
+
+
+class PropertyWithValue(PropertyBase):
+    value_datetime: Optional[datetime] = None
+    value_uuid: Optional[uuid.UUID] = None
+    value_num: Optional[float] = None
+    value_string: Optional[str] = None
+
+
 class SynonymTypeBase(PropertyBase):
     """A specialized type of PropertyBase for synonyms with fixed constraints"""
+
     value_type: enums.ValueType = Field(default=enums.ValueType.string)
     property_class: enums.PropertyClass = Field(default=enums.PropertyClass.DECLARED)
     unit: Optional[str] = Field(default="")
-    semantic_type_id: Optional[int] = Field(default=1)  # 1 is the synonym type id
+    semantic_type_id: Optional[int] = Field(default=1)
 
     class Config:
         populate_by_name = True
 
-    @validator('value_type')
+    @validator("value_type")
     def validate_value_type(cls, v):
         if v != enums.ValueType.string:
-            raise ValueError('SynonymType must have value_type of string')
+            raise ValueError("SynonymType must have value_type of string")
         return v
 
-    @validator('property_class')
+    @validator("property_class")
     def validate_property_class(cls, v):
         if v != enums.PropertyClass.DECLARED:
-            raise ValueError('SynonymType must have property_class of DECLARED')
+            raise ValueError("SynonymType must have property_class of DECLARED")
         return v
 
-    @validator('unit')
+    @validator("unit")
     def validate_unit(cls, v):
         if v != "":
-            raise ValueError('SynonymType must have empty unit')
+            raise ValueError("SynonymType must have empty unit")
         return v
 
 
@@ -353,7 +362,8 @@ class Property(PropertyResponse, table=True):
             "value_type IN ('int', 'double', 'bool', 'datetime', 'string')", name="properties_value_type_check"
         ),
         CheckConstraint(
-            "property_class IN ('DECLARED', 'CALCULATED', 'MEASURED', 'PREDICTED')", name="properties_property_class_check"
+            "property_class IN ('DECLARED', 'CALCULATED', 'MEASURED', 'PREDICTED')",
+            name="properties_property_class_check",
         ),
         CheckConstraint("scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')", name="properties_scope_check"),
         {"schema": DB_SCHEMA},
@@ -365,6 +375,7 @@ class Property(PropertyResponse, table=True):
 
     assay_results: List["AssayResult"] = Relationship(back_populates="property")
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
+    compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
     assay_types: List["AssayType"] = Relationship(link_model=AssayTypeProperty)
     assays: List["Assay"] = Relationship(back_populates="properties", link_model=AssayDetail)
     compounds: List["Compound"] = Relationship(
@@ -520,11 +531,6 @@ class SchemaPayload(SQLModel):
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
 
 
-class SchemaQueryResponse(SQLModel):
-    properties: List["PropertyBase"] = Field(default_factory=list)
-    # synonym_types: List["SynonymTypeQueryResponse"] = Field(default_factory=list)
-
-
 class AdditionsPayload(SQLModel):
     additions: List["AdditionBase"] = Field(default_factory=list)
 
@@ -549,6 +555,7 @@ class ExactSearchModel(SQLModel):
         Validate or generate a UUID hash from the standardized SMILES.
         """
         import crud
+
         query_smiles = values.get("query_smiles")
         layers = crud.get_standardized_mol_and_layers(query_smiles)
 
@@ -567,6 +574,7 @@ class SearchCompoundStructure(SQLModel):
         default_factory=dict,
         description="Additional parameters for the search (e.g., similarity threshold, tautomer options)",
     )
+
 
 class QueryCondition(SQLModel):
     table: Literal["batch", "compounds", "assays"]  # Specify the tables to query

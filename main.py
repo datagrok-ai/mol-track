@@ -1,8 +1,8 @@
 import csv
 import io
-from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
-from typing import List, Literal, Optional, Type
+from typing import List, Optional, Type
 from registration.batch_registrar import BatchRegistrar
 from registration.compound_registrar import CompoundRegistrar
 import models
@@ -36,6 +36,7 @@ app = FastAPI(title="MolTrack API", description="API for managing chemical compo
 router = APIRouter(prefix="/v1")
 
 admin_user_id: str | None = None
+
 
 # Dependency
 def get_db():
@@ -363,9 +364,7 @@ def get_schema_batches(db: Session = Depends(get_db)):
 
 @router.get("/schema/batches/synonyms", response_model=models.SchemaBatchResponse)
 def get_schema_batch_synonyms(db: Session = Depends(get_db)):
-    synonym_types = crud.get_entities_by_scope(
-        db, enums.ScopeClass.BATCH, crud.get_synonym_id(db)
-    )
+    synonym_types = crud.get_entities_by_scope(db, enums.ScopeClass.BATCH, crud.get_synonym_id(db))
     additions = fetch_additions(db)
     return models.SchemaBatchResponse(synonym_types=synonym_types, additions=additions)
 
@@ -407,13 +406,13 @@ def get_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
     return get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
 
 
-@router.get("/compounds/{compound_id}/synonyms", response_model=List[models.SynonymTypeBase])
+@router.get("/compounds/{compound_id}/synonyms", response_model=List[models.PropertyWithValue])
 def get_compound_synonyms(compound_id: int, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
     return [prop for prop in compound.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/compounds/{compound_id}/properties", response_model=List[models.PropertyBase])
+@router.get("/compounds/{compound_id}/properties", response_model=List[models.PropertyWithValue])
 def get_compound_properties(compound_id: int, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
     return compound.properties
@@ -509,13 +508,13 @@ def read_batch_v1(batch_id: int, db: Session = Depends(get_db)):
     return get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
 
 
-@router.get("/batches/{batch_id}/properties", response_model=List[models.PropertyBase])
+@router.get("/batches/{batch_id}/properties", response_model=List[models.PropertyWithValue])
 def read_batch_properties_v1(batch_id: int, db: Session = Depends(get_db)):
     batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
     return batch.properties
 
 
-@router.get("/batches/{batch_id}/synonyms", response_model=List[models.SynonymTypeBase])
+@router.get("/batches/{batch_id}/synonyms", response_model=List[models.PropertyWithValue])
 def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
     batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
     return [prop for prop in batch.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
