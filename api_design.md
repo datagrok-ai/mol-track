@@ -136,6 +136,13 @@ Mapping is optional, but assumes that the field names directly map to the databa
 
 - `GET /batches/` - returns a representation of batches including details, synonyms, additions and compounds including details and synonyms
 
+### Batch update endpoints ###  
+
+TODO fill out details
+
+- `PUT /batches/{batch_id}` - Used for updating information (details, compound, synonym, additions) for a given batch.  `batch_regno` is not updateable.  
+- `DELETE /batches/{batch_id}` - do I want to enable this? under what situations is it not appropriate?  is this business rule dependent?  It would seem like this should not be permitted if there are any assay_results that are dependent on it.
+
    __Future potential capabilities__
    1. pagination must be supported
    2. output format must be supported. `output-format=[json|csv|mol-v3000]` with a default of `csv`.  If `json` format is selected, the data is returned in a nested dictionary structure.  If the format is `csv` or `mol-v3000`, then the data is pivoted/concatenated/flattened
@@ -150,7 +157,7 @@ Mapping is optional, but assumes that the field names directly map to the databa
 - `GET /batches/{batch_id}/synonyms`
 - `GET /batches/{batch_id}/additions` - should returns additions, equivalents, and summary
 
-- `PUT /batches/{batch_id}` - Used for updating information (details, compound, synonym, additions) for a given batch.  `batch_regno` is not updateable.
+
 
 ## Register Virtual Compounds ##
 
@@ -243,7 +250,7 @@ A key capability for moltrack is to capture assay data related to a sample (batc
 
 - `POST /schema/assay`  will define allowed/expected properties for assay_type_details, assay_details, assay_type_properties.  The properties represent categorization of the assay type whose values would be stored in *assay_type_details*, experimental conditions that would be stored as the assays level in the *assay_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assay type* level.
 
-N.B. I am not happy with the titling of the major sections of the following schema
+TODO: I am not happy with the higher level (major sections) key names of the following schema
 
    ```json
    {
