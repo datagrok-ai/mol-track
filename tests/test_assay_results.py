@@ -39,6 +39,8 @@ test_semantic_type_data = {
     "description": "Describes properties related to compound absorption",
 }
 
+semantic_type_cache = {}
+
 
 # Helper functions for creating test data
 def create_test_property(client, property_data):
@@ -50,9 +52,16 @@ def create_test_property(client, property_data):
 
 def semantic_type_setup(client, prop):
     """Fixture to create a semantic type and assign its ID to test properties."""
+    semantic_type_key = prop.get("semantic_type", "default")
+    
+    if semantic_type_key in semantic_type_cache:
+        prop["semantic_type_id"] = semantic_type_cache[semantic_type_key]
+        return
+    
     response = client.post("/semantic-types/", json=test_semantic_type_data)
     assert response.status_code == 200
     semantic_type_id = response.json()["id"]
+    semantic_type_cache[semantic_type_key] = semantic_type_id
     prop["semantic_type_id"] = semantic_type_id
 
 

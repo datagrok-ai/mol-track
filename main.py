@@ -20,9 +20,9 @@ from chemistry_utils import (
     standardize_mol,
 )
 from logging_setup import logger
-
 import warnings
 from sqlalchemy.exc import SAWarning
+
 
 # Handle both package imports and direct execution
 try:
@@ -40,6 +40,7 @@ except ImportError:
 warnings.filterwarnings("ignore", category=SAWarning)
 app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
+warnings.filterwarnings("ignore", category=SAWarning)
 
 admin_user_id: str | None = None
 
@@ -330,7 +331,7 @@ def get_or_raise_exception(get_func, db, id, not_found_msg):
 
 @router.post("/schema/")
 def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
-    created_synonyms = crud.create_synonym_types(db, payload.synonym_types)
+    created_synonyms = crud.create_properties(db, payload.synonym_types)
     created_properties = crud.create_properties(db, payload.properties)
 
     return {
@@ -342,26 +343,37 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
     }
 
 
-@router.get("/schema/compounds", response_model=models.SchemaCompoundResponse)
+@router.get("/schema/compounds", response_model=List[models.PropertyBase])
 def get_schema_compounds(db: Session = Depends(get_db)):
-    return models.SchemaCompoundResponse(
-        properties=crud.get_properties_by_scope(enums.ScopeClass.COMPOUND, db),
-        synonym_types=crud.get_synonyms_by_level(enums.SynonymLevel.COMPOUND, db),
-    )
+    return crud.get_entities_by_scope(db, enums.ScopeClass.COMPOUND)
 
 
-@router.get("/schema/batches", response_model=models.SchemaBatchResponse)
-def get_schema_batches(db: Session = Depends(get_db)):
-    properties = crud.get_properties_by_scope(enums.ScopeClass.BATCH, db)
-    synonym_types = crud.get_synonyms_by_level(enums.SynonymLevel.BATCH, db)
+@router.get("/schema/compounds/synonyms", response_model=List[models.SynonymTypeBase])
+def get_schema_compound_synonyms(db: Session = Depends(get_db)):
+    return crud.get_entities_by_scope(db, enums.ScopeClass.COMPOUND, crud.get_synonym_id(db))
 
-    additions = (
+
+def fetch_additions(db: Session):
+    return (
         db.query(models.Addition)
         .join(models.BatchAddition, models.Addition.id == models.BatchAddition.addition_id)
         .distinct()
         .all()
     )
-    return models.SchemaBatchResponse(properties=properties, synonym_types=synonym_types, additions=additions)
+
+
+@router.get("/schema/batches", response_model=models.SchemaBatchResponse)
+def get_schema_batches(db: Session = Depends(get_db)):
+    properties = crud.get_entities_by_scope(db, enums.ScopeClass.BATCH)
+    additions = fetch_additions(db)
+    return models.SchemaBatchResponse(properties=properties, additions=additions)
+
+
+@router.get("/schema/batches/synonyms", response_model=models.SchemaBatchResponse)
+def get_schema_batch_synonyms(db: Session = Depends(get_db)):
+    synonym_types = crud.get_entities_by_scope(db, enums.ScopeClass.BATCH, crud.get_synonym_id(db))
+    additions = fetch_additions(db)
+    return models.SchemaBatchResponse(synonym_types=synonym_types, additions=additions)
 
 
 def process_registration(
@@ -401,13 +413,13 @@ def get_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
     return get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
 
 
-@router.get("/compounds/{compound_id}/synonyms", response_model=List[models.CompoundSynonym])
+@router.get("/compounds/{compound_id}/synonyms", response_model=List[models.PropertyWithValue])
 def get_compound_synonyms(compound_id: int, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
-    return compound.compound_synonyms
+    return [prop for prop in compound.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/compounds/{compound_id}/properties", response_model=List[models.Property])
+@router.get("/compounds/{compound_id}/properties", response_model=List[models.PropertyWithValue])
 def get_compound_properties(compound_id: int, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
     return compound.properties
@@ -500,24 +512,24 @@ def read_batches_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 
 @router.get("/batches/{batch_id}", response_model=models.BatchResponse)
 def read_batch_v1(batch_id: int, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
+    return get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
 
 
-@router.get("/batches/{batch_id}/properties", response_model=List[models.BatchDetail])
+@router.get("/batches/{batch_id}/properties", response_model=List[models.PropertyWithValue])
 def read_batch_properties_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
-    return batch.batch_details
+    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+    return batch.properties
 
 
-@router.get("/batches/{batch_id}/synonyms", response_model=List[models.BatchSynonym])
+@router.get("/batches/{batch_id}/synonyms", response_model=List[models.PropertyWithValue])
 def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
-    return batch.batch_synonyms
+    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+    return [prop for prop in batch.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
 @router.get("/batches/{batch_id}/additions", response_model=List[models.BatchAddition])
 def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
+    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
     return batch.batch_additions
 
 

@@ -21,6 +21,7 @@ class ValueType(str, enum.Enum):
 
 
 class PropertyClass(CaseInsensitiveEnum):
+    DECLARED = "DECLARED"
     CALCULATED = "CALCULATED"
     MEASURED = "MEASURED"
     PREDICTED = "PREDICTED"
