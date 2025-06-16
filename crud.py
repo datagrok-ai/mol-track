@@ -3,8 +3,9 @@ import uuid
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 from rdkit import Chem
-from typing import List
+from typing import List, Optional
 from sqlalchemy import insert, text
+from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 import models as models
 from rdkit.Chem import Descriptors, rdMolDescriptors
@@ -224,11 +225,20 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
 
 # Batch CRUD operations
 def get_batch(db: Session, batch_id: int):
-    return db.query(models.Batch).filter(models.Batch.id == batch_id).first()
+    batch = (
+        db.query(models.Batch)
+        .options(selectinload(models.Batch.properties).selectinload(models.Property.batch_details))
+        .filter(models.Batch.id == batch_id)
+        .first()
+    )
+    if not batch:
+        return None
+    return enrich_batch(batch)
 
 
 def get_batches(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Batch).offset(skip).limit(limit).all()
+    batches = db.query(models.Batch).offset(skip).limit(limit).all()
+    return [enrich_batch(batch) for batch in batches]
 
 
 def get_batches_by_compound(db: Session, compound_id: int, skip: int = 0, limit: int = 100):
@@ -901,16 +911,18 @@ def bulk_create_if_not_exists(
     return [model_cls.model_validate(row[0]) for row in result]
 
 
-def create_synonym_types(db: Session, synonym_types: list[models.SynonymTypeBase]) -> list[dict]:
-    return bulk_create_if_not_exists(db, models.SynonymType, models.SynonymTypeBase, synonym_types)
+def get_synonym_id(db: Session) -> int:
+    result = db.query(models.SemanticType.id).filter(models.SemanticType.name == "Synonym").scalar()
+    if result is None:
+        raise HTTPException(status_code=400, detail="Semantic type 'Synonym' not found.")
+    return result
 
 
-def get_properties_by_scope(scope: enums.ScopeClass, db: Session) -> List[models.Property]:
-    return db.query(models.Property).filter(models.Property.scope == scope).all()
-
-
-def get_synonyms_by_level(level: enums.SynonymLevel, db: Session) -> List[models.SynonymType]:
-    return db.query(models.SynonymType).filter(models.SynonymType.synonym_level == level).all()
+def get_entities_by_scope(db: Session, scope: enums.ScopeClass, semantic_type_id: Optional[int] = None):
+    query = db.query(models.Property).filter(models.Property.scope == scope)
+    if semantic_type_id is not None:
+        query = query.filter(models.Property.semantic_type_id == semantic_type_id)
+    return query.all()
 
 
 def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:
@@ -979,12 +991,51 @@ def delete_addition_by_id(db: Session, addition_id: int):
     return db_addition
 
 
+def enrich_properties(owner, detail_attr: str, id_attr: str) -> list[models.PropertyWithValue]:
+    enriched = []
+    owner_id = getattr(owner, "id")
+    for prop in owner.properties:
+        details = getattr(prop, detail_attr, [])
+        detail = next((d for d in details if getattr(d, id_attr, None) == owner_id), None)
+        enriched.append(
+            models.PropertyWithValue(
+                **prop.dict(),
+                value_num=getattr(detail, "value_num", None),
+                value_string=getattr(detail, "value_string", None),
+                value_datetime=getattr(detail, "value_datetime", None),
+                value_uuid=getattr(detail, "value_uuid", None),
+            )
+        )
+    return enriched
+
+
+def enrich_batch(batch: models.Batch) -> models.BatchResponse:
+    return models.BatchResponse(**batch.dict(), properties=enrich_properties(batch, "batch_details", "batch_id"))
+
+
+def enrich_compound(compound: models.Compound) -> models.CompoundResponse:
+    return models.CompoundResponse(
+        **compound.dict(), properties=enrich_properties(compound, "compound_details", "compound_id")
+    )
+
+
 def read_compounds(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Compound).offset(skip).limit(limit).all()
+    compounds = db.query(models.Compound).offset(skip).limit(limit).all()
+    return [enrich_compound(c) for c in compounds]
 
 
 def get_compound_by_id(db: Session, compound_id: int):
-    return db.query(models.Compound).filter(models.Compound.id == compound_id).first()
+    compound = (
+        db.query(models.Compound)
+        .options(selectinload(models.Compound.properties).selectinload(models.Property.compound_details))
+        .filter(models.Compound.id == compound_id)
+        .first()
+    )
+
+    if not compound:
+        return None
+
+    return enrich_compound(compound)
 
 
 def delete_compound(db: Session, compound_id: int):

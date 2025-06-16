@@ -191,10 +191,10 @@ TEST_SCHEMA_DATA = {
         {"name": "acquired_date", "scope": "BATCH", "property_class": "MEASURED", "value_type": "datetime", "unit": ""},
     ],
     "synonym_types": [
-        {"name": "batch_corporate_id", "synonym_level": "BATCH", "pattern": ""},
-        {"name": "corporate_id", "synonym_level": "COMPOUND", "pattern": ""},
-        {"name": "cas", "synonym_level": "COMPOUND", "pattern": r"\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b"},
-        {"name": "common_name", "synonym_level": "COMPOUND", "pattern": ""},
-        {"name": "usan", "synonym_level": "COMPOUND", "pattern": ""},
+        {"name": "batch_corporate_id", "scope": "BATCH", "pattern": ""},
+        {"name": "corporate_id", "scope": "COMPOUND", "pattern": ""},
+        {"name": "cas", "scope": "COMPOUND", "pattern": r"\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b"},
+        {"name": "common_name", "scope": "COMPOUND", "pattern": ""},
+        {"name": "usan", "scope": "COMPOUND", "pattern": ""},
     ],
 }
