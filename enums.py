@@ -17,18 +17,22 @@ class ValueType(str, enum.Enum):
     bool = "bool"
     datetime = "datetime"
     string = "string"
+    uuid = "uuid"
 
 
 class PropertyClass(CaseInsensitiveEnum):
     CALCULATED = "CALCULATED"
     MEASURED = "MEASURED"
     PREDICTED = "PREDICTED"
+    ASSERTED = "ASSERTED"
 
 
 class ScopeClass(CaseInsensitiveEnum):
     BATCH = "BATCH"
     COMPOUND = "COMPOUND"
     ASSAY = "ASSAY"
+    ASSAY_TYPES = "ASSAY_TYPES"
+    ASSAY_RESULTS = "ASSAY_RESULTS"
     SYSTEM = "SYSTEM"
 
 

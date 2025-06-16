@@ -278,7 +278,7 @@ N.B. I am not happy with the titling of the major sections of the following sche
         },
         {
             "name": "Cell Concentration",
-            "value_type": "float",
+            "value_type": "double",
             "required": true,
             "scope": "assay",
             "property_class": "measured",
@@ -302,7 +302,7 @@ N.B. I am not happy with the titling of the major sections of the following sche
        "assay_type_properties": [
             {
                 "name": "Reported CLint",
-                "value_type": "float",
+                "value_type": "double",
                 "unit": "uL/min/10^6 cells",
                 "required": true,
                 "property_class": "measured",
@@ -312,7 +312,7 @@ N.B. I am not happy with the titling of the major sections of the following sche
                 "name": "Mean HTC recovery",
                 "unit": "%",
                 "required": false,
-               "value_type": "float",
+               "value_type": "double",
                "property_class": "measured",
                 "scope": "assay_results"
             },
@@ -320,7 +320,7 @@ N.B. I am not happy with the titling of the major sections of the following sche
                 "name": "SD HTC recovery",
                 "unit": "%",
                 "required": false,
-               "value_type": "float",
+               "value_type": "double",
                "property_class": "measured",
                 "scope": "assay_results"
             },
@@ -328,7 +328,7 @@ N.B. I am not happy with the titling of the major sections of the following sche
                 "name": "Dosed Concentration",
                 "unit": "uM",
                 "required": true,
-               "value_type": "float",
+               "value_type": "double",
                "property_class": "measured",
                 "scope": "assay_results"
             }

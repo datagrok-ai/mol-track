@@ -1,8 +1,10 @@
 import csv
+from datetime import datetime
 import io
+import uuid
 from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
-from typing import List, Optional, Type
+from typing import Callable, Dict, List, Optional, Type
 from registration.batch_registrar import BatchRegistrar
 from registration.compound_registrar import CompoundRegistrar
 import models
@@ -19,6 +21,9 @@ from chemistry_utils import (
 )
 from logging_setup import logger
 
+import warnings
+from sqlalchemy.exc import SAWarning
+
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
@@ -32,6 +37,7 @@ except ImportError:
 
 # models.Base.metadata.create_all(bind=engine)
 
+warnings.filterwarnings("ignore", category=SAWarning)
 app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
 
@@ -513,6 +519,174 @@ def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
 def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
     batch = get_or_raise_exception(crud.get_batches, db, batch_id, "Batch not found")
     return batch.batch_additions
+
+
+@router.post("/schema/assay")
+def preload_assay_properties(payload: models.AssayPropertiesPayload, db: Session = Depends(get_db)):
+    created_assay_type_details_props = crud.create_properties(db, payload.assay_type_details_properties)
+    created_assay_details_props = crud.create_properties(db, payload.assay_details_properties)
+    created_assay_type_props = crud.create_properties(db, payload.assay_type_properties)
+
+    return {
+        "status": "success",
+        "created": {
+            "assay_type_details_properties": created_assay_type_details_props,
+            "assay_details_properties": created_assay_details_props,
+            "assay_type_properties": created_assay_type_props,
+        },
+    }
+
+
+# --- Type casting utilities ---
+def cast_datetime(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(value)
+    except Exception:
+        raise ValueError(f"Invalid datetime format: {value}")
+
+
+def cast_uuid(value: Any) -> uuid.UUID:
+    if isinstance(value, uuid.UUID):
+        return value
+    try:
+        return uuid.UUID(str(value))
+    except Exception:
+        raise ValueError(f"Invalid UUID format: {value}")
+
+
+value_type_to_field: Dict[str, str] = {
+    "datetime": "value_datetime",
+    "int": "value_num",
+    "double": "value_num",
+    "string": "value_string",
+    "uuid": "value_uuid",
+}
+
+value_type_cast_map: Dict[str, Callable[[Any], Any]] = {
+    "datetime": cast_datetime,
+    "int": int,
+    "double": float,
+    "string": str,
+    "uuid": cast_uuid,
+}
+
+
+@router.post("/assay_types")
+def create_assay_type_1(request: models.AssayTypeCreate, db: Session = Depends(get_db)):
+    at_data = request.assay_type
+
+    assay_type = models.AssayType(
+        name=at_data.name, description=at_data.description, created_by=admin_user_id, updated_by=admin_user_id
+    )
+    db.add(assay_type)
+    db.commit()
+    db.refresh(assay_type)
+
+    for prop_name, value in at_data.details.items():
+        prop = next((p for p in crud.get_properties(db) if p.name == prop_name), None)
+        if not prop:
+            raise HTTPException(status_code=404, detail=f"Property '{prop_name}' not found")
+
+        value_type = getattr(prop, "value_type", None)
+        if value_type not in value_type_to_field or value_type not in value_type_cast_map:
+            raise HTTPException(status_code=400, detail=f"Unsupported or unknown value type for property: {prop_name}")
+
+        if value is None:
+            raise HTTPException(status_code=400, detail=f"Null value for property: {prop_name}")
+
+        try:
+            cast_value = value_type_cast_map[value_type](value)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to cast value for '{prop_name}': {e}")
+
+        detail_kwargs = {
+            "assay_type_id": assay_type.id,
+            "property_id": prop.id,
+            value_type_to_field[value_type]: cast_value,
+        }
+        db.add(models.AssayTypeDetail(**detail_kwargs))
+
+        db.add(models.AssayTypeProperty(assay_type_id=assay_type.id, property_id=prop.id))
+
+    db.commit()
+    db.refresh(assay_type)
+    return assay_type
+
+
+@router.get("/assay-types/", response_model=list[models.AssayTypeResponse])
+def read_assay_types_1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    assay_types = crud.get_assay_types(db, skip=skip, limit=limit)
+    return assay_types
+
+
+@router.get("/assay-types/{assay_type_id}", response_model=models.AssayTypeResponse)
+def read_assay_type_1(assay_type_id: int, db: Session = Depends(get_db)):
+    db_assay_type = crud.get_assay_type(db, assay_type_id=assay_type_id)
+    if db_assay_type is None:
+        raise HTTPException(status_code=404, detail="Assay type not found")
+    return db_assay_type
+
+
+# Assayer is a user who can create assays? (so potentially I should find the user ID from the request context?)
+@router.post("/assays/")
+def create_assay_1(request: models.AssayCreate, db: Session = Depends(get_db)):
+    assay_data = request.assay
+    # Validate that the assay type exists
+    db_assay_type = crud.get_assay_type(db, assay_type_id=assay_data.assay_type_id)
+    if db_assay_type is None:
+        raise HTTPException(status_code=404, detail=f"Assay type with ID {assay_data.assay_type_id} not found")
+
+    assay = models.Assay(
+        assay_type_id=assay_data.assay_type_id,
+        name=assay_data.name,
+        description=assay_data.description,
+        created_by=admin_user_id,
+        updated_by=admin_user_id,
+    )
+
+    db.add(assay)
+    db.commit()
+    db.refresh(assay)
+
+    for prop_name, value in assay_data.assay_details.items():
+        prop = next((p for p in crud.get_properties(db) if p.name == prop_name), None)
+        if not prop:
+            raise HTTPException(status_code=404, detail=f"Property '{prop_name}' not found")
+
+        value_type = getattr(prop, "value_type", None)
+        if value_type not in value_type_to_field or value_type not in value_type_cast_map:
+            raise HTTPException(status_code=400, detail=f"Unsupported or unknown value type for property: {prop_name}")
+
+        if value is None:
+            raise HTTPException(status_code=400, detail=f"Null value for property: {prop_name}")
+
+        try:
+            cast_value = value_type_cast_map[value_type](value)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to cast value for '{prop_name}': {e}")
+
+        detail_kwargs = {"assay_id": assay.id, "property_id": prop.id, value_type_to_field[value_type]: cast_value}
+        db.add(models.AssayDetail(**detail_kwargs))
+
+    db.commit()
+    db.refresh(assay)
+    return assay
+
+
+@router.get("/assays/", response_model=list[models.AssayResponse])
+def read_assays_1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    assays = crud.get_assays(db, skip=skip, limit=limit)
+    return assays
+
+
+@router.get("/assays/{assay_id}", response_model=models.AssayResponse)
+def read_assay_1(assay_id: int, db: Session = Depends(get_db)):
+    db_assay = crud.get_assay(db, assay_id=assay_id)
+    if db_assay is None:
+        raise HTTPException(status_code=404, detail="Assay not found")
+    return db_assay
 
 
 app.include_router(router)

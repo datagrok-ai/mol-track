@@ -190,7 +190,7 @@ class AssayTypeProperty(SQLModel, table=True):
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
     required: bool = Field(default=False)
 
-    assay_type: "AssayType" = Relationship(back_populates="property_requirements")
+    assay_type: "AssayType" = Relationship(back_populates="assay_type_properties")
     property: "Property" = Relationship()
 
 
@@ -199,10 +199,10 @@ class AssayTypeBase(SQLModel):
     description: Optional[str] = Field(default=None)
 
 
-class AssayTypeCreate(AssayTypeBase):
-    property_ids: List[int] = []  # List of property IDs to associate with this assay type
-    property_requirements: List[Dict[str, Any]] = []  # List of property requirements
-    property_details: List[Dict[str, Any]] = []  # List of property metadata
+# class AssayTypeCreate(AssayTypeBase):
+#     property_ids: List[int] = []  # List of property IDs to associate with this assay type
+#     property_requirements: List[Dict[str, Any]] = []  # List of property requirements
+#     property_details: List[Dict[str, Any]] = []  # List of property metadata
 
 
 class AssayTypeResponseBase(AssayTypeBase):
@@ -214,7 +214,7 @@ class AssayTypeResponseBase(AssayTypeBase):
 class AssayTypeResponse(AssayTypeResponseBase):
     properties: List["Property"] = []
     assay_type_details: List["AssayTypeDetail"] = []
-    property_requirements: List["AssayTypeProperty"] = []
+    assay_type_properties: List["AssayTypeProperty"] = []
 
 
 class AssayType(AssayTypeResponseBase, table=True):
@@ -228,7 +228,7 @@ class AssayType(AssayTypeResponseBase, table=True):
 
     assays: List["Assay"] = Relationship(back_populates="assay_type")
     assay_type_details: List["AssayTypeDetail"] = Relationship(back_populates="assay_type")
-    property_requirements: List["AssayTypeProperty"] = Relationship(back_populates="assay_type")
+    assay_type_properties: List["AssayTypeProperty"] = Relationship(back_populates="assay_type")
 
 
 class AssayBase(SQLModel):
@@ -245,11 +245,11 @@ class AssayResponseBase(AssayBase):
 class AssayResponse(AssayResponseBase):
     assay_type: Optional["AssayType"] = None
     assay_details: List["AssayDetail"] = []
-    properties: List["Property"] = []
+    # properties: List["Property"] = []
 
 
-class AssayCreate(AssayBase):
-    property_ids: List[int] = []  # List of property IDs to associate with this assay
+# class AssayCreate(AssayBase):
+#     property_ids: List[int] = []  # List of property IDs to associate with this assay
 
 
 class AssayDetail(SQLModel, table=True):
@@ -319,12 +319,16 @@ class Property(PropertyResponse, table=True):
     __tablename__ = "properties"
     __table_args__ = (
         CheckConstraint(
-            "value_type IN ('int', 'double', 'bool', 'datetime', 'string')", name="properties_value_type_check"
+            "value_type IN ('int', 'double', 'bool', 'datetime', 'string', 'uuid')", name="properties_value_type_check"
         ),
         CheckConstraint(
-            "property_class IN ('CALCULATED', 'MEASURED', 'PREDICTED')", name="properties_property_class_check"
+            "property_class IN ('DECLARED', 'CALCULATED', 'MEASURED', 'PREDICTED', 'ASSERTED')",
+            name="properties_property_class_check",
         ),
-        CheckConstraint("scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')", name="properties_scope_check"),
+        CheckConstraint(
+            "scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULTS', 'SYSTEM')",
+            name="properties_scope_check",
+        ),
         {"schema": DB_SCHEMA},
     )
 
@@ -563,6 +567,12 @@ class SchemaPayload(SQLModel):
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
 
 
+class AssayPropertiesPayload(SQLModel):
+    assay_type_details_properties: List["PropertyBase"] = Field(default_factory=list)
+    assay_details_properties: List["PropertyBase"] = Field(default_factory=list)
+    assay_type_properties: List["PropertyBase"] = Field(default_factory=list)
+
+
 class AdditionsPayload(SQLModel):
     additions: List["AdditionBase"] = Field(default_factory=list)
 
@@ -590,6 +600,7 @@ class ExactSearchModel(SQLModel):
         Validate or generate a UUID hash from the standardized SMILES.
         """
         import crud
+
         query_smiles = values.get("query_smiles")
         layers = crud.get_standardized_mol_and_layers(query_smiles)
 
@@ -609,6 +620,7 @@ class SearchCompoundStructure(SQLModel):
         description="Additional parameters for the search (e.g., similarity threshold, tautomer options)",
     )
 
+
 class QueryCondition(SQLModel):
     table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
     field: Literal["hash_tautomer", "hash_no_stereo_smiles"]  # Field/column to filter on
@@ -626,3 +638,21 @@ class ComplexQueryRequest(SQLModel):
 class ExactSearchParameters(SQLModel):
     field: str
     value: Optional[str] = None
+
+
+class AssayTypeCreateBase(SQLModel):
+    name: str
+    description: Optional[str] = None
+    details: Dict[str, Any]
+
+
+class AssayTypeCreate(SQLModel):
+    assay_type: AssayTypeCreateBase
+
+
+class AssayCreateBase(AssayBase):
+    assay_details: Dict[str, Any]
+
+
+class AssayCreate(SQLModel):
+    assay: AssayCreateBase
