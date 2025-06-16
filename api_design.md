@@ -20,13 +20,13 @@ We have a number of intents.
 
 ## Schema - WIP ##
 
-When a user wants to register data into [Moltrack](https://github.com/datagrok-ai/mol-track), they typically want to register main entities like batches, compounds, or assay data.  The data set will typically have suppementary data like properties and synonyms that add context.  Moltrack was designed to handle this data in a controlled way.  To do that we need to allow the user to register the definitions of that context data.  We call this definition a schema.  The contract of this schema definition is to ensure that the appropriate definitions exist, to reuse previously defined definitions where possible, and to reject definitions that are incomplete.  The 'schema' is used in the definition of a set of resources but **not** a resource in and of itself.
+When a user wants to register data into [Moltrack](https://github.com/datagrok-ai/mol-track), they typically want to register main entities like batches, compounds, or assay data.  The data set will typically have supplementary data like properties and synonyms that add context.  Moltrack was designed to handle this data in a controlled way.  To do that we need to allow the user to register the definitions of that context data.  We call this definition a schema.  The contract of this schema definition is to ensure that the appropriate definitions exist, to reuse previously defined definitions where possible, and to reject definitions that are incomplete.  The 'schema' is used in the definition of a set of resources but **not** a resource in and of itself.
 
 *We will be developing this by example to understand its breath and depth.*  We know that we need to be able to define basic entities like properties and synonyms and associations.  The immediate need is for creations of these definitions.  Later we will think about the design for updates and (logical) deletions.
 
 - Semantic Types: name, description
 - Properties: name, value_type, semantic_type, property_class, unit, scope
-- Synonym Types: synonym_level, name, pattern, description
+- Synonym Types: scope, name, pattern, description
 - Additions: name, description, code, is_active, formula, molecular_weight, smiles, molfile, role
 
 - `POST /schema` - used to define/ensure that a set of context definitions exist.
@@ -82,12 +82,12 @@ Additions are addtional chemical entities present in the batch/lot of a material
 
 ### Update endpoints ###
 
-- `PUT /additions/{addition_id}` – Used to update information for the provided addition_id.
+- `PUT /additions/{addition_id}` – update information for the specified addition_id.
 - `DELETE /additions/{addition_id}` - soft delete from a given addition but only if there are no existing dependent batches.
 
 ## Register Batches ##
 
-Batch registration will be performed as singletons or in bulk, by the chemist or registrar.  Use cases include supporting individual batch synthesis, library synthesis generated internally or by a contract research organization (CRO) and acquistion from a vendor.  Each registrations entry will contain information about the batch including batch details, batch synonyms, compound information (including synonyms and properties) and batch additions.  Properties, synonym_types, and additons must be defined ahead of time and if missing will result in a registration failure.  The inputs will be a collection of batch records that will be presented in a CSV-style format, an SDfile format or a parquet file .  A single registration will be a collection with a single record.  
+Batch registration will be performed as singletons or in bulk, by the chemist or registrar.  Use cases include supporting individual batch synthesis, library synthesis generated internally or by a contract research organization (CRO) and acquistion from a vendor.  Each registrations entry will contain information about the batch including batch details including synonyms, compound information (including synonyms and properties) and batch additions.  Properties including synonym_types, and additons must be defined ahead of time and if missing will result in a registration failure.  The inputs will be a collection of batch records that will be presented in a CSV-style format, an SDfile format or a parquet file .  A single registration will be a collection with a single record.  
 
 Registrations could executed synchronously or asynchronously.  In general, registration should be performed asynchronously to accommmodate multiple scenarios where processing would be require a lot of time, including molecules with complex ring structure or a collection that contains many entries.  *For the MVP, we have decided to go with synchronous registration.*
 
@@ -113,10 +113,10 @@ Mapping is optional, but assumes that the field names directly map to the databa
          "data": "\"batch_corporate_id\", smiles, common_name, cas, usan\n\"EPA-001-001\",\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",     \"121-91-5\"\n\"EPA-120-001\",\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\"\n",
          "mapping": {
             "smiles": "compounds.smiles",
-            "batch_corporate_id": "batches_synonyms.batch_corporate_id",
-            "common_name": "compounds_synonyms.common_name",
-            "cas": "compounds_synonyms.cas",
-            "usan": "compounds_synonyms.usan"
+            "batch_corporate_id": "batches_details.batch_corporate_id",
+            "common_name": "compounds_details.common_name",
+            "cas": "compounds_details.cas",
+            "usan": "compounds_details.usan"
          }
       }
       ```
@@ -124,7 +124,7 @@ Mapping is optional, but assumes that the field names directly map to the databa
     - An example set of batches with addtions and batch properties to be registered can be found [2_batches_with_additions.csv](./demo-data/black/2_batches_with_additions.csv).  The additions are listed in columns with the cells showing the equivalents.  Schemas posts should be performed with [compounds_schema.json](./demo-data/black/compounds_schema.json) and [batches_schema.json](./demo-data/black/batches_schema.json) first to prepare the appropriate schema.
 
   - Output
-   The batches, batches_detail, batches_synonym, batch_additions, additions, compounds, compound_details, and compound_synonyms tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.  The batch_regno and id should also be returned.  The row-by-row registration status and if necessary error message should be added as attributes.
+   The batches, batches_details (includes synonyms), batch_additions, additions, compounds, compound_details (includes synonyms) tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.  The batch_regno and id should also be returned.  The row-by-row registration status and if necessary error message should be added as attributes.
     - 200
 
       ```json
@@ -153,15 +153,15 @@ TODO fill out details
    __Future potential capability__
   - Query parameter `output-format=[json|csv|mol-v3000]` with a default of `csv`.  If `json` format is selected, the data is returned in a nested dictionary structure.  If the format is `csv` or `mol-v3000`, then the data is pivoted/concatenated/flattened
 
-- `GET /batches/{batch_id}/properties`
-- `GET /batches/{batch_id}/synonyms`
+- `GET /batches/{batch_id}/properties` - includes synonyms
+- `GET /batches/{batch_id}/synonyms`  - just synonym properties
 - `GET /batches/{batch_id}/additions` - should returns additions, equivalents, and summary
 
 
 
 ## Register Virtual Compounds ##
 
-Virtual compound registration will typically be done in bulk, by a cheminformatician or registrar.  These registrations will be contain the structure, synonyms, and possibly properties.  Properties and synonym_types will need to be defined ahead of time.  The inputs will be a collection of compound records that will be presented in a CSV-style format, an SDfile format or a parquet file. A single registration will be a array with a single record. 
+Virtual compound registration will typically be done in bulk, by a cheminformatician or registrar.  These registrations will be contain the structure, synonyms, and possibly properties.  General properties and synonym type properties will need to be defined ahead of time.  The inputs will be a collection of compound records that will be presented in a CSV-style format, an SDfile format or a parquet file. A single registration will be a array with a single record. 
 
 Registrations could be executed synchronously or asynchronously.  In general, registration should be performed asynchronously to accommmodate multiple scenarios where processing would be require a lot of time, including molecules with complex ring structure or a collection that contains many entries.  
 
@@ -203,15 +203,15 @@ Registrations could be executed synchronously or asynchronously.  In general, re
          "data": "structure, common_name, cas, usan\n\"OC(=O)c1cc2c(cc1)c(=O)O\",\"1,3-benezenedicarboxylic acid\",     \"121-91-5\"\n\"c1cc(C)ccc1c2cc(C(F)(F)F)nn2c3ccc(cc3)S(=O)(=O)N\",,\"169590-42-5\",\"celecoxib\"\n",
          "mapping": {
             "structure": "smiles",
-            "common_name": "compounds_synonyms.common_name",
-            "cas": "compounds_synonyms.cas",
-            "usan": "compounds_synonyms.usan"
+            "common_name": "compounds_details.common_name",
+            "cas": "compounds_details.cas",
+            "usan": "compounds_details.usan"
          }
       }
       ```
 
   - Output
-   The compounds, compound_details, and compound_synonyms tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.
+   The compounds, and compound_details (including synonyms) tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.
     - 200
 
       ```json
@@ -232,16 +232,16 @@ Registrations could be executed synchronously or asynchronously.  In general, re
 
 ### Getter endpoints ###
 
-These are included for symmetry of user experience.  They may be deprecated in favor of a search experience for become synonyms for that search endpoint.
+These are included for symmetry of user experience.  They may be deprecated in favor of a search experience or become alternate routes (synonyms) for that search endpoint.
 
-- `GET /compounds/` - returns an array of compounds with each entry having the comound, the properties and the synonyms.  An optional query parameter will allow the user to select the output format: json, csv-style, sd-file, parquet.  Properties and synonyms will need to be pivoted (and concatenated as necessary) to accomodate the csv, sd and parquet format expectations.  ~~We will need to have query parameters to support pagination of the resulting output (`start`,`stop`,`max-per-page`)~~
+- `GET /compounds/` - returns an array of compounds with each entry having the comound, the properties including synonyms.  An optional query parameter will allow the user to select the output format: json, csv-style, sd-file, parquet.  Properties/synonyms will need to be pivoted (and concatenated as necessary) to accomodate the csv, sd and parquet format expectations.  ~~We will need to have query parameters to support pagination of the resulting output (`start`,`stop`,`max-per-page`)~~
 - `GET /compounds/{compound_id}`
 - `GET /compounds/{compound_id}/properties` - I think these will be infrequently used but included for completeness
 - `GET /compounds/{compound_id}/synonyms` - I think these will be infrequently used but included for completeness
 
 ### Update endpoints ###
 
-- `PUT /compounds/{compound_id}` - Used to update information (structure, properties, synonyms) for the provided compound_id.  Based on the business rule configuration, structure changes for compounds with batches attached are not permitted but rather may only be performed via the `PUT /batches/{batch_id}` endpoint.
+- `PUT /compounds/{compound_id}` - Used to update information (structure, properties/synonyms) for the provided compound_id.  Based on the business rule configuration, structure changes for compounds with batches attached are not permitted but rather may only be performed via the `PUT /batches/{batch_id}` endpoint.
 - `DELETE /compounds/{compound_id}` - Used to perform a soft delete.  Only allowed from compounds that have no dependent batches.
 
 ## Assay Data Domain ##

@@ -99,8 +99,7 @@ class BaseRegistrar(ABC):
     def _add_output_row(self, compound_data, grouped, status, error_msg=None):
         output = {
             **compound_data,
-            **{f"synonym_{k}": v for k, v in grouped.get("compounds_synonyms", {}).items()},
-            **{f"property_{k}": v for k, v in grouped.get("properties", {}).items()},
+            **{f"property_{k}": v for k, v in grouped.get("compounds_details", {}).items()},
             "registration_status": status,
             "registration_error_message": error_msg,
         }
