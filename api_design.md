@@ -12,8 +12,8 @@ We have a number of intents.
 2. set up properties, synonyms, associations
 3. register virtual compounds
 4. register batches
-5. set up assay_types and corresponding assay_type_details and assay_type_properties
-6. register assays and assay_results.
+5. set up assays and corresponding assay_details and assay_properties
+6. register assay_runs and assay_results.
 7. search within a domain (compounds, batches, assay_results) or in combination
 
 **IMPORTANT: All paths should be prefixed by the appropriate version.**  Right now the version would be `/v1`.  In this document, the version prefix is assumed for clarity.  FASTAPI has a [router](https://fastapi.tiangolo.com/reference/apirouter/) concept that may allow us to declare versioning.
@@ -248,33 +248,33 @@ These are included for symmetry of user experience.  They may be deprecated in f
 
 A key capability for moltrack is to capture assay data related to a sample (batch).  Typically this will be measured biological activity (potency, selectivity, toxicity).  It can be used to capture measured physical/chemical attributes as well.
 
-- `POST /schema/assay`  will define allowed/expected properties for assay_type_details, assay_details, assay_type_properties.  The properties represent categorization of the assay type whose values would be stored in *assay_type_details*, experimental conditions that would be stored as the assays level in the *assay_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assay type* level.
+- `POST /schema/assays`  will define allowed/expected properties for assay_details, assay_run_details, assay_properties.  The properties represent categorization of the assay type whose values would be stored in *assay_details*, experimental conditions that would be stored as the assays level in the *assay_run_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assays* level.
 
 TODO: I am not happy with the higher level (major sections) key names of the following schema
 
    ```json
    {
-      "assay_type_details properties": [
+      "assay_details properties": [
          {
             "name": "assay format",
-            "scope": "assay_types",
-            "property_class": "asserted",
+            "scope": "assays",
+            "property_class": "declared",
             "value_type": "string"
          },
          {
             "name": "biological system",
-            "scope": "assay_types",
-            "property_class": "asserted",
+            "scope": "assays",
+            "property_class": "declared",
             "value_type": "string"
          }
       ],
-      "assay_details properties":[
+      "assay_run_details properties":[
             {
             "name": "Cell Species",
             "value_type": "string",
             "required": true,
             "scope": "assay",
-            "property_class": "asserted"
+            "property_class": "declared"
         },
         {
             "name": "Cell Lot",
@@ -306,7 +306,7 @@ TODO: I am not happy with the higher level (major sections) key names of the fol
             "property_class": "measured"
         }
       ],
-       "assay_type_properties": [
+       "assay_properties": [
             {
                 "name": "Reported CLint",
                 "value_type": "float",
@@ -343,11 +343,11 @@ TODO: I am not happy with the higher level (major sections) key names of the fol
    }
    ```
 
-- `POST /assay_types` will create an instance of an assay type and values in assay_type_details and assay_type_properties. An example is presented below.
+- `POST /assays` will create an instance of an assay type and values in assay_details and assay_properties. An example is presented below.
 
    ```json
    {
-    "assay_type": {
+    "assay": {
         "name": "Hepatocyte Stability",
         "details": {
             "assay format": "in cellulo",
@@ -357,11 +357,11 @@ TODO: I am not happy with the higher level (major sections) key names of the fol
    }
    ```
 
-- `POST /assays` will create an instance of the 'assays' or assay run and populate property values in *assay_details* table.  Example properties to be populated would include assay date, assayer, and might include cell lot number for a *in cellulo* assay.  An example is presented below:
+- `POST /assay_runs` will create an instance of the 'assay_runs' or assay run and populate property values in *assay_run_details* table.  Example properties to be populated would include assay date, assayer, and might include cell lot number for a *in cellulo* assay.  An example is presented below:
 
    ```json
    {
-      "assay_details": {
+      "assay_run_details": {
          "cell species": "Human",
          "cell lot": "H1",
          "assayer": "Jane Doe",
@@ -370,7 +370,7 @@ TODO: I am not happy with the higher level (major sections) key names of the fol
    }
    ```
 
-- `POST /assay_results` This endpoint will be used populate data in assays, assay_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assays and assay_results levels.  There will need to be a mapping.  Since there were be multiple results rows per assay run, the assays instance will be to be determined by matching appropriate properties.
+- `POST /assay_results` This endpoint will be used populate data in assay_runs, assay_run_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assay_runs and assay_results levels.  There will need to be a mapping.  Since there were be multiple results rows per assay run, the assay_runs instance will be to be determined by matching appropriate properties.
   - See example [assay data](./demo-data/black/assay_results.csv)
   - See example [mapping](./demo-data/black/assay_results_mapping.json)
 
@@ -378,12 +378,12 @@ TODO: I am not happy with the higher level (major sections) key names of the fol
 
 These are included for symmetrical thinking of user experience.  They may be deprecated in favor of a search experience or become alternative paths for that search endpoint.
 
-- `GET /assay_types` - Return a list of all assay_types with included assay_type_details and assay_type_properties.
-- `GET /assay_types/{assay_type_id}` - Return the details for a specific assay_type.
-- `GET /assays` - Return a list of all assays including assay_type information, assay_details information.
+- `GET /assays` - Return a list of all assays with included assay_details and assay_properties.
 - `GET /assays/{assay_id}` - Return the details for a specific assay.
+- `GET /assay_runs` - Return a list of all assay_runs including assay information, assay_run_details information.
+- `GET /assay_runs/{assay_id}` - Return the details for a specific assay.
 - `GET /assay_results`
-   Query parameters include possible filters for {assay_type_id} and/or {assay_id}
+   Query parameters include possible filters for {assay_id} and/or {assay_id}
 
 ### Assay Data Putter endpoints ###
 
@@ -407,8 +407,8 @@ User stories:
       2. similarity criteria
       3. batch property of source = WuXi
       4. kinase IC50 < 100 uM
-   7. Show me all the *in cellulo* assay_types with details
-   8. Shom me all the assay runs for a specific assay_type
+   7. Show me all the *in cellulo* assays with details
+   8. Shom me all the assay runs for a specific assay
 
 The endpoint path indicates the shape of the returned data: compound per row; batch per row; assay result value per row.
 
@@ -455,7 +455,7 @@ The endpoint path indicates the shape of the returned data: compound per row; ba
       "columns": ["id", "canonical_smiles"]
     },
     {
-      "table": "assays",
+      "table": "assay_runs",
       "field": "IC50",
       "operator": "<",
       "unit": "nM"
@@ -498,8 +498,8 @@ logical conditions -> postgres sql condition phrases
   - assay_results
 
   We may need
-  - assay_types
   - assays
+  - assay_runs
 
 - output
   - "*" - means all fields
