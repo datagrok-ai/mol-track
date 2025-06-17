@@ -250,81 +250,81 @@ class PropertyResponse(PropertyBase):
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
 
-class AssayTypeProperty(SQLModel, table=True):
-    __tablename__ = "assay_type_properties"
+class AssayProperty(SQLModel, table=True):
+    __tablename__ = "assay_properties"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", primary_key=True)
+    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", primary_key=True)
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
     required: bool = Field(default=False)
 
-    assay_type: "AssayType" = Relationship(back_populates="property_requirements")
+    assay: "Assay" = Relationship(back_populates="property_requirements")
     property: "Property" = Relationship()
-
-
-class AssayTypeBase(SQLModel):
-    name: str = Field(nullable=False)
-    description: Optional[str] = Field(default=None)
-
-
-class AssayTypeCreate(AssayTypeBase):
-    property_ids: List[int] = []  # List of property IDs to associate with this assay type
-    property_requirements: List[Dict[str, Any]] = []  # List of property requirements
-    property_details: List[Dict[str, Any]] = []  # List of property metadata
-
-
-class AssayTypeResponseBase(AssayTypeBase):
-    id: int = Field(primary_key=True, index=True)
-    created_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now()))
-    updated_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now()))
-
-
-class AssayTypeResponse(AssayTypeResponseBase):
-    properties: List["Property"] = []
-    assay_type_details: List["AssayTypeDetail"] = []
-    property_requirements: List["AssayTypeProperty"] = []
-
-
-class AssayType(AssayTypeResponseBase, table=True):
-    __tablename__ = "assay_types"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-
-    properties: List["Property"] = Relationship(back_populates="assay_types", link_model=AssayTypeProperty)
-
-    assays: List["Assay"] = Relationship(back_populates="assay_type")
-    assay_type_details: List["AssayTypeDetail"] = Relationship(back_populates="assay_type")
-    property_requirements: List["AssayTypeProperty"] = Relationship(back_populates="assay_type")
 
 
 class AssayBase(SQLModel):
     name: str = Field(nullable=False)
     description: Optional[str] = Field(default=None)
-    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", nullable=False)
+
+
+class AssayCreate(AssayBase):
+    property_ids: List[int] = []  # List of property IDs to associate with this assay type
+    property_requirements: List[Dict[str, Any]] = []  # List of property requirements
+    property_details: List[Dict[str, Any]] = []  # List of property metadata
 
 
 class AssayResponseBase(AssayBase):
     id: int = Field(primary_key=True, index=True)
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    created_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now()))
+    updated_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now()))
 
 
 class AssayResponse(AssayResponseBase):
-    assay_type: Optional["AssayType"] = None
+    properties: List["Property"] = []
     assay_details: List["AssayDetail"] = []
+    property_requirements: List["AssayProperty"] = []
+
+
+class Assay(AssayResponseBase, table=True):
+    __tablename__ = "assays"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    properties: List["Property"] = Relationship(back_populates="assays", link_model=AssayProperty)
+
+    assay_runs: List["AssayRun"] = Relationship(back_populates="assay")
+    assay_details: List["AssayDetail"] = Relationship(back_populates="assay")
+    property_requirements: List["AssayProperty"] = Relationship(back_populates="assay")
+
+
+class AssayRunBase(SQLModel):
+    name: str = Field(nullable=False)
+    description: Optional[str] = Field(default=None)
+    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", nullable=False)
+
+
+class AssayRunResponseBase(AssayRunBase):
+    id: int = Field(primary_key=True, index=True)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+
+
+class AssayRunResponse(AssayRunResponseBase):
+    assay: Optional["Assay"] = None
+    assay_run_details: List["AssayRunDetail"] = []
     properties: List["Property"] = []
 
 
-class AssayCreate(AssayBase):
+class AssayRunCreate(AssayRunBase):
     property_ids: List[int] = []  # List of property IDs to associate with this assay
 
 
-class AssayDetail(SQLModel, table=True):
-    __tablename__ = "assay_details"
+class AssayRunDetail(SQLModel, table=True):
+    __tablename__ = "assay_run_details"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", primary_key=True)
+    assay_run_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_runs.id", primary_key=True)
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
 
     value_datetime: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
@@ -332,26 +332,26 @@ class AssayDetail(SQLModel, table=True):
     value_num: Optional[float] = Field(default=None)
     value_string: Optional[str] = Field(default=None)
 
-    assay: "Assay" = Relationship(back_populates="assay_details")
+    assay_run: "AssayRun" = Relationship(back_populates="assay_run_details")
     property: Optional["Property"] = Relationship()
 
 
-class Assay(AssayResponseBase, table=True):
-    __tablename__ = "assays"
+class AssayRun(AssayRunResponseBase, table=True):
+    __tablename__ = "assay_runs"
     __table_args__ = {"schema": DB_SCHEMA}
 
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
-    # Relationships - use assay_type_properties via assay_type to get list of expected properties
+    # Relationships - use assay_properties via assay to get list of expected properties
     # No direct properties relationship as assay_properties table no longer exists
-    assay_type: "AssayType" = Relationship(back_populates="assays")
-    assay_results: List["AssayResult"] = Relationship(back_populates="assay")
-    assay_details: List["AssayDetail"] = Relationship(back_populates="assay")
+    assay: "Assay" = Relationship(back_populates="assay_runs")
+    assay_results: List["AssayResult"] = Relationship(back_populates="assay_run")
+    assay_run_details: List["AssayRunDetail"] = Relationship(back_populates="assay_run")
 
     properties: List["Property"] = Relationship(
-        back_populates="assays", link_model=AssayDetail, sa_relationship_kwargs={"lazy": "joined"}
+        back_populates="assay_runs", link_model=AssayRunDetail, sa_relationship_kwargs={"lazy": "joined"}
     )
 
 
@@ -376,8 +376,8 @@ class Property(PropertyResponse, table=True):
     assay_results: List["AssayResult"] = Relationship(back_populates="property")
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
-    assay_types: List["AssayType"] = Relationship(link_model=AssayTypeProperty)
-    assays: List["Assay"] = Relationship(back_populates="properties", link_model=AssayDetail)
+    assays: List["Assay"] = Relationship(link_model=AssayProperty)
+    assay_runs: List["AssayRun"] = Relationship(back_populates="properties", link_model=AssayRunDetail)
     compounds: List["Compound"] = Relationship(
         back_populates="properties",
         link_model=CompoundDetail,
@@ -390,7 +390,7 @@ class Property(PropertyResponse, table=True):
 
 class AssayResultBase(SQLModel):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
-    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", nullable=False)
+    assay_run_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_runs.id", nullable=False)
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
 
     value_qualifier: Optional[int] = Field(default=0, nullable=False)  # 0 for "=", 1 for "<", 2 for ">"
@@ -425,15 +425,15 @@ class AssayResult(AssayResultResponseBase, table=True):
     __table_args__ = {"schema": DB_SCHEMA}
 
     batch: "Batch" = Relationship(back_populates="assay_results")
-    assay: "Assay" = Relationship(back_populates="assay_results")
+    assay_run: "AssayRun" = Relationship(back_populates="assay_results")
     property: "Property" = Relationship(back_populates="assay_results")
 
 
-class AssayTypeDetail(SQLModel, table=True):
-    __tablename__ = "assay_type_details"
+class AssayDetail(SQLModel, table=True):
+    __tablename__ = "assay_details"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    assay_type_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_types.id", primary_key=True)
+    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", primary_key=True)
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
 
     value_datetime: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
@@ -441,18 +441,18 @@ class AssayTypeDetail(SQLModel, table=True):
     value_num: Optional[float] = Field(default=None)
     value_string: Optional[str] = Field(default=None)
 
-    assay_type: "AssayType" = Relationship(back_populates="assay_type_details")
+    assay: "Assay" = Relationship(back_populates="assay_details")
     property: "Property" = Relationship()
 
 
 class BatchAssayResultsCreate(SQLModel):
-    assay_id: int
+    assay_run_id: int
     batch_id: int
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]
 
 
 class BatchAssayResultsResponse(SQLModel):
-    assay_id: int
+    assay_run_id: int
     batch_id: int
     assay_name: str
     measurements: Dict[str, Union[float, str, bool, Dict[str, Any]]]

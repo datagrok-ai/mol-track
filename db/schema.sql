@@ -55,7 +55,7 @@ CREATE TABLE moltrack.properties (
   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
   name text NOT NULL,
   description text,
-  -- value_type defines the colummn in the batch_details, assay_details and assay_results 
+  -- value_type defines the colummn in the batch_details, assay_run_details and assay_results 
   -- tables that store the property value:
   -- * [value_num] for "int" and "double", 
   -- * [value_datetime] for "datetime", 
@@ -179,10 +179,10 @@ CREATE TABLE moltrack.batch_details (
   value_string text
 );
 
--- Assay types table - for assay types: kinase inhibition, cell viability, etc.
+-- Assays table - for assays: kinase inhibition, cell viability, etc.
 -- this is the level for the protocol such as hepatocyte stability
--- All of the required properties (see assay_type_properties) must be present in the assay results.
-CREATE TABLE moltrack.assay_types (
+-- All of the required properties (see assay_properties) must be present in the assay results.
+CREATE TABLE moltrack.assays (
   id serial PRIMARY KEY,
   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
   updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
@@ -193,9 +193,9 @@ CREATE TABLE moltrack.assay_types (
   -- author_id uuid references moltrack.users (id)
 );
 
--- Assay type details table - example domain: in vivo, in vitro, etc., detection method: fluorescence, etc. 
-CREATE TABLE moltrack.assay_type_details (
-  assay_type_id int NOT NULL REFERENCES moltrack.assay_types (id),
+-- Assays details table - example domain: in vivo, in vitro, etc., detection method: fluorescence, etc. 
+CREATE TABLE moltrack.assay_details (
+  assay_id int NOT NULL REFERENCES moltrack.assays (id),
   property_id int NOT NULL REFERENCES moltrack.properties (id),
   required boolean NOT NULL DEFAULT false,
 
@@ -205,11 +205,11 @@ CREATE TABLE moltrack.assay_type_details (
   value_string text
 );
 
--- Assays table - for assays: kinase inhibition, cell viability, etc.  
+-- assay_runs table - for assay_runs: kinase inhibition, cell viability, etc.  
 -- This is the level of the experiment executed by the user.
-CREATE TABLE moltrack.assays (
+CREATE TABLE moltrack.assay_runs (
   id serial PRIMARY KEY,
-  assay_type_id int NOT NULL REFERENCES moltrack.assay_types (id),
+  assay_id int NOT NULL REFERENCES moltrack.assays (id),
   name text NOT NULL,
   description text,
   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
@@ -222,33 +222,33 @@ CREATE TABLE moltrack.assays (
 -- This is the level of the experiment executed by the user.
 -- Details like assayer, eln reference, calculation date
 -- experimental conditions like temperature, time, cell lot, protein lot, etc.
-CREATE TABLE moltrack.assay_details (
-  assay_id int NOT NULL REFERENCES moltrack.assays (id),
+CREATE TABLE moltrack.assay_run_details (
+  assay_run_id int NOT NULL REFERENCES moltrack.assay_runs (id),
   property_id int NOT NULL REFERENCES moltrack.properties (id),
 
   value_datetime timestamp with time zone DEFAULT (CURRENT_TIMESTAMP),
   value_uuid uuid,
   value_num float,
   value_string text,
-  unique (assay_id, property_id)
+  unique (assay_run_id, property_id)
 );
 
--- Assay type properties table - for assay type properties
+-- Assay properties table - for assay type properties
 -- This should detail the required and optional result types for a given assay type.
 -- This is used to validate the data submitted for an assay.
-CREATE TABLE moltrack.assay_type_properties (
-  assay_type_id int NOT NULL REFERENCES moltrack.assay_types (id),
+CREATE TABLE moltrack.assay_properties (
+  assay_id int NOT NULL REFERENCES moltrack.assays (id),
   property_id int NOT NULL REFERENCES moltrack.properties (id),
   required bool NOT NULL DEFAULT false,
-  PRIMARY KEY (assay_type_id, property_id)
+  PRIMARY KEY (assay_id, property_id)
 );
 
 -- Assay results table - actual measurements: IC50, EC50, etc.
 CREATE TABLE moltrack.assay_results (
   id serial PRIMARY KEY,
   batch_id int NOT NULL REFERENCES moltrack.batches (id),
-  assay_id int NOT NULL REFERENCES moltrack.assays (id),
-  property_id int NOT NULL REFERENCES moltrack.properties (id), -- should appear in assay_type_properties
+  assay_run_id int NOT NULL REFERENCES moltrack.assay_runs (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id), -- should appear in assay_properties
 
   -- For performance reasons, only numbers, strings, and booleans are supported for assay results (no datetime or uuid).
   value_qualifier smallint NOT NULL DEFAULT 0 check (value_qualifier in (0, 1, 2)), -- 0 for =, 1 for <, 2 for >

@@ -48,7 +48,7 @@ class CompoundRegistrar(BaseRegistrar):
             "inchi": Chem.MolToInchi(mol),
             "inchikey": inchikey,
             "original_molfile": compound_data.get("original_molfile", ""),
-            "molregno": random.randint(0, 100),
+            "molregno": random.randint(0, 100000),
             "formula": rdMolDescriptors.CalcMolFormula(mol),
             "hash_mol": hash_mol,
             "hash_tautomer": hash_tautomer,
