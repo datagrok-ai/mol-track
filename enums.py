@@ -32,8 +32,8 @@ class ScopeClass(CaseInsensitiveEnum):
     BATCH = "BATCH"
     COMPOUND = "COMPOUND"
     ASSAY = "ASSAY"
-    ASSAY_TYPES = "ASSAY_TYPES"
-    ASSAY_RESULTS = "ASSAY_RESULTS"
+    ASSAY_RUN = "ASSAY_RUN"
+    ASSAY_RESULT = "ASSAY_RESULT"
     SYSTEM = "SYSTEM"
 
 

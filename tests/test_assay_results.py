@@ -75,15 +75,15 @@ def create_test_properties(client, property_data_list):
     return property_ids
 
 
-def create_test_assay_type(client, name, description, property_ids):
-    """Helper function to create an assay type and return its data"""
-    assay_type_data = {"name": name, "description": description, "property_ids": property_ids}
-    response = client.post("/assay-types/", json=assay_type_data)
+def create_test_assay(client, name, description, property_ids):
+    """Helper function to create an assay and return its data"""
+    assay_data = {"name": name, "description": description, "property_ids": property_ids}
+    response = client.post("/assays/", json=assay_data)
     assert response.status_code == 200
     return response.json()
 
 
-def create_test_assay(client, name, description, assay_type_id, property_ids=None):
+def create_test_assay_run(client, name, description, assay_id, property_ids=None):
     """Helper function to create an assay and return its data"""
     if property_ids is None:
         property_ids = []
@@ -91,10 +91,10 @@ def create_test_assay(client, name, description, assay_type_id, property_ids=Non
     assay_data = {
         "name": name,
         "description": description,
-        "assay_type_id": assay_type_id,
+        "assay_id": assay_id,
         "property_ids": property_ids,
     }
-    response = client.post("/assays/", json=assay_data)
+    response = client.post("/assay-runs/", json=assay_data)
     assert response.status_code == 200
     return response.json()
 
@@ -124,7 +124,7 @@ def create_test_batch(client, compound_id, batch_number="BATCH-001"):
     return response.json()
 
 
-def create_test_assay_result(client, assay_id, batch_id, property_id, result_value):
+def create_test_assay_result(client, assay_run_id, batch_id, property_id, result_value):
     """Helper function to create a single assay result"""
     # Get the property to determine its type
     response = client.get(f"/properties/{property_id}")
@@ -134,7 +134,7 @@ def create_test_assay_result(client, assay_id, batch_id, property_id, result_val
 
     # Create the appropriate payload based on property type
     assay_result_data = {
-        "assay_id": assay_id,
+        "assay_run_id": assay_run_id,
         "batch_id": batch_id,
         "property_id": property_id,
         "value_qualifier": 0,  # 0 for "=" (default)
@@ -164,10 +164,10 @@ def create_test_assay_result(client, assay_id, batch_id, property_id, result_val
     return result
 
 
-def create_test_batch_assay_results(client, assay_id, batch_id, measurements):
+def create_test_batch_assay_results(client, assay_run_id, batch_id, measurements):
     """Helper function to create multiple assay results for a batch"""
     batch_results_data = {
-        "assay_id": assay_id,
+        "assay_run_id": assay_run_id,
         "batch_id": batch_id,
         "measurements": measurements,
     }
@@ -183,10 +183,10 @@ def test_create_assay_result(client):
     property = create_test_property(client, ic50prop)
 
     # Create an assay type with the property
-    assay_type = create_test_assay_type(client, "Enzyme Assay", "Enzyme activity assay", [property["id"]])
+    assay = create_test_assay(client, "Enzyme Assay", "Enzyme activity assay", [property["id"]])
 
-    # Create an assay
-    assay = create_test_assay(client, "Kinase Assay", "Kinase inhibition assay", assay_type["id"], [property["id"]])
+    # Create an assay run
+    assay_run = create_test_assay_run(client, "Kinase Assay", "Kinase inhibition assay", assay["id"], [property["id"]])
 
     # Create compound and batch
     compound = create_test_compound(client)
@@ -197,7 +197,7 @@ def test_create_assay_result(client):
     assay_result = create_test_assay_result(client, assay["id"], batch["id"], property["id"], result_value)
 
     # Verify data
-    assert assay_result["assay_id"] == assay["id"]
+    assert assay_result["assay_run_id"] == assay_run["id"]
     assert assay_result["batch_id"] == batch["id"]
     assert assay_result["property_id"] == property["id"]
     assert assay_result["result_value"] == result_value
@@ -215,11 +215,11 @@ def test_create_batch_assay_results(client):
     property_ids = [prop["id"] for prop in properties]
     property_names = [prop["name"] for prop in properties]
 
-    # Create an assay type with properties
-    assay_type = create_test_assay_type(client, "Enzyme Assay", "Enzyme activity assay", property_ids)
+    # Create an assay with properties
+    assay = create_test_assay(client, "Enzyme Assay", "Enzyme activity assay", property_ids)
 
-    # Create an assay with all properties
-    assay = create_test_assay(client, "Kinase Assay", "Kinase inhibition assay", assay_type["id"], property_ids)
+    # Create an assay run with all properties
+    assay_run = create_test_assay_run(client, "Kinase Assay", "Kinase inhibition assay", assay["id"], property_ids)
 
     # Create compound and batch
     compound = create_test_compound(client)
@@ -233,10 +233,10 @@ def test_create_batch_assay_results(client):
     }
 
     # Create batch assay results
-    results = create_test_batch_assay_results(client, assay["id"], batch["id"], measurements)
+    results = create_test_batch_assay_results(client, assay_run["id"], batch["id"], measurements)
 
     # Verify data
-    assert results["assay_id"] == assay["id"]
+    assert results["assay_run_id"] == assay_run["id"]
     assert results["batch_id"] == batch["id"]
     assert results["assay_name"] == assay["name"]
     assert results["measurements"] == measurements
@@ -260,10 +260,10 @@ def test_create_assay_result_with_invalid_property(client):
     property2 = create_test_property(client, newProp)
 
     # Create an assay type with property1
-    assay_type = create_test_assay_type(client, "Enzyme Assay", "Enzyme activity assay", [property1["id"]])
+    assay = create_test_assay(client, "Enzyme Assay", "Enzyme activity assay", [property1["id"]])
 
     # Create an assay with property1
-    assay = create_test_assay(client, "Kinase Assay", "Kinase inhibition assay", assay_type["id"], [property1["id"]])
+    assay_run = create_test_assay_run(client, "Kinase Assay", "Kinase inhibition assay", assay["id"], [property1["id"]])
 
     # Create compound and batch
     compound = create_test_compound(client)
@@ -271,7 +271,7 @@ def test_create_assay_result_with_invalid_property(client):
 
     # Try to create an assay result with property2 that is not associated with the assay
     assay_result_data = {
-        "assay_id": assay["id"],
+        "assay_run_id": assay_run["id"],
         "batch_id": batch["id"],
         "property_id": property2["id"],  # Use the unrelated property
         "value_num": 5.2,
@@ -296,8 +296,8 @@ def test_batch_assay_results_with_invalid_property(client):
     property_ids = [prop["id"] for prop in properties]
 
     # Create an assay type and assay with only one property
-    assay_type = create_test_assay_type(client, "Limited Assay", "Assay with limited properties", property_ids)
-    assay = create_test_assay(client, "Limited Assay", "Limited assay", assay_type["id"], property_ids)
+    assay = create_test_assay(client, "Limited Assay", "Assay with limited properties", property_ids)
+    assay_run = create_test_assay_run(client, "Limited Assay", "Limited assay", assay["id"], property_ids)
 
     # Create compound and batch
     compound = create_test_compound(client)
@@ -308,7 +308,7 @@ def test_batch_assay_results_with_invalid_property(client):
 
     # Try to create batch assay results
     batch_results_data = {
-        "assay_id": assay["id"],
+        "assay_run_id": assay_run["id"],
         "batch_id": batch["id"],
         "measurements": measurements,
     }
@@ -327,10 +327,10 @@ def test_get_assay_result(client):
     property = create_test_property(client, ic50prop)
 
     # Create an assay type with the property
-    assay_type = create_test_assay_type(client, "Enzyme Assay", "Enzyme activity assay", [property["id"]])
+    assay = create_test_assay(client, "Enzyme Assay", "Enzyme activity assay", [property["id"]])
 
-    # Create an assay
-    assay = create_test_assay(client, "Kinase Assay", "Kinase inhibition assay", assay_type["id"], [property["id"]])
+    # Create an assay run
+    assay_run = create_test_assay_run(client, "Kinase Assay", "Kinase inhibition assay", assay["id"], [property["id"]])
 
     # Create compound and batch
     compound = create_test_compound(client)
@@ -347,7 +347,7 @@ def test_get_assay_result(client):
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == assay_result["id"]
-    assert data["assay_id"] == assay["id"]
+    assert data["assay_run_id"] == assay_run["id"]
     assert data["batch_id"] == batch["id"]
     assert data["property_id"] == property["id"]
     assert data["result_value"] == result_value
@@ -364,11 +364,11 @@ def test_get_batch_assay_results(client):
     property_ids = [prop["id"] for prop in properties]
     property_names = [prop["name"] for prop in properties]
 
-    # Create an assay type with properties
-    assay_type = create_test_assay_type(client, "Enzyme Assay", "Enzyme activity assay", property_ids)
+    # Create an assay with properties
+    assay = create_test_assay(client, "Enzyme Assay", "Enzyme activity assay", property_ids)
 
-    # Create an assay with all properties
-    assay = create_test_assay(client, "Kinase Assay", "Kinase inhibition assay", assay_type["id"], property_ids)
+    # Create an assay run with all properties
+    assay_run = create_test_assay_run(client, "Enzyme Assay", "Enzyme activity assay", assay["id"], property_ids)
 
     # Create compound and batch
     compound = create_test_compound(client)
@@ -382,7 +382,7 @@ def test_get_batch_assay_results(client):
     }
 
     # Create batch assay results
-    create_test_batch_assay_results(client, assay["id"], batch["id"], measurements)
+    create_test_batch_assay_results(client, assay_run["id"], batch["id"], measurements)
 
     # Get the batch assay results
     response = client.get(f"/batches/{batch['id']}/assay-results")
@@ -391,10 +391,10 @@ def test_get_batch_assay_results(client):
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
-    assert len(data) == 1  # Should have one assay with results
+    assert len(data) == 1  # Should have one assay run with results
 
     # Check the first assay result
-    assert data[0]["assay_id"] == assay["id"]
+    assert data[0]["assay_run_id"] == assay_run["id"]
     assert data[0]["batch_id"] == batch["id"]
     assert data[0]["assay_name"] == assay["name"]
 

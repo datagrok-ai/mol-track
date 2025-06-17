@@ -12,8 +12,8 @@ We have a number of intents.
 2. set up properties, synonyms, associations
 3. register virtual compounds
 4. register batches
-5. set up assay_types and corresponding assay_type_details and assay_type_properties
-6. register assays and assay_results.
+5. set up assays and corresponding assay_details and assay_properties
+6. register assay_runs and assay_results.
 7. search within a domain (compounds, batches, assay_results) or in combination
 
 **IMPORTANT: All paths should be prefixed by the appropriate version.**  Right now the version would be `/v1`.  In this document, the version prefix is assumed for clarity.  FASTAPI has a [router](https://fastapi.tiangolo.com/reference/apirouter/) concept that may allow us to declare versioning.
@@ -136,6 +136,13 @@ Mapping is optional, but assumes that the field names directly map to the databa
 
 - `GET /batches/` - returns a representation of batches including details, synonyms, additions and compounds including details and synonyms
 
+### Batch update endpoints ###  
+
+TODO fill out details
+
+- `PUT /batches/{batch_id}` - Used for updating information (details, compound, synonym, additions) for a given batch.  `batch_regno` is not updateable.  
+- `DELETE /batches/{batch_id}` - do I want to enable this? under what situations is it not appropriate?  is this business rule dependent?  It would seem like this should not be permitted if there are any assay_results that are dependent on it.
+
    __Future potential capabilities__
    1. pagination must be supported
    2. output format must be supported. `output-format=[json|csv|mol-v3000]` with a default of `csv`.  If `json` format is selected, the data is returned in a nested dictionary structure.  If the format is `csv` or `mol-v3000`, then the data is pivoted/concatenated/flattened
@@ -150,7 +157,7 @@ Mapping is optional, but assumes that the field names directly map to the databa
 - `GET /batches/{batch_id}/synonyms`  - just synonym properties
 - `GET /batches/{batch_id}/additions` - should returns additions, equivalents, and summary
 
-- `PUT /batches/{batch_id}` - Used for updating information (details, compound, synonym, additions) for a given batch.  `batch_regno` is not updateable.
+
 
 ## Register Virtual Compounds ##
 
@@ -239,131 +246,149 @@ These are included for symmetry of user experience.  They may be deprecated in f
 
 ## Assay Data Domain ##
 
-A key capability for moltrack is to capture assay data related to a sample (batch).  Typically this will be measured biological activity (potency, selectivity, toxicity).  It can be used to capture measured physical/chemical attributes as well.
+A key capability for moltrack is to capture assay data related to a sample (batch).  Typically this will be measured biological activity (potency, selectivity, toxicity).  It can be used to capture measured physical/chemical attributes as well.  The assay data domain consists of multiple levels:
 
-- `POST /schema/assay`  will define allowed/expected properties for assay_type_details, assay_details, assay_type_properties.  The properties represent categorization of the assay type whose values would be stored in *assay_type_details*, experimental conditions that would be stored as the assays level in the *assay_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assay type* level.
+- Assays: This is the definition of the type of experiment that will be run to measure characteristics of a test sample (biological activity for a perturbagen).
+- Assay Runs: This is the meta data about the actual experiment: date, assayer, eln record, experimental conditions / independent variables.
+- Assay Results: This is the actual results that an experiment measures for a sample.  Each sample may be measured in multiple ways producing multiple result types.  Experimental conditions that pertain to this specific sample measurements and also be recorded at this level, like the sample concentration.
 
-N.B. I am not happy with the titling of the major sections of the following schema
+To successfully load assay data, you will need to load the:
+
+- assay data schema.
+- assays instances and corresponding result type profiles.
+- assay_runs instances.
+- assay_results
+
+- `POST /schema`  - will be used to define allowed/expected dynamic properties for assay_details, assay_run_details, assay_properties.  The properties represent categorization of the assay whose values would be stored in *assay_details*, experimental conditions that would be stored as the assays level in the *assay_run_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assays* level.  An example json payload is provided below and in [assay_data_schema.json](./demo-data/black/assay_data_schema.json)
 
    ```json
    {
-      "assay_type_details properties": [
+      "properties": [
          {
             "name": "assay format",
-            "scope": "assay_types",
-            "property_class": "asserted",
+            "scope": "assay",
+            "property_class": "declared",
             "value_type": "string"
          },
          {
             "name": "biological system",
-            "scope": "assay_types",
-            "property_class": "asserted",
+            "scope": "assay",
+            "property_class": "declared",
             "value_type": "string"
-         }
-      ],
-      "assay_details properties":[
-            {
+         },
+         {
             "name": "Cell Species",
             "value_type": "string",
             "required": true,
-            "scope": "assay",
-            "property_class": "asserted"
-        },
-        {
+            "scope": "assay_run",
+            "property_class": "declared"
+         },
+         {
             "name": "Cell Lot",
             "value_type": "string",
             "required": true,
-            "scope": "assay",
+            "scope": "assay_run",
             "property_class": "measured"
-        },
-        {
+         },
+         {
             "name": "Cell Concentration",
             "value_type": "double",
             "required": true,
-            "scope": "assay",
+            "scope": "assay_run",
             "property_class": "measured",
             "units": "10^6 cells/mL"
-        },
-        {
+         },
+         {
             "name": "Assay Run Date",
             "value_type": "datetime",
             "required": true,
-            "scope": "assay",
+            "scope": "assay_run",
             "property_class": "measured"
-        },
-        {
+         },
+         {
             "name": "Assayer",
             "value_type": "uuid",
             "required": true,
-            "scope": "assay",
+            "scope": "assay_run",
             "property_class": "measured"
-        }
-      ],
-       "assay_type_properties": [
-            {
-                "name": "Reported CLint",
-                "value_type": "double",
-                "unit": "uL/min/10^6 cells",
-                "required": true,
-                "property_class": "measured",
-                "scope": "assay_results"
-            },
-            {
-                "name": "Mean HTC recovery",
-                "unit": "%",
-                "required": false,
-               "value_type": "double",
-               "property_class": "measured",
-                "scope": "assay_results"
-            },
-            {
-                "name": "SD HTC recovery",
-                "unit": "%",
-                "required": false,
-               "value_type": "double",
-               "property_class": "measured",
-                "scope": "assay_results"
-            },
-            {
-                "name": "Dosed Concentration",
-                "unit": "uM",
-                "required": true,
-               "value_type": "double",
-               "property_class": "measured",
-                "scope": "assay_results"
-            }
-       ]
+         },
+         {
+            "name": "Reported CLint",
+            "value_type": "double",
+            "unit": "uL/min/10^6 cells",
+            "required": true,
+            "property_class": "measured",
+            "scope": "assay_results"
+         },
+         {
+            "name": "Mean HTC recovery",
+            "unit": "%",
+            "required": false,
+            "value_type": "double",
+            "property_class": "measured",
+            "scope": "assay_results"
+         },
+         {
+            "name": "SD HTC recovery",
+            "unit": "%",
+            "required": false,
+            "value_type": "double",
+            "property_class": "measured",
+            "scope": "assay_results"
+         },
+         {
+            "name": "Dosed Concentration",
+            "unit": "uM",
+            "required": true,
+            "value_type": "double",
+            "property_class": "measured",
+            "scope": "assay_results"
+         }
+      ]
    }
    ```
 
-- `POST /assay_types` will create an instance of an assay type and values in assay_type_details and assay_type_properties. An example is presented below.
+   The output should be a listing of success / skipping / failure for the creation of each property.  A property may be skipped if it already exists at the proper scope. Skipped or failed records should provide a description as to why they did not succeed.
+
+- `POST /assays` will create an instance of an assay type and values in assay_details and assay_properties. An example payload is presented below and in the file [assay_instances.json](./demo-data/black/assays_instances.json)
 
    ```json
-   {
-    "assay_type": {
-        "name": "Hepatocyte Stability",
-        "details": {
-            "assay format": "in cellulo",
-            "biological_system": "hepatocyte"
-        }
+   [
+      {
+         "name": "Hepatocyte Stability",
+         "assay format": "in cellulo",
+         "biological_system": "hepatocyte",
+         "assay_result_properties": [
+               {
+                  "name": "Reported CLint",
+                  "required": true
+               },
+               {
+                  "name": "Mean HTC recovery",
+                  "required": false
+               },
+               {
+                  "name": "SD HTC recovery",
+                  "required": false
+               },
+               {
+                  "name": "Dosed Concentration",
+                  "required": true
+               }
+               
+         ]
       }
-   }
+   ]
    ```
 
-- `POST /assays` will create an instance of the 'assays' or assay run and populate property values in *assay_details* table.  Example properties to be populated would include assay date, assayer, and might include cell lot number for a *in cellulo* assay.  An example is presented below:
+   Output should be a json record with the success/skip/failure of creating each record, the details of each assay created with its corresponding id, and any neccessary message to explain the errors.  The commit to the database should be done on a per assay basis ('reject row' strategy).
 
-   ```json
-   {
-      "assay_details": {
-         "cell species": "Human",
-         "cell lot": "H1",
-         "assayer": "Jane Doe",
-         "assay_date": "2024-02-01"
-      }
-   }
-   ```
+- `POST /assay_runs` will create instances of the 'assay_runs' or assay run and populate property values in *assay_run_details* table. Input will be in the form of a csv file where fixed and dynamic properties are mapped to the columns by case-insensitive mapping or a mapping file will be provided. Example properties to be populated would include assay date, assayer, and might include cell lot number for a *in cellulo* assay.  An example csv is [assay_runs.csv](./demo-data/black/assay_runs.csv).  An example mapping file is [assay_runs_mapping.json](./demo-data/black/assay_runs_mapping.json).  The 'reject row' strategy should be used.
 
-- `POST /assay_results` This endpoint will be used populate data in assays, assay_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assays and assay_results levels.  There will need to be a mapping.  Since there were be multiple results rows per assay run, the assays instance will be to be determined by matching appropriate properties.
+   Output should be a csv with each assay run instance with success/skip/failure indication for each row, the resulting assay_run id if created, and an explanatory message for any skipped/failed assay runs.  A row is skipped if there is a preexisting record with all the matching details.
+
+- `POST /assay_results` This endpoint will be used populate data in assay_runs, assay_run_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result-level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assay_runs and assay_results levels.  There will need to be a mapping. One csv column must be used to uniquely identify the batch via. Since there were be multiple results rows per assay run, the assay_runs instance will be to be determined by matching appropriate properties.  The 'reject-all' strategy is the only allowed commit strategy.
+
   - See example [assay data](./demo-data/black/assay_results.csv)
   - See example [mapping](./demo-data/black/assay_results_mapping.json)
 
@@ -371,12 +396,12 @@ N.B. I am not happy with the titling of the major sections of the following sche
 
 These are included for symmetrical thinking of user experience.  They may be deprecated in favor of a search experience or become alternative paths for that search endpoint.
 
-- `GET /assay_types` - Return a list of all assay_types with included assay_type_details and assay_type_properties.
-- `GET /assay_types/{assay_type_id}` - Return the details for a specific assay_type.
-- `GET /assays` - Return a list of all assays including assay_type information, assay_details information.
+- `GET /assays` - Return a list of all assays with included assay_details and assay_properties.
 - `GET /assays/{assay_id}` - Return the details for a specific assay.
+- `GET /assay_runs` - Return a list of all assay_runs including assay information, assay_run_details information.
+- `GET /assay_runs/{assay_id}` - Return the details for a specific assay.
 - `GET /assay_results`
-   Query parameters include possible filters for {assay_type_id} and/or {assay_id}
+   Query parameters include possible filters for {assay_id} and/or {assay_id}
 
 ### Assay Data Putter endpoints ###
 
@@ -400,8 +425,8 @@ User stories:
       2. similarity criteria
       3. batch property of source = WuXi
       4. kinase IC50 < 100 uM
-   7. Show me all the *in cellulo* assay_types with details
-   8. Shom me all the assay runs for a specific assay_type
+   7. Show me all the *in cellulo* assays with details
+   8. Shom me all the assay runs for a specific assay
 
 The endpoint path indicates the shape of the returned data: compound per row; batch per row; assay result value per row.
 
@@ -448,7 +473,7 @@ The endpoint path indicates the shape of the returned data: compound per row; ba
       "columns": ["id", "canonical_smiles"]
     },
     {
-      "table": "assays",
+      "table": "assay_runs",
       "field": "IC50",
       "operator": "<",
       "unit": "nM"
@@ -491,8 +516,8 @@ logical conditions -> postgres sql condition phrases
   - assay_results
 
   We may need
-  - assay_types
   - assays
+  - assay_runs
 
 - output
   - "*" - means all fields
