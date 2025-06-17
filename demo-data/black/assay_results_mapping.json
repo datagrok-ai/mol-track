@@ -1,11 +1,11 @@
 {
     "batch_corporate_id": "batch_synonyms.batch_corporate_id",
-    "species": "assay_details.Cell Species",
+    "species": "assay_run_details.Cell Species",
     "Dosed Concentration (µM)": "assay_results.Dosed Concentration",
     "Reported CLint (µL/min/ 106 cells)": "assay_results.Reported CLint",
     "Mean HTC recovery (%; n=2)": "assay_results.Mean HTC recovery",
     "SD HTC recovery (%; n=2)": "assay_results.SD HTC recovery",
     "assay_type name": "assay_types.name",
-    "Cell Lot": "assays.assay_details.Cell Lot",
-    "assay_date": "assays.assay_details.Assay Run Date"
+    "Cell Lot": "assays.assay_run_details.Cell Lot",
+    "assay_date": "assays.assay_run_details.Assay Run Date"
 }
