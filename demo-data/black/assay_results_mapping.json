@@ -1,5 +1,5 @@
 {
-    "batch_corporate_id": "batch_synonyms.batch_corporate_id",
+    "batch_corporate_id": {"matching_batch_synonym":"batch_synonyms.batch_corporate_id"},
     "species": "assay_run_details.Cell Species",
     "Dosed Concentration (µM)": "assay_results.Dosed Concentration",
     "Reported CLint (µL/min/ 106 cells)": "assay_results.Reported CLint",

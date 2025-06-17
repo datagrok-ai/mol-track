@@ -22,6 +22,6 @@ Assays and the corresponding results profiles (assay_properties) will be created
 
 Assays Runs will be created using [assay_runs.csv](assay_runs.csv).  The mapping of csv columns to fixed and dynamic assay_run attributes will be done by case insensitve mapping or a mapping file can be provided. A potential mapping file is [assay_runs_mapping.json](assay_runs_mapping.json)
 
-Assay results will be shown in [assay_results.csv](assay_results.csv).  Processing this file you should be creating assays instances with *assay_details* property values and a *assay_results* instances with property/values that correspond to those declared in the *assay_type_properties* table. A potential mapping file is [assay_results_mapping.json](./assay_results_mapping.json)
+Assay results will be shown in [assay_results.csv](assay_results.csv).  Processing this file you should be creating assays instances with *assay_details* property values and a *assay_results* instances with property/values that correspond to those declared in the *assay_type_properties* table. A potential mapping file is [assay_results_mapping.json](./assay_results_mapping.json).  It is critical that one column of the csv can be used to uniquely lookup the batch.
 
 Assay raw data will be shown in assay_raw_results.csv.  This will be used for assay results calculation, not MolTrack registration.
