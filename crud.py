@@ -96,7 +96,7 @@ def create_compound(db: Session, compound: models.CompoundCreate):
         original_molfile=compound.original_molfile,
         inchi=inchi,
         inchikey=inchikey,
-        molregno=random.randint(1, 100),
+        molregno=random.randint(1, 10000),
         formula=formula,
         hash_mol=hash_mol,
         hash_tautomer=hash_tautomer,
@@ -339,53 +339,53 @@ def delete_property(db: Session, property_id: int):
     return db_property
 
 
-# AssayType CRUD operations
-def get_assay_type(db: Session, assay_type_id: int):
-    return db.query(models.AssayType).filter(models.AssayType.id == assay_type_id).first()
+# Assay CRUD operations
+def get_assay(db: Session, assay_id: int):
+    return db.query(models.Assay).filter(models.Assay.id == assay_id).first()
 
 
-def get_assay_types(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.AssayType).offset(skip).limit(limit).all()
+def get_assays(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Assay).offset(skip).limit(limit).all()
 
 
-def create_assay_type(db: Session, assay_type: models.AssayTypeCreate):
+def create_assay(db: Session, assay: models.AssayCreate):
     # Create the assay type
     current_time = datetime.now(timezone.utc)
-    db_assay_type = models.AssayType(
-        name=assay_type.name,
-        description=assay_type.description,
+    db_assay = models.Assay(
+        name=assay.name,
+        description=assay.description,
         created_at=current_time,
         updated_at=current_time,
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
     )
-    db.add(db_assay_type)
+    db.add(db_assay)
     db.commit()
-    db.refresh(db_assay_type)
+    db.refresh(db_assay)
 
     # Add properties to the assay type if provided
-    if assay_type.property_ids:
-        properties = db.query(models.Property).filter(models.Property.id.in_(assay_type.property_ids)).all()
+    if assay.property_ids:
+        properties = db.query(models.Property).filter(models.Property.id.in_(assay.property_ids)).all()
         for prop in properties:
-            db_assay_type.properties.append(prop)
+            db_assay.properties.append(prop)
 
     # Add property requirements if provided
-    for req in assay_type.property_requirements:
+    for req in assay.property_requirements:
         # Skip if property not in the assay type's properties
-        if req["property_id"] not in assay_type.property_ids:
+        if req["property_id"] not in assay.property_ids:
             continue
 
-        property_req = models.AssayTypeProperty(
-            assay_type_id=db_assay_type.id,
+        property_req = models.AssayProperty(
+            assay_id=db_assay.id,
             property_id=req["property_id"],
             required=req.get("required", False),
         )
         db.add(property_req)
 
     # Add property details if provided
-    for detail in assay_type.property_details:
+    for detail in assay.property_details:
         # Skip if property not in the assay type's properties
-        if detail["property_id"] not in assay_type.property_ids:
+        if detail["property_id"] not in assay.property_ids:
             continue
 
         # Get the property to determine its value type
@@ -393,8 +393,8 @@ def create_assay_type(db: Session, assay_type: models.AssayTypeCreate):
         if not property:
             continue
 
-        property_detail = models.AssayTypeDetail(
-            assay_type_id=db_assay_type.id,
+        property_detail = models.AssayDetail(
+            assay_id=db_assay.id,
             property_id=detail["property_id"],
         )
 
@@ -409,28 +409,28 @@ def create_assay_type(db: Session, assay_type: models.AssayTypeCreate):
         db.add(property_detail)
 
     db.commit()
-    db.refresh(db_assay_type)
-    return db_assay_type
+    db.refresh(db_assay)
+    return db_assay
 
 
 # Assay CRUD operations
-def get_assay(db: Session, assay_id: int):
+def get_assay_run(db: Session, assay_run_id: int):
     # Get the assay
-    assay = db.query(models.Assay).filter(models.Assay.id == assay_id).first()
+    assay = db.query(models.AssayRun).filter(models.AssayRun.id == assay_run_id).first()
 
     if assay:
         # Get properties associated with this assay through assay details
-        assay_details = db.query(models.AssayDetail).filter(models.AssayDetail.assay_id == assay_id).all()
+        assay_details = db.query(models.AssayRunDetail).filter(models.AssayRunDetail.assay_run_id == assay_run_id).all()
         property_ids = [detail.property_id for detail in assay_details]
 
         # If no properties from assay details, get them from the assay type
-        if not property_ids and assay.assay_type:
-            assay_type_properties = (
-                db.query(models.AssayTypeProperty)
-                .filter(models.AssayTypeProperty.assay_type_id == assay.assay_type_id)
+        if not property_ids and assay.assay:
+            assay_properties = (
+                db.query(models.AssayProperty)
+                .filter(models.AssayProperty.assay_id == assay.assay_id)
                 .all()
             )
-            property_ids = [prop.property_id for prop in assay_type_properties]
+            property_ids = [prop.property_id for prop in assay_properties]
 
         # Get the property objects
         if property_ids:
@@ -443,52 +443,52 @@ def get_assay(db: Session, assay_id: int):
     return assay
 
 
-def get_assays(db: Session, skip: int = 0, limit: int = 100):
-    # Get assays with pagination
-    assays = db.query(models.Assay).offset(skip).limit(limit).all()
+def get_assay_runs(db: Session, skip: int = 0, limit: int = 100):
+    # Get assay_runs with pagination
+    assay_runs = db.query(models.AssayRun).offset(skip).limit(limit).all()
 
     # For each assay, add its properties
-    for assay in assays:
+    for assay_run in assay_runs:
         # Get properties associated with this assay through assay details
-        assay_details = db.query(models.AssayDetail).filter(models.AssayDetail.assay_id == assay.id).all()
+        assay_details = db.query(models.AssayRunDetail).filter(models.AssayRunDetail.assay_run_id == assay_run.id).all()
         property_ids = [detail.property_id for detail in assay_details]
 
         # If no properties from assay details, get them from the assay type
-        if not property_ids and assay.assay_type:
-            assay_type_properties = (
-                db.query(models.AssayTypeProperty)
-                .filter(models.AssayTypeProperty.assay_type_id == assay.assay_type_id)
+        if not property_ids and assay_run.assay:
+            assay_properties = (
+                db.query(models.AssayProperty)
+                .filter(models.AssayProperty.assay_id == assay_run.assay_id)
                 .all()
             )
-            property_ids = [prop.property_id for prop in assay_type_properties]
+            property_ids = [prop.property_id for prop in assay_properties]
 
         # Get the property objects
         if property_ids:
             properties = db.query(models.Property).filter(models.Property.id.in_(property_ids)).all()
             # Add properties to assay
-            assay.properties = properties
+            assay_run.properties = properties
         else:
-            assay.properties = []
+            assay_run.properties = []
 
-    return assays
+    return assay_runs
 
 
-def create_assay(db: Session, assay: models.AssayCreate):
+def create_assay_run(db: Session, assay: models.AssayRunCreate):
     # Create the assay
-    db_assay = models.Assay(
+    db_assay_run = models.AssayRun(
         name=assay.name,
         description=assay.description,
-        assay_type_id=assay.assay_type_id,
+        assay_id=assay.assay_id,
         created_by=main.admin_user_id,
         updated_by=main.admin_user_id,
         created_at=datetime.now(),
     )
-    db.add(db_assay)
+    db.add(db_assay_run)
     db.commit()
-    db.refresh(db_assay)
+    db.refresh(db_assay_run)
 
     # Initialize empty properties list
-    db_assay.properties = []
+    db_assay_run.properties = []
 
     # Add assay details for properties if provided
     if assay.property_ids:
@@ -496,12 +496,12 @@ def create_assay(db: Session, assay: models.AssayCreate):
         properties = db.query(models.Property).filter(models.Property.id.in_(assay.property_ids)).all()
 
         # Get the assay type to check which properties are expected
-        assay_type = db.query(models.AssayType).filter(models.AssayType.id == assay.assay_type_id).first()
+        assay = db.query(models.Assay).filter(models.Assay.id == assay.assay_id).first()
 
         # Only add properties that are part of the assay type
         valid_property_ids = set()
-        if assay_type and assay_type.properties:
-            valid_property_ids = {prop.id for prop in assay_type.properties}
+        if assay and assay.properties:
+            valid_property_ids = {prop.id for prop in assay.properties}
 
         # Collect valid properties to add to assay.properties
         valid_properties = []
@@ -510,20 +510,20 @@ def create_assay(db: Session, assay: models.AssayCreate):
         for prop in properties:
             if prop.id in valid_property_ids or not valid_property_ids:  # If valid_property_ids is empty, accept all
                 # Initialize empty detail
-                assay_detail = models.AssayDetail(
-                    assay_id=db_assay.id,
+                assay_detail = models.AssayRunDetail(
+                    assay_run_id=db_assay_run.id,
                     property_id=prop.id,
                 )
                 db.add(assay_detail)
                 valid_properties.append(prop)
 
         db.commit()
-        db.refresh(db_assay)
+        db.refresh(db_assay_run)
 
         # Set the properties list
-        db_assay.properties = valid_properties
+        db_assay_run.properties = valid_properties
 
-    return db_assay
+    return db_assay_run
 
 
 def get_compounds_ex(db: Session, query_params: models.CompoundQueryParams):
@@ -594,17 +594,18 @@ def get_batch_assay_results(db: Session, batch_id: int):
     """Get all assay results for a specific batch"""
     results = db.query(models.AssayResult).filter(models.AssayResult.batch_id == batch_id).all()
 
-    # Group results by assay_id
+    # Group results by assay_run_id
     grouped_results = {}
     for result in results:
-        assay_id = result.assay_id
-        if assay_id not in grouped_results:
+        assay_run_id = result.assay_run_id
+        if assay_run_id not in grouped_results:
             # Get the assay name
-            assay = db.query(models.Assay).filter(models.Assay.id == assay_id).first()
+            assay_run = db.query(models.AssayRun).filter(models.AssayRun.id == assay_run_id).first()
+            assay = db.query(models.Assay).filter(models.Assay.id == assay_run.assay_id).first()
             assay_name = assay.name if assay else "Unknown Assay"
 
-            grouped_results[assay_id] = {
-                "assay_id": assay_id,
+            grouped_results[assay_run_id] = {
+                "assay_run_id": assay_run_id,
                 "batch_id": batch_id,
                 "assay_name": assay_name,
                 "measurements": {},
@@ -626,12 +627,12 @@ def get_batch_assay_results(db: Session, batch_id: int):
 
         # If we have a qualifier other than "=" (0), include it in the result
         if result.value_qualifier != 0:
-            grouped_results[assay_id]["measurements"][property_name] = {
+            grouped_results[assay_run_id]["measurements"][property_name] = {
                 "qualifier": result.value_qualifier,
                 "value": value,
             }
         else:
-            grouped_results[assay_id]["measurements"][property_name] = value
+            grouped_results[assay_run_id]["measurements"][property_name] = value
 
     return list(grouped_results.values())
 
@@ -639,9 +640,9 @@ def get_batch_assay_results(db: Session, batch_id: int):
 def create_assay_result(db: Session, assay_result: models.AssayResultBase):
     """Create a single assay result entry for a specific property"""
     # Validate assay exists
-    assay = db.query(models.Assay).filter(models.Assay.id == assay_result.assay_id).first()
-    if assay is None:
-        raise HTTPException(status_code=404, detail=f"Assay with ID {assay_result.assay_id} not found")
+    assay_run = db.query(models.AssayRun).filter(models.AssayRun.id == assay_result.assay_run_id).first()
+    if assay_run is None:
+        raise HTTPException(status_code=404, detail=f"AssayRun with ID {assay_result.assay_run_id} not found")
 
     # Validate batch exists
     batch = db.query(models.Batch).filter(models.Batch.id == assay_result.batch_id).first()
@@ -655,37 +656,37 @@ def create_assay_result(db: Session, assay_result: models.AssayResultBase):
 
     # Check if the property is associated with the assay through assay_details
     assay_detail = (
-        db.query(models.AssayDetail)
+        db.query(models.AssayRunDetail)
         .filter(
-            models.AssayDetail.assay_id == assay_result.assay_id,
-            models.AssayDetail.property_id == assay_result.property_id,
+            models.AssayRunDetail.assay_run_id == assay_result.assay_run_id,
+            models.AssayRunDetail.property_id == assay_result.property_id,
         )
         .first()
     )
 
-    # If not found in assay_details, check if the property is associated with the assay's assay_type
+    # If not found in assay_details, check if the property is associated with the assay run's assay
     if not assay_detail:
-        assay_type = db.query(models.AssayType).filter(models.AssayType.id == assay.assay_type_id).first()
-        if assay_type:
+        assay = db.query(models.Assay).filter(models.Assay.id == assay_run.assay_id).first()
+        if assay:
             # Check if property is in assay type properties
-            assay_type_property = (
-                db.query(models.AssayTypeProperty)
+            assay_property = (
+                db.query(models.AssayProperty)
                 .filter(
-                    models.AssayTypeProperty.assay_type_id == assay_type.id,
-                    models.AssayTypeProperty.property_id == assay_result.property_id,
+                    models.AssayProperty.assay_id == assay.id,
+                    models.AssayProperty.property_id == assay_result.property_id,
                 )
                 .first()
             )
 
-            if not assay_type_property:
+            if not assay_property:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Property with ID {assay_result.property_id} is not associated with assay type '{assay_type.name}'",
+                    detail=f"Property with ID {assay_result.property_id} is not associated with assay type '{assay.name}'",
                 )
 
     # Create the assay result with the appropriate value field
     db_assay_result = models.AssayResult(
-        assay_id=assay_result.assay_id,
+        assay_run_id=assay_result.assay_run_id,
         batch_id=assay_result.batch_id,
         property_id=assay_result.property_id,
         value_qualifier=assay_result.value_qualifier,
@@ -713,9 +714,9 @@ def create_assay_result(db: Session, assay_result: models.AssayResultBase):
 def create_batch_assay_results(db: Session, batch_results: models.BatchAssayResultsCreate):
     """Create multiple assay results for a batch in a single transaction"""
     # Validate assay exists
-    assay = db.query(models.Assay).filter(models.Assay.id == batch_results.assay_id).first()
+    assay = db.query(models.AssayRun).filter(models.AssayRun.id == batch_results.assay_run_id).first()
     if assay is None:
-        raise HTTPException(status_code=404, detail=f"Assay with ID {batch_results.assay_id} not found")
+        raise HTTPException(status_code=404, detail=f"AssayRun with ID {batch_results.assay_run_id} not found")
 
     # Validate batch exists
     batch = db.query(models.Batch).filter(models.Batch.id == batch_results.batch_id).first()
@@ -723,13 +724,13 @@ def create_batch_assay_results(db: Session, batch_results: models.BatchAssayResu
         raise HTTPException(status_code=404, detail=f"Batch with ID {batch_results.batch_id} not found")
 
     # Get the assay type
-    assay_type = db.query(models.AssayType).filter(models.AssayType.id == assay.assay_type_id).first()
-    if assay_type is None:
-        raise HTTPException(status_code=404, detail=f"AssayType for Assay with ID {batch_results.assay_id} not found")
+    assay = db.query(models.Assay).filter(models.Assay.id == assay.assay_id).first()
+    if assay is None:
+        raise HTTPException(status_code=404, detail=f"Assay for AssayRun with ID {batch_results.assay_run_id} not found")
 
     # Get all properties from the assay type
     properties = {}
-    for prop in assay_type.properties:
+    for prop in assay.properties:
         properties[prop.name] = {
             "id": prop.id,
             "value_type": prop.value_type,
@@ -739,7 +740,7 @@ def create_batch_assay_results(db: Session, batch_results: models.BatchAssayResu
     for prop_name in batch_results.measurements.keys():
         if prop_name not in properties:
             raise HTTPException(
-                status_code=400, detail=f"Property '{prop_name}' is not associated with assay type '{assay_type.name}'"
+                status_code=400, detail=f"Property '{prop_name}' is not associated with assay type '{assay.name}'"
             )
 
     # Create assay results for each property
@@ -752,7 +753,7 @@ def create_batch_assay_results(db: Session, batch_results: models.BatchAssayResu
 
         # Prepare the assay result with common fields
         db_assay_result = models.AssayResult(
-            assay_id=batch_results.assay_id,
+            assay_run_id=batch_results.assay_run_id,
             batch_id=batch_results.batch_id,
             property_id=property_id,
             value_qualifier=0,  # Default to equals
@@ -808,7 +809,7 @@ def create_batch_assay_results(db: Session, batch_results: models.BatchAssayResu
 
     # Return in grouped format
     return {
-        "assay_id": batch_results.assay_id,
+        "assay_run_id": batch_results.assay_run_id,
         "batch_id": batch_results.batch_id,
         "assay_name": assay.name,
         "measurements": processed_measurements,
