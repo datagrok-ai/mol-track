@@ -38,8 +38,6 @@ app = FastAPI(title="MolTrack API", description="API for managing chemical compo
 router = APIRouter(prefix="/v1")
 warnings.filterwarnings("ignore", category=SAWarning)
 
-admin_user_id: str | None = None
-
 
 # Dependency
 def get_db():
@@ -56,18 +54,7 @@ def get_admin_user(db: Session):
     admin = db.query(models.User).filter(models.User.first_name == "Admin").first()
     if not admin:
         raise Exception("Admin user not found.")
-
-    global admin_user_id
-    admin_user_id = admin.id
-
-
-@app.on_event("startup")
-def on_startup():
-    db = SessionLocal()
-    try:
-        get_admin_user(db)
-    finally:
-        db.close()
+    return admin.id
 
 
 # Compounds endpoints

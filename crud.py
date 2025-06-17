@@ -105,8 +105,8 @@ def create_compound(db: Session, compound: models.CompoundCreate):
         hash_no_stereo_tautomer=hash_no_stereo_tautomer,
         created_at=datetime.now(),
         updated_at=datetime.now(),
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
+        created_by=main.get_admin_user(db),
+        updated_by=main.get_admin_user(db),
         is_archived=compound.is_archived,
     )
 
@@ -191,8 +191,8 @@ def create_compounds_batch(db: Session, smiles_list: List[str]):
             hash_canonical_smiles=uuid.uuid4(),
             hash_no_stereo_smiles=uuid.uuid4(),
             hash_no_stereo_tautomer=uuid.uuid4(),
-            created_by=main.admin_user_id,
-            updated_by=main.admin_user_id,
+            created_by=main.get_admin_user(db),
+            updated_by=main.get_admin_user(db),
             created_at=datetime.now(),
             updated_at=datetime.now(),
             is_archived=False,
@@ -249,8 +249,8 @@ def create_batch(db: Session, batch: models.BatchBase):
     db_batch = models.Batch(
         compound_id=batch.compound_id,
         notes=batch.notes,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
+        created_by=main.get_admin_user(db),
+        updated_by=main.get_admin_user(db),
         created_at=datetime.now(),
         batch_regno=random.randint(1, 100),
     )
@@ -308,8 +308,8 @@ def create_property(db: Session, property: models.PropertyBase):
         unit=property.unit,
         semantic_type_id=property.semantic_type_id,
         scope=property.scope,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
+        created_by=main.get_admin_user(db),
+        updated_by=main.get_admin_user(db),
     )
 
     db.add(db_property)
@@ -356,8 +356,8 @@ def create_assay_type(db: Session, assay_type: models.AssayTypeCreate):
         description=assay_type.description,
         created_at=current_time,
         updated_at=current_time,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
+        created_by=main.get_admin_user(db),
+        updated_by=main.get_admin_user(db),
     )
     db.add(db_assay_type)
     db.commit()
@@ -479,8 +479,8 @@ def create_assay(db: Session, assay: models.AssayCreate):
         name=assay.name,
         description=assay.description,
         assay_type_id=assay.assay_type_id,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
+        created_by=main.get_admin_user(db),
+        updated_by=main.get_admin_user(db),
         created_at=datetime.now(),
     )
     db.add(db_assay)
@@ -834,8 +834,8 @@ def create_batch_detail(db: Session, batch_detail: models.BatchDetailBase):
         batch_id=batch_detail.batch_id,
         property_id=batch_detail.property_id,
         value_qualifier=batch_detail.value_qualifier,
-        created_by=main.admin_user_id,
-        updated_by=main.admin_user_id,
+        created_by=main.get_admin_user(db),
+        updated_by=main.get_admin_user(db),
     )
 
     # Set the value based on the property type
@@ -880,6 +880,7 @@ def bulk_create_if_not_exists(
     Returns:
         List[Dict[str, Any]]: List of inserted records.
     """
+    print("we are in bulk_create_if_not_exists")
     input_names = [getattr(item, name_attr) for item in items]
     existing_names = {
         name
@@ -896,8 +897,8 @@ def bulk_create_if_not_exists(
             data = validated.model_dump()
             data.update(
                 {
-                    "created_by": main.admin_user_id,
-                    "updated_by": main.admin_user_id,
+                    "created_by": main.get_admin_user(db),
+                    "updated_by": main.get_admin_user(db),
                 }
             )
             to_insert.append(data)

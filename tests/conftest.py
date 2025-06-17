@@ -1,13 +1,14 @@
+import json
 from pathlib import Path
 import pytest
 import os
 import uuid
 import sys
-import pandas as pd
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from logging_setup import logger
+import enums
 
 # Set the DB_SCHEMA environment variable
 os.environ["DB_SCHEMA"] = "moltrack"
@@ -39,6 +40,9 @@ admin_engine = create_engine(ADMIN_DATABASE_URL, isolation_level="AUTOCOMMIT")
 
 # Get the schema name from environment variable or use default
 DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
+
+DATA_DIR = Path(__file__).parent.parent / "demo-data"
+BLACK_DIR = DATA_DIR / "black"
 
 
 @pytest.fixture(scope="module")
@@ -150,51 +154,52 @@ def client(test_db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+
     with TestClient(app) as c:
+        preload_schema(c)
+        preload_additions(c)
+        preload_compounds(c, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
         yield c
+
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
+def read_json(file_path: Path) -> dict:
+    with file_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def read_csv(file_path: Path) -> str:
+    return file_path.read_text(encoding="utf-8")
+
+
 def preload_schema(client):
-    return client.post("v1/schema/", json=TEST_SCHEMA_DATA)
+    for schema_file in ["batches_schema.json", "compounds_schema.json"]:
+        data = read_json(BLACK_DIR / schema_file)
+        client.post("/v1/schema/", json=data)
 
 
-@pytest.fixture
-def uploaded_additions(client):
-    file_path = "demo-data/additions.csv"
-    csv_data = load_csv_file(file_path)
-    files = {"file": (file_path, csv_data, "text/csv")}
-
-    response = client.post("/v1/additions/", files=files)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "success"
-    assert "created" in data
-
-    return data["created"]["additions"], pd.read_csv(file_path)["name"].tolist()
+def preload_additions(client):
+    file_path = DATA_DIR / "additions.csv"
+    files = {"file": (str(file_path), read_csv(file_path), "text/csv")}
+    client.post("/v1/additions/", files=files)
 
 
-def load_csv_file(file_path: str) -> str:
-    path = Path(__file__).parent.parent / file_path
-    return path.read_text(encoding="utf-8")
+def preload_entity(client, endpoint: str, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+    files = {"csv_file": (str(csv_path), read_csv(csv_path), "text/csv")}
+    data = {"error_handling": error_handling.value, "mapping": json.dumps(read_json(mapping_path))}
+    return client.post(endpoint, files=files, data=data)
+
+
+def preload_compounds(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+    return preload_entity(client, "/v1/compounds/", csv_path, mapping_path, error_handling)
+
+
+def preload_batches(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+    return preload_entity(client, "/v1/batches/", csv_path, mapping_path, error_handling)
 
 
 # Common test data
 aspirin_smiles = "CC(=O)OC1=CC=CC=C1C(=O)O"
 aspirin_smiles_noncanonical = "CC(Oc1c(C(O)=O)cccc1)=O"
 caffeine_smiles = "CN1C=NC2=C1C(=O)N(C(=O)N2C)C"
-
-TEST_SCHEMA_DATA = {
-    "properties": [
-        {"name": "MolLogP", "scope": "COMPOUND", "property_class": "CALCULATED", "value_type": "double", "unit": ""},
-        {"name": "acquired_date", "scope": "BATCH", "property_class": "MEASURED", "value_type": "datetime", "unit": ""},
-    ],
-    "synonym_types": [
-        {"name": "batch_corporate_id", "scope": "BATCH", "pattern": ""},
-        {"name": "corporate_id", "scope": "COMPOUND", "pattern": ""},
-        {"name": "cas", "scope": "COMPOUND", "pattern": r"\b[1-9]{1}[0-9]{1,6}-\d{2}-\d\b"},
-        {"name": "common_name", "scope": "COMPOUND", "pattern": ""},
-        {"name": "usan", "scope": "COMPOUND", "pattern": ""},
-    ],
-}

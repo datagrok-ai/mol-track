@@ -11,6 +11,7 @@ import models
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
+        self.db = db
         self.batch_records_map = self._load_reference_map(models.Batch, "batch_regno")
         self.additions_map = self._load_reference_map(models.Addition, "name")
 
@@ -26,8 +27,8 @@ class BatchRegistrar(CompoundRegistrar):
         return {
             "inchikey": inchikey,
             "notes": None,
-            "created_by": main.admin_user_id,
-            "updated_by": main.admin_user_id,
+            "created_by": main.get_admin_user(self.db),
+            "updated_by": main.get_admin_user(self.db),
             "created_at": datetime.now(),
             "batch_regno": batch_regno,
         }
@@ -43,8 +44,8 @@ class BatchRegistrar(CompoundRegistrar):
                     "batch_regno": batch_regno,
                     "addition_id": getattr(addition, "id"),
                     "addition_equivalent": float(value) if value not in (None, "") else 1,
-                    "created_by": main.admin_user_id,
-                    "updated_by": main.admin_user_id,
+                    "created_by": main.get_admin_user(self.db),
+                    "updated_by": main.get_admin_user(self.db),
                 }
             )
         return records
@@ -54,9 +55,7 @@ class BatchRegistrar(CompoundRegistrar):
         self.batches_to_insert.append(batch_record)
 
         self.batch_details.extend(
-            self._build_details_records(
-                grouped.get("batches_details", {}), batch_record["batch_regno"], "batch_regno"
-            )
+            self._build_details_records(grouped.get("batches_details", {}), batch_record["batch_regno"], "batch_regno")
         )
         self.batch_additions.extend(
             self._build_batch_addition_record(grouped.get("batches_additions", {}), batch_record["batch_regno"])
@@ -65,9 +64,7 @@ class BatchRegistrar(CompoundRegistrar):
     def get_additional_cte(self):
         if not self.batches_to_insert:
             return ""
-        return self._build_batch_ctes(
-            self.batches_to_insert, self.batch_details, self.batch_additions
-        )
+        return self._build_batch_ctes(self.batches_to_insert, self.batch_details, self.batch_additions)
 
     def _build_batch_ctes(self, batches, details, additions) -> str:
         batch_cte = self._build_inserted_batches_cte(batches)

@@ -48,7 +48,7 @@ class CompoundRegistrar(BaseRegistrar):
             "inchi": Chem.MolToInchi(mol),
             "inchikey": inchikey,
             "original_molfile": compound_data.get("original_molfile", ""),
-            "molregno": random.randint(0, 100),
+            "molregno": random.randint(0, 10000),
             "formula": rdMolDescriptors.CalcMolFormula(mol),
             "hash_mol": hash_mol,
             "hash_tautomer": hash_tautomer,
@@ -57,8 +57,8 @@ class CompoundRegistrar(BaseRegistrar):
             "hash_no_stereo_tautomer": hash_no_stereo_tautomer,
             "created_at": now,
             "updated_at": now,
-            "created_by": main.admin_user_id,
-            "updated_by": main.admin_user_id,
+            "created_by": main.get_admin_user(self.db),
+            "updated_by": main.get_admin_user(self.db),
             "is_archived": compound_data.get("is_archived", False),
         }
 
@@ -101,8 +101,8 @@ class CompoundRegistrar(BaseRegistrar):
             detail = {
                 id_field: entity_id,
                 "property_id": getattr(prop, "id"),
-                "created_by": main.admin_user_id,
-                "updated_by": main.admin_user_id,
+                "created_by": main.get_admin_user(self.db),
+                "updated_by": main.get_admin_user(self.db),
                 "value_datetime": datetime.now(),
                 "value_num": None,
                 "value_string": None,
