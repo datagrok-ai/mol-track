@@ -33,7 +33,7 @@ class ScopeClass(CaseInsensitiveEnum):
     COMPOUND = "COMPOUND"
     ASSAY = "ASSAY"
     ASSAY_RUN = "ASSAY_RUN"
-    ASSAY_RESULT = "ASSAY_RESULT"
+    ASSAY_RESULTS = "ASSAY_RESULTS"
     SYSTEM = "SYSTEM"
 
 

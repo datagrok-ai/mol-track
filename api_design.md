@@ -357,7 +357,7 @@ To successfully load assay data, you will need to load the:
       {
          "name": "Hepatocyte Stability",
          "assay format": "in cellulo",
-         "biological_system": "hepatocyte",
+         "biological system": "hepatocyte",
          "assay_result_properties": [
                {
                   "name": "Reported CLint",
