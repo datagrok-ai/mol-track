@@ -3,7 +3,7 @@ import pandas as pd
 import enums
 
 
-def test_get_all_additions(client):
+def test_get_all_additions(client, preload_additions):
     response = client.get("/v1/additions/")
     assert response.status_code == 200
     additions = response.json()
@@ -14,7 +14,7 @@ def test_get_all_additions(client):
     assert sorted(actual_names) == sorted(expected_names)
 
 
-def test_get_salts(client):
+def test_get_salts(client, preload_additions):
     response = client.get("/v1/additions/salts")
     assert response.status_code == 200
     salts = response.json()
@@ -25,7 +25,7 @@ def test_get_salts(client):
     assert len(salts) == 20
 
 
-def test_get_solvates(client):
+def test_get_solvates(client, preload_additions):
     response = client.get("/v1/additions/solvates")
     assert response.status_code == 200
     solvates = response.json()

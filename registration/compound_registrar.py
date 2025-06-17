@@ -1,8 +1,8 @@
-import random
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
@@ -22,6 +22,12 @@ class CompoundRegistrar(BaseRegistrar):
         self.compound_records_map = self._load_reference_map(models.Compound, "inchikey")
         self.compounds_to_insert = []
         self.output_records: List[Dict[str, Any]] = []
+        self._molregno_counter = (db.query(func.max(models.Compound.molregno)).scalar() or 0) + 1
+
+    def _next_molregno(self) -> int:
+        molregno = self._molregno_counter
+        self._molregno_counter += 1
+        return molregno
 
     def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:
         mol = Chem.MolFromSmiles(compound_data.get("smiles"))
@@ -29,8 +35,9 @@ class CompoundRegistrar(BaseRegistrar):
             raise HTTPException(status_code=400, detail="Invalid SMILES string")
 
         inchikey = Chem.InchiToInchiKey(Chem.MolToInchi(mol))
-
-        if self.compound_records_map.get(inchikey) is not None:
+        existing_compound = self.compound_records_map.get(inchikey)
+        # TODO: If the compound already exists, we could update it instead of raising an error.
+        if existing_compound is not None:
             raise HTTPException(status_code=400, detail=f"Compound with InChIKey {inchikey} already exists")
 
         now = datetime.utcnow()
@@ -48,7 +55,7 @@ class CompoundRegistrar(BaseRegistrar):
             "inchi": Chem.MolToInchi(mol),
             "inchikey": inchikey,
             "original_molfile": compound_data.get("original_molfile", ""),
-            "molregno": random.randint(0, 10000),
+            "molregno": self._next_molregno(),
             "formula": rdMolDescriptors.CalcMolFormula(mol),
             "hash_mol": hash_mol,
             "hash_tautomer": hash_tautomer,
@@ -57,8 +64,8 @@ class CompoundRegistrar(BaseRegistrar):
             "hash_no_stereo_tautomer": hash_no_stereo_tautomer,
             "created_at": now,
             "updated_at": now,
-            "created_by": main.get_admin_user(self.db),
-            "updated_by": main.get_admin_user(self.db),
+            "created_by": main.admin_user_id,
+            "updated_by": main.admin_user_id,
             "is_archived": compound_data.get("is_archived", False),
         }
 
@@ -101,8 +108,8 @@ class CompoundRegistrar(BaseRegistrar):
             detail = {
                 id_field: entity_id,
                 "property_id": getattr(prop, "id"),
-                "created_by": main.get_admin_user(self.db),
-                "updated_by": main.get_admin_user(self.db),
+                "created_by": main.admin_user_id,
+                "updated_by": main.admin_user_id,
                 "value_datetime": datetime.now(),
                 "value_num": None,
                 "value_string": None,

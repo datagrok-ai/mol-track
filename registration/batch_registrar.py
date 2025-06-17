@@ -1,8 +1,8 @@
 from datetime import datetime
-import random
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pytest import Session
+from sqlalchemy import func
 from registration.compound_registrar import CompoundRegistrar
 import main
 import models
@@ -11,24 +11,29 @@ import models
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
-        self.db = db
         self.batch_records_map = self._load_reference_map(models.Batch, "batch_regno")
         self.additions_map = self._load_reference_map(models.Addition, "name")
 
         self.batches_to_insert = []
         self.batch_details = []
         self.batch_additions = []
+        self._batch_regno_counter = (db.query(func.max(models.Batch.batch_regno)).scalar() or 0) + 1
+
+    def _next_batch_regno(self) -> int:
+        batch_regno = self._batch_regno_counter
+        self._batch_regno_counter += 1
+        return batch_regno
 
     def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
-        batch_regno = random.randint(0, 1000)
+        batch_regno = self._next_batch_regno()
         if self.batch_records_map.get(batch_regno) is not None:
             raise HTTPException(status_code=400, detail=f"Batch with batch_regno {batch_regno} already exists")
 
         return {
             "inchikey": inchikey,
             "notes": None,
-            "created_by": main.get_admin_user(self.db),
-            "updated_by": main.get_admin_user(self.db),
+            "created_by": main.admin_user_id,
+            "updated_by": main.admin_user_id,
             "created_at": datetime.now(),
             "batch_regno": batch_regno,
         }
@@ -44,8 +49,8 @@ class BatchRegistrar(CompoundRegistrar):
                     "batch_regno": batch_regno,
                     "addition_id": getattr(addition, "id"),
                     "addition_equivalent": float(value) if value not in (None, "") else 1,
-                    "created_by": main.get_admin_user(self.db),
-                    "updated_by": main.get_admin_user(self.db),
+                    "created_by": main.admin_user_id,
+                    "updated_by": main.admin_user_id,
                 }
             )
         return records

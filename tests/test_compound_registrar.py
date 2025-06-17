@@ -1,6 +1,6 @@
 import pytest
 import enums
-from tests.conftest import BLACK_DIR, read_json, preload_compounds
+from tests.conftest import BLACK_DIR, read_json, _preload_compounds
 
 
 def extract_name_scope(items):
@@ -22,7 +22,7 @@ def assert_name_scope_equal(actual, expected):
         ("/v1/schema/batches/synonyms", "batches_schema.json", "synonym_types", ["synonym_types"]),
     ],
 )
-def test_schema(client, endpoint, schema_file, response_key, expected_keys):
+def test_schema(client, endpoint, schema_file, response_key, expected_keys, preload_schema):
     response = client.get(endpoint)
     assert response.status_code == 200
 
@@ -39,8 +39,8 @@ def test_schema(client, endpoint, schema_file, response_key, expected_keys):
         assert "additions" in response_data
 
 
-def test_register_compounds_reject_all(client):
-    response = preload_compounds(
+def test_register_compounds_reject_all(client, preload_schema, preload_compounds):
+    response = _preload_compounds(
         client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json", enums.ErrorHandlingOptions.reject_all
     )
     assert response.status_code == 400
@@ -62,8 +62,8 @@ def test_register_compounds_reject_all(client):
         assert item["registration_error_message"] is None
 
 
-def test_register_compounds_reject_row(client):
-    response = preload_compounds(client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
+def test_register_compounds_reject_row(client, preload_schema, preload_compounds):
+    response = _preload_compounds(client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
     assert response.status_code == 200
 
     result = response.json()

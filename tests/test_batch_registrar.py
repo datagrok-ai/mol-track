@@ -1,9 +1,9 @@
 import enums
-from tests.conftest import BLACK_DIR, preload_batches
+from tests.conftest import BLACK_DIR, _preload_batches
 
 
-def test_register_batches_reject_all(client):
-    response = preload_batches(
+def test_register_batches_reject_all(client, preload_schema, preload_additions, preload_batches):
+    response = _preload_batches(
         client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json", enums.ErrorHandlingOptions.reject_all
     )
     assert response.status_code == 400
@@ -25,8 +25,8 @@ def test_register_batches_reject_all(client):
         assert item["registration_error_message"] is None
 
 
-def test_register_batches_reject_row(client):
-    response = preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
+def test_register_batches_reject_row(client, preload_schema, preload_additions, preload_batches):
+    response = _preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
     assert response.status_code == 200
 
     result = response.json()

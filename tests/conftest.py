@@ -156,9 +156,6 @@ def client(test_db):
     app.dependency_overrides[get_db] = override_get_db
 
     with TestClient(app) as c:
-        preload_schema(c)
-        preload_additions(c)
-        preload_compounds(c, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
         yield c
 
     app.dependency_overrides.clear()
@@ -173,12 +170,14 @@ def read_csv(file_path: Path) -> str:
     return file_path.read_text(encoding="utf-8")
 
 
+@pytest.fixture
 def preload_schema(client):
     for schema_file in ["batches_schema.json", "compounds_schema.json"]:
         data = read_json(BLACK_DIR / schema_file)
         client.post("/v1/schema/", json=data)
 
 
+@pytest.fixture
 def preload_additions(client):
     file_path = DATA_DIR / "additions.csv"
     files = {"file": (str(file_path), read_csv(file_path), "text/csv")}
@@ -191,12 +190,22 @@ def preload_entity(client, endpoint: str, csv_path, mapping_path, error_handling
     return client.post(endpoint, files=files, data=data)
 
 
-def preload_compounds(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+def _preload_compounds(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
     return preload_entity(client, "/v1/compounds/", csv_path, mapping_path, error_handling)
 
 
-def preload_batches(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+@pytest.fixture
+def preload_compounds(client):
+    return _preload_compounds(client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
+
+
+def _preload_batches(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
     return preload_entity(client, "/v1/batches/", csv_path, mapping_path, error_handling)
+
+
+@pytest.fixture
+def preload_batches(client):
+    return _preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
 
 
 # Common test data
