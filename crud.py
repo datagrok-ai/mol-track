@@ -880,7 +880,6 @@ def bulk_create_if_not_exists(
     Returns:
         List[Dict[str, Any]]: List of inserted records.
     """
-    print("we are in bulk_create_if_not_exists")
     input_names = [getattr(item, name_attr) for item in items]
     existing_names = {
         name
