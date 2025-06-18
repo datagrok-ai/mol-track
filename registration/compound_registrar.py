@@ -117,7 +117,8 @@ class CompoundRegistrar(BaseRegistrar):
             }
 
             try:
-                detail[field_name] = cast_fn(value)
+                casted_value = cast_fn(value)
+                detail[field_name] = casted_value
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
 
@@ -129,11 +130,13 @@ class CompoundRegistrar(BaseRegistrar):
                 for detail_id, compound_detail in self.compound_details_map.items():
                     detail_dict = self.model_to_dict(compound_detail)
                     if detail_dict["compound_id"] == compound_id and detail_dict["property_id"] == prop_id:
-                        detail = {
-                            ("compound_id" if k == id_field else k): (compound_id if k == id_field else v)
-                            for k, v in detail.items()
-                        }
-                        records_to_update.append(detail)
+                        if detail_dict.get(field_name) != casted_value:
+                            detail = {
+                                ("compound_id" if k == id_field else k): (compound_id if k == id_field else v)
+                                for k, v in detail.items()
+                            }
+                            records_to_update.append(detail)
+                        break
             else:
                 records_to_insert.append(detail)
 
