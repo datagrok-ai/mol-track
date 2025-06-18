@@ -10,6 +10,11 @@ This is an emerging document to provide some introduction material for developer
 - [search](./search.md)
 - [User Stories](./user-stories.md)
 
+## Resources ##
+
+- [MolTrack repository](https://github.com/datagrok-ai/mol-track)
+- [MolTrack github project](https://github.com/orgs/datagrok-ai/projects/14)
+
 Also note that the Slack channel has bookmarks of some relevant information
 
 ## Related background information ##
