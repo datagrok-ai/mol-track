@@ -11,6 +11,9 @@ from sqlalchemy import select, text
 from fastapi import HTTPException
 
 import enums
+import utils
+import main
+import models
 
 
 class BaseRegistrar(ABC):
@@ -24,6 +27,7 @@ class BaseRegistrar(ABC):
         self.db = db
         self.error_handling = error_handling
         self.user_mapping = self._load_mapping(mapping)
+        self.property_records_map = self._load_reference_map(models.Property, "name")
         self.output_records: List[Dict[str, Any]] = []
         self.sql_statements = []
 
@@ -127,3 +131,48 @@ class BaseRegistrar(ABC):
                 headers={"Content-Disposition": "attachment; filename=compounds_result.csv"},
             )
         return {"status": "Success", "data": self.output_records}
+
+    # === Some methods that can be shared across all registrars
+    def _build_details_records(
+        self, properties: Dict[str, Any], entity_ids: Dict[str, Any], include_user_fields: bool = True
+    ) -> List[Dict[str, Any]]:
+        records = []
+        for prop_name, value in properties.items():
+            prop = self.property_records_map.get(prop_name)
+
+            if prop is None:
+                raise HTTPException(status_code=400, detail=f"Unknown property: {prop_name}")
+
+            value_type = getattr(prop, "value_type", None)
+            if value_type not in utils.value_type_to_field or value_type not in utils.value_type_cast_map:
+                raise HTTPException(
+                    status_code=400, detail=f"Unsupported or unknown value type for property: {prop_name}"
+                )
+
+            field_name = utils.value_type_to_field[value_type]
+            cast_fn = utils.value_type_cast_map[value_type]
+            detail = {
+                **entity_ids,
+                "property_id": getattr(prop, "id"),
+                "value_datetime": datetime.now(),
+                "value_num": 0,
+                "value_string": None,
+            }
+
+            if include_user_fields:
+                detail["created_by"] = main.admin_user_id
+                detail["updated_by"] = main.admin_user_id
+
+            try:
+                detail[field_name] = cast_fn(value)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
+
+            records.append(detail)
+        return records
+
+    def _prepare_sql_parts(self, records: List[Dict[str, Any]]):
+        cols = list(records[0].keys())
+        key, *cols_without_key = cols
+        values_sql = self._values_sql(records, cols)
+        return cols_without_key, values_sql

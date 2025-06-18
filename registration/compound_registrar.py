@@ -1,6 +1,6 @@
 import random
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -18,7 +18,6 @@ from registration.base_registrar import BaseRegistrar
 class CompoundRegistrar(BaseRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
-        self.property_records_map = self._load_reference_map(models.Property, "name")
         self.compound_records_map = self._load_reference_map(models.Compound, "inchikey")
         self.compounds_to_insert = []
         self.output_records: List[Dict[str, Any]] = []
@@ -62,60 +61,6 @@ class CompoundRegistrar(BaseRegistrar):
             "is_archived": compound_data.get("is_archived", False),
         }
 
-    def _build_details_records(self, properties: Dict[str, Any], entity_id: Any, id_field: str) -> List[Dict[str, Any]]:
-        records = []
-        value_type_to_field = {
-            "datetime": "value_datetime",
-            "int": "value_num",
-            "double": "value_num",
-            "string": "value_string",
-        }
-
-        def cast_datetime(v):
-            return v if isinstance(v, datetime) else datetime.fromisoformat(str(v))
-
-        value_type_cast_map: Dict[str, Callable[[Any], Any]] = {
-            "datetime": cast_datetime,
-            "int": int,
-            "double": float,
-            "string": str,
-        }
-
-        for prop_name, value in properties.items():
-            prop = self.property_records_map.get(prop_name)
-
-            if prop is None:
-                raise HTTPException(status_code=400, detail=f"Unknown property: {prop_name}")
-
-            value_type = getattr(prop, "value_type", None)
-            if value_type not in value_type_to_field or value_type not in value_type_cast_map:
-                raise HTTPException(
-                    status_code=400, detail=f"Unsupported or unknown value type for property: {prop_name}"
-                )
-
-            if value is None:
-                raise HTTPException(status_code=400, detail=f"Null value for property: {prop_name}")
-
-            field_name = value_type_to_field[value_type]
-            cast_fn = value_type_cast_map[value_type]
-            detail = {
-                id_field: entity_id,
-                "property_id": getattr(prop, "id"),
-                "created_by": main.admin_user_id,
-                "updated_by": main.admin_user_id,
-                "value_datetime": datetime.now(),
-                "value_num": None,
-                "value_string": None,
-            }
-
-            try:
-                detail[field_name] = cast_fn(value)
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
-
-            records.append(detail)
-        return records
-
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
         def chunked(lst, size):
             for i in range(0, len(lst), size):
@@ -135,7 +80,7 @@ class CompoundRegistrar(BaseRegistrar):
 
                     details.extend(
                         self._build_details_records(
-                            grouped.get("compounds_details", {}), compound["inchikey"], "inchikey"
+                            grouped.get("compounds_details", {}), {"inchikey": compound["inchikey"]}
                         )
                     )
                     self.get_additional_records(grouped, compound["inchikey"])
@@ -195,9 +140,3 @@ class CompoundRegistrar(BaseRegistrar):
 
     def get_additional_records(self, grouped, inchikey):
         pass
-
-    def _prepare_sql_parts(self, records: List[Dict[str, Any]]):
-        cols = list(records[0].keys())
-        key, *cols_without_key = cols
-        values_sql = self._values_sql(records, cols)
-        return cols_without_key, values_sql

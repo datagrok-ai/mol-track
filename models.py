@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Union, Literal
-from pydantic import validator
+from pydantic import Extra, root_validator, validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
@@ -614,9 +614,21 @@ class AssayTypeCreate(SQLModel):
     assay_type: AssayTypeCreateBase
 
 
-class AssayCreateBase(AssayBase):
-    assay_details: Dict[str, Any]
+class AssayResultProperty(SQLModel):
+    name: str
+    required: bool
 
 
-class AssayCreate(SQLModel):
-    assay: AssayCreateBase
+class AssayCreate(AssayBase):
+    assay_result_properties: List[AssayResultProperty]
+    extra_fields: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        extra = Extra.allow
+
+    @root_validator(pre=True)
+    def collect_extra_fields(cls, values):
+        known_keys = {"name", "assay_result_properties"}
+        extra = {k: v for k, v in values.items() if k not in known_keys}
+        values["extra_fields"] = extra
+        return values

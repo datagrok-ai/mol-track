@@ -91,7 +91,7 @@ CREATE TABLE moltrack.compounds (
   inchi text NOT NULL,                          -- IUPAC InChI
   inchikey text NOT NULL,                -- IUPAC InChIKey
   formula text NOT NULL,                        -- e.g., C10H16N2O2
-  hash_mol CHAR(40) UNIQUE NOT NULL,            -- https://rdkit.org/docs/source/rdkit.Chem.RegistrationHash.html#rdkit.Chem.RegistrationHash.GetMolHash
+  hash_mol CHAR(40) NOT NULL,            -- https://rdkit.org/docs/source/rdkit.Chem.RegistrationHash.html#rdkit.Chem.RegistrationHash.GetMolHash
   hash_tautomer uuid NOT NULL,           -- hash of the tautomer
   hash_canonical_smiles uuid NOT NULL,   -- hash of the canonical SMILES
   hash_no_stereo_smiles uuid NOT NULL,   -- hash of the no stereo SMILES

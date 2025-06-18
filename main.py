@@ -1,16 +1,16 @@
 import csv
-from datetime import datetime
 import io
-import json
-import uuid
 from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
-from typing import Callable, Dict, List, Optional, Type
+from typing import List, Optional, Type
+from registration.assay_result_registrar import AssayResultsRegistrar
+from registration.assay_run_registrar import AssayRunRegistrar
 from registration.batch_registrar import BatchRegistrar
 from registration.compound_registrar import CompoundRegistrar
 import models
 import enums
+import utils
 
 from typing import Any
 from sqlalchemy.sql import text
@@ -535,98 +535,56 @@ def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
     return batch.batch_additions
 
 
-# --- Type casting utilities ---
-def cast_datetime(value: Any) -> datetime:
-    if isinstance(value, datetime):
-        return value
-    try:
-        return datetime.fromisoformat(value)
-    except Exception:
-        raise ValueError(f"Invalid datetime format: {value}")
-
-
-def cast_uuid(value: Any) -> uuid.UUID:
-    if isinstance(value, uuid.UUID):
-        return value
-    try:
-        return uuid.UUID(str(value))
-    except Exception:
-        raise ValueError(f"Invalid UUID format: {value}")
-
-
-value_type_to_field: Dict[str, str] = {
-    "datetime": "value_datetime",
-    "int": "value_num",
-    "double": "value_num",
-    "string": "value_string",
-    "uuid": "value_uuid",
-}
-
-value_type_cast_map: Dict[str, Callable[[Any], Any]] = {
-    "datetime": cast_datetime,
-    "int": int,
-    "double": float,
-    "string": str,
-    "uuid": cast_uuid,
-}
-
-
 @router.post("/assays")
-def create_assays(payload: List[Any], db: Session = Depends(get_db)):
+def create_assays(payload: List[models.AssayCreate], db: Session = Depends(get_db)):
     all_properties = {p.name: p for p in crud.get_properties(db)}
 
     assays_to_insert = []
+    for assay in payload:
+        assay_data = {"name": assay.name, "created_by": admin_user_id, "updated_by": admin_user_id}
+        assays_to_insert.append(assay_data)
+
+    stmt = insert(models.Assay).returning(models.Assay.id)
+    inserted_ids = [row[0] for row in db.execute(stmt.values(assays_to_insert)).fetchall()]
+
     detail_records = []
     property_records = []
 
-    for assay_data in payload:
-        name = assay_data["name"]
-        result_properties = assay_data["assay_result_properties"]
-
-        details = {key: value for key, value in assay_data.items() if key not in {"name", "assay_result_properties"}}
-
-        assays_to_insert.append(
-            {
-                "name": name,
-                "created_by": admin_user_id,
-                "updated_by": admin_user_id,
-            }
-        )
-
-    stmt = insert(models.Assay).returning(models.Assay.id)
-    inserted_assay_ids = [row[0] for row in db.execute(stmt.values(assays_to_insert)).fetchall()]
-
-    if len(inserted_assay_ids) != len(payload):
-        raise HTTPException(status_code=500, detail="Mismatch between inserted assays and payload")
-
-    for assay_id, assay_data in zip(inserted_assay_ids, payload):
-        result_properties = assay_data["assay_result_properties"]
-        details = {key: value for key, value in assay_data.items() if key not in {"name", "assay_result_properties"}}
-
-        for key, value in details.items():
+    for assay_id, assay in zip(inserted_ids, payload):
+        for key, value in assay.extra_fields.items():
             prop = all_properties.get(key)
             if not prop:
                 raise HTTPException(status_code=404, detail=f"Property '{key}' not found")
 
             value_type = getattr(prop, "value_type", None)
-            if value_type not in value_type_to_field or value_type not in value_type_cast_map:
+            if value_type not in utils.value_type_to_field or value_type not in utils.value_type_cast_map:
                 raise HTTPException(status_code=400, detail=f"Unsupported value type for property: {key}")
 
             try:
-                cast_value = value_type_cast_map[value_type](value)
+                cast_value = utils.value_type_cast_map[value_type](value)
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to cast value for '{key}': {e}")
 
             detail_records.append(
-                {"assay_id": assay_id, "property_id": prop.id, value_type_to_field[value_type]: cast_value}
+                {
+                    "assay_id": assay_id,
+                    "property_id": prop.id,
+                    utils.value_type_to_field[value_type]: cast_value,
+                }
             )
 
-        for prop_data in result_properties:
-            prop = all_properties.get(prop_data["name"])
+        for prop_data in assay.assay_result_properties:
+            prop = all_properties.get(prop_data.name)
             if not prop:
-                raise HTTPException(status_code=404, detail=f"Result property '{prop_data['name']}' not found")
+                raise HTTPException(status_code=404, detail=f"Result property '{prop_data.name}' not found")
 
-            property_records.append({"assay_id": assay_id, "property_id": prop.id, "required": prop_data["required"]})
+            property_records.append(
+                {
+                    "assay_id": assay_id,
+                    "property_id": prop.id,
+                    "required": prop_data.required,
+                }
+            )
 
     if detail_records:
         db.execute(insert(models.AssayDetail).values(detail_records))
@@ -634,7 +592,7 @@ def create_assays(payload: List[Any], db: Session = Depends(get_db)):
         db.execute(insert(models.AssayProperty).values(property_records))
 
     db.commit()
-    return {"status": "success", "created": inserted_assay_ids}
+    return {"status": "success", "created": assays_to_insert}
 
 
 @router.get("/assays/", response_model=list[models.AssayResponse])
@@ -653,118 +611,13 @@ def read_assay_type_1(assay_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_runs/")
 def create_assay_runs(
-    csv_file: UploadFile = File(...), mapping_file: UploadFile = File(...), db: Session = Depends(get_db)
+    csv_file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
+    output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
+    db: Session = Depends(get_db),
 ):
-    import pandas as pd
-
-    try:
-        mapping = json.load(mapping_file.file)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to parse mapping file: {e}")
-
-    try:
-        df = pd.read_csv(io.StringIO(csv_file.file.read().decode("utf-8")))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to parse CSV file: {e}")
-
-    all_props = {p.name: p for p in crud.get_properties(db)}
-    all_assays = {a.name: a.id for a in db.query(models.Assay).all()}
-
-    run_insert_rows = []
-    detail_insert_rows = []
-    skipped_rows = []
-
-    for index, row in df.iterrows():
-        try:
-            row_dict = row.to_dict()
-
-            mapped_row = {}
-            for col_name, target_field in mapping.items():
-                if col_name not in row_dict:
-                    raise ValueError(f"CSV missing expected column '{col_name}'")
-                mapped_row[target_field] = row_dict[col_name]
-
-            assay_name = mapped_row.get("assays.name")
-            if not assay_name:
-                raise ValueError("Missing 'assay name' value")
-            assay_id = all_assays.get(assay_name)
-            if not assay_id:
-                raise ValueError(f"Assay '{assay_name}' not found")
-
-            run_insert_rows.append(
-                {
-                    "assay_id": assay_id,
-                    "name": assay_name,
-                    "created_by": admin_user_id,
-                    "updated_by": admin_user_id,
-                }
-            )
-
-        except Exception as e:
-            skipped_rows.append((index, str(e)))
-
-    if not run_insert_rows:
-        return {
-            "status": "error",
-            "created_runs": 0,
-            "skipped_rows": [{"row": idx, "error": msg} for idx, msg in skipped_rows],
-        }
-
-    result = db.execute(insert(models.AssayRun).returning(models.AssayRun.id).values(run_insert_rows))
-    inserted_run_ids = [r[0] for r in result.fetchall()]
-    db.flush()
-
-    run_idx = 0
-    for index, row in df.iterrows():
-        if any(index == s[0] for s in skipped_rows):
-            continue
-
-        try:
-            row_dict = row.to_dict()
-            mapped_row = {}
-            for col_name, target_field in mapping.items():
-                mapped_row[target_field] = row_dict[col_name]
-
-            assay_run_id = inserted_run_ids[run_idx]
-            run_idx += 1
-
-            for target_field, value in mapped_row.items():
-                if target_field.startswith("assay_run_details."):
-                    prop_name = target_field.split(".", 1)[1]
-                    prop = all_props.get(prop_name)
-                    if not prop:
-                        raise ValueError(f"Property '{prop_name}' not found")
-
-                    if value is None or pd.isna(value):
-                        raise ValueError(f"Null value for property '{prop_name}'")
-
-                    value_type = getattr(prop, "value_type", None)
-                    if value_type not in value_type_to_field or value_type not in value_type_cast_map:
-                        raise ValueError(f"Unsupported value type for property '{prop_name}'")
-
-                    cast_value = value_type_cast_map[value_type](value)
-
-                    detail_insert_rows.append(
-                        {
-                            "assay_run_id": assay_run_id,
-                            "property_id": prop.id,
-                            value_type_to_field[value_type]: cast_value,
-                        }
-                    )
-
-        except Exception as e:
-            skipped_rows.append((index, str(e)))
-
-    if detail_insert_rows:
-        db.execute(insert(models.AssayRunDetail).values(detail_insert_rows))
-
-    db.commit()
-
-    return {
-        "status": "success",
-        "created_runs": len(inserted_run_ids),
-        "skipped_rows": [{"row": idx, "error": msg} for idx, msg in skipped_rows],
-    }
+    return process_registration(AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 @router.get("/assay_runs/", response_model=list[models.AssayRunResponse])
@@ -779,6 +632,17 @@ def read_assay_1(assay_run_id: int, db: Session = Depends(get_db)):
     if db_assay_run is None:
         raise HTTPException(status_code=404, detail="Assay not found")
     return db_assay_run
+
+
+@router.post("/assay_results/")
+def create_assay_results(
+    csv_file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
+    output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
+    db: Session = Depends(get_db),
+):
+    return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 app.include_router(router)

@@ -19,7 +19,7 @@ class BatchRegistrar(CompoundRegistrar):
         self.batch_additions = []
 
     def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
-        batch_regno = random.randint(0, 1000)
+        batch_regno = random.randint(0, 10000)
         if self.batch_records_map.get(batch_regno) is not None:
             raise HTTPException(status_code=400, detail=f"Batch with batch_regno {batch_regno} already exists")
 
@@ -55,7 +55,7 @@ class BatchRegistrar(CompoundRegistrar):
 
         self.batch_details.extend(
             self._build_details_records(
-                grouped.get("batches_details", {}), batch_record["batch_regno"], "batch_regno"
+                grouped.get("batches_details", {}), {"batch_regno": batch_record["batch_regno"]}
             )
         )
         self.batch_additions.extend(
@@ -65,9 +65,7 @@ class BatchRegistrar(CompoundRegistrar):
     def get_additional_cte(self):
         if not self.batches_to_insert:
             return ""
-        return self._build_batch_ctes(
-            self.batches_to_insert, self.batch_details, self.batch_additions
-        )
+        return self._build_batch_ctes(self.batches_to_insert, self.batch_details, self.batch_additions)
 
     def _build_batch_ctes(self, batches, details, additions) -> str:
         batch_cte = self._build_inserted_batches_cte(batches)
