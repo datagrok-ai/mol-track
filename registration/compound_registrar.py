@@ -23,12 +23,11 @@ class CompoundRegistrar(BaseRegistrar):
         self.compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
         self.compounds_to_insert = []
         self.output_records: List[Dict[str, Any]] = []
-        self._molregno_counter = (db.query(func.max(models.Compound.molregno)).scalar() or 0) + 1
 
     def _next_molregno(self) -> int:
-        molregno = self._molregno_counter
-        self._molregno_counter += 1
-        return molregno
+        db_max = self.db.query(func.max(models.Compound.molregno)).scalar() or 0
+        local_max = max((c.get("molregno", 0) for c in self.compounds_to_insert), default=0)
+        return max(db_max, local_max) + 1
 
     def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:
         mol = Chem.MolFromSmiles(compound_data.get("smiles"))
@@ -215,7 +214,7 @@ class CompoundRegistrar(BaseRegistrar):
             inserted_compounds AS (
                 INSERT INTO moltrack.compounds ({", ".join(cols)})
                 VALUES {values_sql}
-                ON CONFLICT (inchikey) DO NOTHING
+                ON CONFLICT (molregno) DO NOTHING
                 RETURNING id, inchikey
             ),
         """

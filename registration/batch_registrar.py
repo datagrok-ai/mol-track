@@ -17,25 +17,20 @@ class BatchRegistrar(CompoundRegistrar):
         self.batches_to_insert = []
         self.batch_details = []
         self.batch_additions = []
-        self._batch_regno_counter = (db.query(func.max(models.Batch.batch_regno)).scalar() or 0) + 1
 
     def _next_batch_regno(self) -> int:
-        batch_regno = self._batch_regno_counter
-        self._batch_regno_counter += 1
-        return batch_regno
+        db_max = self.db.query(func.max(models.Batch.batch_regno)).scalar() or 0
+        local_max = max((b.get("batch_regno", 0) for b in self.batches_to_insert), default=0)
+        return max(db_max, local_max) + 1
 
     def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
-        batch_regno = self._next_batch_regno()
-        if self.batch_records_map.get(batch_regno) is not None:
-            raise HTTPException(status_code=400, detail=f"Batch with batch_regno {batch_regno} already exists")
-
         return {
             "inchikey": inchikey,
             "notes": None,
             "created_by": main.admin_user_id,
             "updated_by": main.admin_user_id,
             "created_at": datetime.now(),
-            "batch_regno": batch_regno,
+            "batch_regno": self._next_batch_regno(),
         }
 
     def _build_batch_addition_record(self, batch_additions: Dict[str, Any], batch_regno: int) -> List[Dict[str, Any]]:
@@ -90,6 +85,7 @@ class BatchRegistrar(CompoundRegistrar):
                 SELECT ic.id, {", ".join([f"b.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS b (inchikey, {", ".join(cols_without_key)})
                 JOIN available_compounds ic ON b.inchikey = ic.inchikey
+                ON CONFLICT (batch_regno) DO NOTHING
                 RETURNING id, batch_regno
             )"""
 

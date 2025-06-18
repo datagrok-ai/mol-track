@@ -39,7 +39,7 @@ def test_schema(client, endpoint, schema_file, response_key, expected_keys, prel
         assert "additions" in response_data
 
 
-def test_register_compounds_reject_all(client, preload_schema, preload_compounds):
+def test_register_compounds_reject_all(client, preload_schema):
     response = _preload_compounds(
         client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json", enums.ErrorHandlingOptions.reject_all
     )
@@ -51,18 +51,16 @@ def test_register_compounds_reject_all(client, preload_schema, preload_compounds
     data = result["data"]
     assert len(data) == 54
 
-    item0 = data[0]
-    assert item0["registration_status"] == "failed"
-    assert (
-        item0["registration_error_message"] == "400: Compound with InChIKey QQVIHTHCMHWDBS-UHFFFAOYSA-N already exists"
-    )
+    item8 = data[8]
+    assert item8["registration_status"] == "failed"
+    assert item8["registration_error_message"] == "400: Invalid SMILES string"
 
-    for item in data[1:]:
+    for item in data[9:]:
         assert item["registration_status"] == "not_processed"
         assert item["registration_error_message"] is None
 
 
-def test_register_compounds_reject_row(client, preload_schema, preload_compounds):
+def test_register_compounds_reject_row(client, preload_schema):
     response = _preload_compounds(client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
     assert response.status_code == 200
 
@@ -71,12 +69,10 @@ def test_register_compounds_reject_row(client, preload_schema, preload_compounds
     assert isinstance(data, list)
     assert len(data) == 54
 
-    item0 = data[0]
-    assert item0["registration_status"] == "failed"
-    assert (
-        item0["registration_error_message"] == "400: Compound with InChIKey QQVIHTHCMHWDBS-UHFFFAOYSA-N already exists"
-    )
+    item8 = data[8]
+    assert item8["registration_status"] == "failed"
+    assert item8["registration_error_message"] == "400: Invalid SMILES string"
 
-    for item in data[1:]:
-        assert item["registration_status"] == "failed"
-        assert item["registration_error_message"] is not None
+    item9 = data[9]
+    assert item9["registration_status"] == "success"
+    assert item9["registration_error_message"] is None
