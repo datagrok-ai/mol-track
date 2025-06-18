@@ -59,9 +59,11 @@ class BatchRegistrar(CompoundRegistrar):
         batch_record = self._build_batch_record(inchikey)
         self.batches_to_insert.append(batch_record)
 
-        self.batch_details.extend(
-            self._build_details_records(grouped.get("batches_details", {}), batch_record["batch_regno"], "batch_regno")
+        inserted, updated = self._build_details_records(
+            grouped.get("batches_details", {}), batch_record["batch_regno"], "batch_regno"
         )
+        self.batch_details.extend(inserted)
+
         self.batch_additions.extend(
             self._build_batch_addition_record(grouped.get("batches_additions", {}), batch_record["batch_regno"])
         )
@@ -87,7 +89,7 @@ class BatchRegistrar(CompoundRegistrar):
                 INSERT INTO moltrack.batches (compound_id, {", ".join(cols_without_key)})
                 SELECT ic.id, {", ".join([f"b.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS b (inchikey, {", ".join(cols_without_key)})
-                JOIN inserted_compounds ic ON b.inchikey = ic.inchikey
+                JOIN available_compounds ic ON b.inchikey = ic.inchikey
                 RETURNING id, batch_regno
             )"""
 

@@ -58,6 +58,9 @@ class BaseRegistrar(ABC):
         result = self.db.execute(select(model)).scalars().all()
         return {getattr(row, key): row for row in result}
 
+    def model_to_dict(self, obj):
+        return {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
+
     # === SQL construction methods ===
 
     def _values_sql(self, data: List[Dict[str, Any]], columns: List[str]) -> str:
