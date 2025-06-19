@@ -578,16 +578,16 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
 
 
 @router.get("/assays/", response_model=list[models.AssayResponse])
-def read_assay_types_1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_assays(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     assays = crud.get_assays(db, skip=skip, limit=limit)
     return assays
 
 
 @router.get("/assays/{assay_id}", response_model=models.AssayResponse)
-def read_assay_type_1(assay_id: int, db: Session = Depends(get_db)):
+def get_assay_by_id(assay_id: int, db: Session = Depends(get_db)):
     db_assay = crud.get_assay(db, assay_id=assay_id)
     if db_assay is None:
-        raise HTTPException(status_code=404, detail="Assay type not found")
+        raise HTTPException(status_code=404, detail="Assay not found")
     return db_assay
 
 
@@ -603,16 +603,16 @@ def create_assay_runs(
 
 
 @router.get("/assay_runs/", response_model=list[models.AssayRunResponse])
-def read_assays_1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_assay_runs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     assay_runs = crud.get_assay_runs(db, skip=skip, limit=limit)
     return assay_runs
 
 
 @router.get("/assay_runs/{assay_run_id}", response_model=models.AssayRunResponse)
-def read_assay_1(assay_run_id: int, db: Session = Depends(get_db)):
+def get_assay_run_by_id(assay_run_id: int, db: Session = Depends(get_db)):
     db_assay_run = crud.get_assay_run(db, assay_run_id=assay_run_id)
     if db_assay_run is None:
-        raise HTTPException(status_code=404, detail="Assay not found")
+        raise HTTPException(status_code=404, detail="Assay run found")
     return db_assay_run
 
 
