@@ -6,13 +6,18 @@ from typing import Dict, Any, List
 
 
 class PropertyService:
-    def get_property_info(self, property_records_map, prop_name: str) -> Dict[str, Any]:
-        prop = property_records_map.get(prop_name)
+    def __init__(self, property_records_map: Dict[str, Any]):
+        self.property_records_map = property_records_map
+
+    def get_property_info(self, prop_name: str) -> Dict[str, Any]:
+        prop = self.property_records_map.get(prop_name)
         if prop is None:
             raise HTTPException(status_code=400, detail=f"Unknown property: {prop_name}")
+
         value_type = getattr(prop, "value_type", None)
         if value_type not in utils.value_type_to_field or value_type not in utils.value_type_cast_map:
             raise HTTPException(status_code=400, detail=f"Unsupported or unknown value type for property: {prop_name}")
+
         return {
             "property": prop,
             "value_type": value_type,
@@ -21,15 +26,11 @@ class PropertyService:
         }
 
     def build_details_records(
-        self,
-        property_records_map,
-        properties: Dict[str, Any],
-        entity_ids: Dict[str, Any],
-        include_user_fields: bool = True,
+        self, properties: Dict[str, Any], entity_ids: Dict[str, Any], include_user_fields: bool = True
     ) -> List[Dict[str, Any]]:
         records = []
         for prop_name, value in properties.items():
-            prop_info = self.get_property_info(property_records_map, prop_name)
+            prop_info = self.get_property_info(prop_name)
             detail = {
                 **entity_ids,
                 "property_id": getattr(prop_info["property"], "id"),
@@ -40,9 +41,11 @@ class PropertyService:
             if include_user_fields:
                 detail["created_by"] = main.admin_user_id
                 detail["updated_by"] = main.admin_user_id
+
             try:
                 detail[prop_info["field_name"]] = prop_info["cast_fn"](value)
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
+
             records.append(detail)
         return records

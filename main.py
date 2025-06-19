@@ -535,12 +535,11 @@ def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
     return batch.batch_additions
 
 
-# TODO: fix output
 # TODO: break
 @router.post("/assays")
 def create_assays(payload: List[models.AssayCreate], db: Session = Depends(get_db)):
     all_properties = {p.name: p for p in crud.get_properties(db)}
-    property_service = PropertyService()
+    property_service = PropertyService(all_properties)
 
     assays_to_insert = [
         {"name": assay.name, "created_by": admin_user_id, "updated_by": admin_user_id} for assay in payload
@@ -556,14 +555,12 @@ def create_assays(payload: List[models.AssayCreate], db: Session = Depends(get_d
         entity_ids = {"assay_id": assay_id}
         detail_records.extend(
             property_service.build_details_records(
-                property_records_map=all_properties,
-                properties=assay.extra_fields,
-                entity_ids=entity_ids,
+                properties=assay.extra_fields, entity_ids=entity_ids, include_user_fields=False
             )
         )
 
         for prop_data in assay.assay_result_properties:
-            prop_info = property_service.get_property_info(all_properties, prop_data.name)
+            prop_info = property_service.get_property_info(prop_data.name)
             property_records.append(
                 {
                     "assay_id": assay_id,
@@ -612,7 +609,7 @@ def read_assays_1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     return assay_runs
 
 
-@router.get("/assay_runs/{assay_run_id}", response_model=models.AssayResponse)
+@router.get("/assay_runs/{assay_run_id}", response_model=models.AssayRunResponse)
 def read_assay_1(assay_run_id: int, db: Session = Depends(get_db)):
     db_assay_run = crud.get_assay_run(db, assay_run_id=assay_run_id)
     if db_assay_run is None:

@@ -23,11 +23,11 @@ class BaseRegistrar(ABC):
         """
         self.db = db
         self.error_handling = error_handling
-        self.property_service = property_service.PropertyService()
+        self.property_records_map = self._load_reference_map(models.Property, "name")
+        self.property_service = property_service.PropertyService(self.property_records_map)
         self.sql_service = sql_service.SQLService()
 
         self.user_mapping = self._load_mapping(mapping)
-        self.property_records_map = self._load_reference_map(models.Property, "name")
         self.output_records: List[Dict[str, Any]] = []
         self.sql_statements = []
 

@@ -47,7 +47,7 @@ class AssayRunRegistrar(BaseRegistrar):
                             grouped.get("assay_run_details", {}), {"name": assay_run["name"]}, False
                         )
                     )
-                    self._add_output_row(assay_data, grouped, "success")
+                    self._add_output_row(assay_run, grouped, "success")
                 except Exception as e:
                     self.handle_row_error(row, e, global_idx, rows)
                 global_idx += 1
