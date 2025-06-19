@@ -535,9 +535,8 @@ def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
     return batch.batch_additions
 
 
-# TODO: break
 @router.post("/assays")
-def create_assays(payload: List[models.AssayCreate], db: Session = Depends(get_db)):
+def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(get_db)):
     all_properties = {p.name: p for p in crud.get_properties(db)}
     property_service = PropertyService(all_properties)
 

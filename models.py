@@ -267,10 +267,10 @@ class AssayBase(SQLModel):
     description: Optional[str] = Field(default=None)
 
 
-# class AssayCreate(AssayBase):
-#     property_ids: List[int] = []  # List of property IDs to associate with this assay type
-#     property_requirements: List[Dict[str, Any]] = []  # List of property requirements
-#     property_details: List[Dict[str, Any]] = []  # List of property metadata
+class AssayCreate(AssayBase):
+    property_ids: List[int] = []  # List of property IDs to associate with this assay type
+    property_requirements: List[Dict[str, Any]] = []  # List of property requirements
+    property_details: List[Dict[str, Any]] = []  # List of property metadata
 
 
 class AssayResponseBase(AssayBase):
@@ -619,7 +619,7 @@ class AssayResultProperty(SQLModel):
     required: bool
 
 
-class AssayCreate(AssayBase):
+class AssayCreateBase(AssayBase):
     assay_result_properties: List[AssayResultProperty]
     extra_fields: Dict[str, Any] = Field(default_factory=dict)
 
