@@ -9,7 +9,6 @@ from rdkit.Chem import rdMolDescriptors
 
 from chemistry_utils import generate_hash_layers, generate_uuid_from_string, standardize_mol
 from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
-import enums
 import main
 import models
 from registration.base_registrar import BaseRegistrar
@@ -62,12 +61,8 @@ class CompoundRegistrar(BaseRegistrar):
         }
 
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
-        def chunked(lst, size):
-            for i in range(0, len(lst), size):
-                yield lst[i : i + size]
-
         global_idx = 0
-        for batch in chunked(rows, batch_size):
+        for batch in self.sql_service.chunked(rows, batch_size):
             self.compounds_to_insert = []
             details = []
 
@@ -79,19 +74,14 @@ class CompoundRegistrar(BaseRegistrar):
                     self.compounds_to_insert.append(compound)
 
                     details.extend(
-                        self._build_details_records(
+                        self.property_service.build_details_records(
                             grouped.get("compounds_details", {}), {"inchikey": compound["inchikey"]}
                         )
                     )
                     self.get_additional_records(grouped, compound["inchikey"])
                     self._add_output_row(compound_data, grouped, "success")
                 except Exception as e:
-                    self._add_output_row(row, {}, "failed", str(e))
-                    if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
-                        remaining_rows = rows[global_idx + 1 :]
-                        for remaining_row in remaining_rows:
-                            self._add_output_row(remaining_row, {}, "not_processed")
-                        raise HTTPException(status_code=400, detail=self.result())
+                    self.handle_row_error(row, e, global_idx, rows)
                 global_idx += 1
 
             if self.compounds_to_insert:
@@ -102,19 +92,14 @@ class CompoundRegistrar(BaseRegistrar):
     def generate_sql(self, compounds, details, extra_sql) -> str:
         compound_sql = self._generate_compound_sql(compounds)
         details_sql = self._generate_details_sql(details)
-
-        combined_sql = compound_sql
-        if details_sql:
-            combined_sql += ",\n" + details_sql
+        parts = [compound_sql, details_sql]
         if extra_sql:
-            combined_sql += ",\n" + extra_sql
-
-        combined_sql += "\nSELECT 1;"
-        return combined_sql
+            parts.append(extra_sql)
+        return self.sql_service.generate_sql(*parts)
 
     def _generate_compound_sql(self, compounds) -> str:
         cols = list(compounds[0].keys())
-        values_sql = self._values_sql(compounds, cols)
+        values_sql = self.sql_service.values_sql(compounds, cols)
         return f"""
             WITH inserted_compounds AS (
                 INSERT INTO moltrack.compounds ({", ".join(cols)})
@@ -126,7 +111,7 @@ class CompoundRegistrar(BaseRegistrar):
         if not details:
             return ""
 
-        cols_without_key, values_sql = self._prepare_sql_parts(details)
+        cols_without_key, values_sql = self.sql_service.prepare_sql_parts(details)
         return f"""
             inserted_details AS (
                 INSERT INTO moltrack.compound_details (compound_id, {", ".join(cols_without_key)})

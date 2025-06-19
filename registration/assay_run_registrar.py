@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import enums
 import main
 import models
 from registration.base_registrar import BaseRegistrar
@@ -31,12 +30,8 @@ class AssayRunRegistrar(BaseRegistrar):
         }
 
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
-        def chunked(lst, size):
-            for i in range(0, len(lst), size):
-                yield lst[i : i + size]
-
         global_idx = 0
-        for batch in chunked(rows, batch_size):
+        for batch in self.sql_service.chunked(rows, batch_size):
             self.assay_runs_to_insert = []
             details = []
 
@@ -48,18 +43,13 @@ class AssayRunRegistrar(BaseRegistrar):
                     self.assay_runs_to_insert.append(assay_run)
 
                     details.extend(
-                        self._build_details_records(
+                        self.property_service.build_details_records(
                             grouped.get("assay_run_details", {}), {"name": assay_run["name"]}, False
                         )
                     )
                     self._add_output_row(assay_data, grouped, "success")
                 except Exception as e:
-                    self._add_output_row(row, {}, "failed", str(e))
-                    if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
-                        remaining_rows = rows[global_idx + 1 :]
-                        for remaining_row in remaining_rows:
-                            self._add_output_row(remaining_row, {}, "not_processed")
-                        raise HTTPException(status_code=400, detail=self.result())
+                    self.handle_row_error(row, e, global_idx, rows)
                 global_idx += 1
 
             if self.assay_runs_to_insert:
@@ -69,17 +59,11 @@ class AssayRunRegistrar(BaseRegistrar):
     def generate_sql(self, assay_runs, details) -> str:
         assay_runs_sql = self._generate_assay_run_sql(assay_runs)
         details_sql = self._generate_details_sql(details)
-
-        combined_sql = assay_runs_sql
-        if details_sql:
-            combined_sql += ",\n" + details_sql
-
-        combined_sql += "\nSELECT 1;"
-        return combined_sql
+        return self.sql_service.generate_sql(assay_runs_sql, details_sql)
 
     def _generate_assay_run_sql(self, assay_runs) -> str:
         cols = list(assay_runs[0].keys())
-        values_sql = self._values_sql(assay_runs, cols)
+        values_sql = self.sql_service.values_sql(assay_runs, cols)
         return f"""
             WITH inserted_assay_runs AS (
                 INSERT INTO moltrack.assay_runs ({", ".join(cols)})
@@ -91,7 +75,7 @@ class AssayRunRegistrar(BaseRegistrar):
         if not details:
             return ""
 
-        cols_without_key, values_sql = self._prepare_sql_parts(details)
+        cols_without_key, values_sql = self.sql_service.prepare_sql_parts(details)
         return f"""
             inserted_assay_run_details AS (
                 INSERT INTO moltrack.assay_run_details (assay_run_id, {", ".join(cols_without_key)})

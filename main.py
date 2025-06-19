@@ -10,7 +10,7 @@ from registration.batch_registrar import BatchRegistrar
 from registration.compound_registrar import CompoundRegistrar
 import models
 import enums
-import utils
+from services.property_service import PropertyService
 
 from typing import Any
 from sqlalchemy.sql import text
@@ -435,7 +435,7 @@ def delete_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
     return crud.delete_compound(db, compound_id=compound_id)
 
 
-# TODO: Create the utils model and move there
+# TODO: Create the utils module and move there
 def clean_empty_values(d: dict) -> dict:
     return {k: (None if isinstance(v, str) and v.strip() == "" else v) for k, v in d.items()}
 
@@ -535,14 +535,16 @@ def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
     return batch.batch_additions
 
 
+# TODO: fix output
+# TODO: break
 @router.post("/assays")
 def create_assays(payload: List[models.AssayCreate], db: Session = Depends(get_db)):
     all_properties = {p.name: p for p in crud.get_properties(db)}
+    property_service = PropertyService()
 
-    assays_to_insert = []
-    for assay in payload:
-        assay_data = {"name": assay.name, "created_by": admin_user_id, "updated_by": admin_user_id}
-        assays_to_insert.append(assay_data)
+    assays_to_insert = [
+        {"name": assay.name, "created_by": admin_user_id, "updated_by": admin_user_id} for assay in payload
+    ]
 
     stmt = insert(models.Assay).returning(models.Assay.id)
     inserted_ids = [row[0] for row in db.execute(stmt.values(assays_to_insert)).fetchall()]
@@ -551,37 +553,21 @@ def create_assays(payload: List[models.AssayCreate], db: Session = Depends(get_d
     property_records = []
 
     for assay_id, assay in zip(inserted_ids, payload):
-        for key, value in assay.extra_fields.items():
-            prop = all_properties.get(key)
-            if not prop:
-                raise HTTPException(status_code=404, detail=f"Property '{key}' not found")
-
-            value_type = getattr(prop, "value_type", None)
-            if value_type not in utils.value_type_to_field or value_type not in utils.value_type_cast_map:
-                raise HTTPException(status_code=400, detail=f"Unsupported value type for property: {key}")
-
-            try:
-                cast_value = utils.value_type_cast_map[value_type](value)
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to cast value for '{key}': {e}")
-
-            detail_records.append(
-                {
-                    "assay_id": assay_id,
-                    "property_id": prop.id,
-                    utils.value_type_to_field[value_type]: cast_value,
-                }
+        entity_ids = {"assay_id": assay_id}
+        detail_records.extend(
+            property_service.build_details_records(
+                property_records_map=all_properties,
+                properties=assay.extra_fields,
+                entity_ids=entity_ids,
             )
+        )
 
         for prop_data in assay.assay_result_properties:
-            prop = all_properties.get(prop_data.name)
-            if not prop:
-                raise HTTPException(status_code=404, detail=f"Result property '{prop_data.name}' not found")
-
+            prop_info = property_service.get_property_info(all_properties, prop_data.name)
             property_records.append(
                 {
                     "assay_id": assay_id,
-                    "property_id": prop.id,
+                    "property_id": prop_info["property"].id,
                     "required": prop_data.required,
                 }
             )
