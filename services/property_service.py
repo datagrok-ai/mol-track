@@ -1,5 +1,4 @@
 from fastapi import HTTPException
-from datetime import datetime
 import utils
 import main
 from typing import Dict, Any, List
@@ -34,9 +33,6 @@ class PropertyService:
             detail = {
                 **entity_ids,
                 "property_id": getattr(prop_info["property"], "id"),
-                "value_datetime": datetime.now(),
-                "value_num": 0,
-                "value_string": None,
             }
             if include_user_fields:
                 detail["created_by"] = main.admin_user_id

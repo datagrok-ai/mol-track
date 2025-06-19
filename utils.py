@@ -17,6 +17,20 @@ def cast_datetime(value: Any) -> datetime:
             raise ValueError(f"Invalid datetime format: {value}")
 
 
+def cast_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        val = value.strip().lower()
+        if val in ("true", "1"):
+            return True
+        elif val in ("false", "0"):
+            return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    raise ValueError(f"Invalid boolean format: {value}")
+
+
 def cast_uuid(value: Any) -> uuid.UUID:
     if isinstance(value, uuid.UUID):
         return value
@@ -32,6 +46,7 @@ value_type_to_field: Dict[str, str] = {
     "double": "value_num",
     "string": "value_string",
     "uuid": "value_uuid",
+    "bool": "value_bool",
 }
 
 value_type_cast_map: Dict[str, Callable[[Any], Any]] = {
@@ -40,4 +55,5 @@ value_type_cast_map: Dict[str, Callable[[Any], Any]] = {
     "double": float,
     "string": str,
     "uuid": cast_uuid,
+    "bool": cast_bool,
 }

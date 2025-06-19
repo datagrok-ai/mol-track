@@ -113,7 +113,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                             False,
                         )
                     )
-
+                    self._add_output_row(assay_run_record, grouped, "success")
                 except Exception as e:
                     self.handle_row_error(row, e, global_idx, rows)
                 global_idx += 1
@@ -132,6 +132,6 @@ class AssayResultsRegistrar(BaseRegistrar):
 
         cols_without_key, values_sql = self.sql_service.prepare_sql_parts(details)
         return f"""
-            INSERT INTO moltrack.assay_results ({", ".join(cols_without_key)})
+            INSERT INTO moltrack.assay_results (batch_id, {", ".join(cols_without_key)})
             VALUES {values_sql}
         """
