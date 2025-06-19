@@ -42,10 +42,10 @@ We describe here the capabilities that we see as appropriate for a minimal viabl
     - [ ] Delete batches
 
 6. Biologists can *(for MVP, global user)*
-    - [ ] configure result_types (properties).
-    - [ ] configure assay_types and property associations.
-    - [ ] register assays
-    - [ ] register assay_results
+    - [x] configure result_types (properties).
+    - [x] register assays and property associations.
+    - [x] register assay_runs
+    - [x] register assay_results
 
 7. Users can *(for MVP, global user)*
     - [ ] Search for compounds by exact search, substructure search, no stereo, tautomer, similarity
@@ -54,8 +54,8 @@ We describe here the capabilities that we see as appropriate for a minimal viabl
     - [ ] Search for batches based on synonyms.
     - [ ] Search for batches based on properties.
     - [ ] Search for compounds or batches using a combination of search conditions
-    - [ ] Search, list assay_types and associated properties
-    - [ ] Retrieve assay_results based on compound criteria and/or batch criteria and/or assay_type criteria
+    - [ ] Search, list assays and associated properties
+    - [ ] Retrieve assay_results based on compound criteria and/or batch criteria and/or assays, assay_runs criteria
 
 8. UX
     - [x] Swagger based API calling
