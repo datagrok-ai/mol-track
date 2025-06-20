@@ -1,12 +1,16 @@
 import csv
 import io
 from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
+from registration.assay_result_registrar import AssayResultsRegistrar
+from registration.assay_run_registrar import AssayRunRegistrar
 from registration.batch_registrar import BatchRegistrar
 from registration.compound_registrar import CompoundRegistrar
 import models
 import enums
+from services.property_service import PropertyService
 
 from typing import Any
 from sqlalchemy.sql import text
@@ -21,6 +25,7 @@ from logging_setup import logger
 import warnings
 from sqlalchemy.exc import SAWarning
 
+
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
@@ -34,9 +39,9 @@ except ImportError:
 
 # models.Base.metadata.create_all(bind=engine)
 
+warnings.filterwarnings("ignore", category=SAWarning)
 app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
-warnings.filterwarnings("ignore", category=SAWarning)
 
 admin_user_id: str | None = None
 
@@ -428,7 +433,7 @@ def delete_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
     return crud.delete_compound(db, compound_id=compound_id)
 
 
-# TODO: Create the utils model and move there
+# TODO: Create the utils module and move there
 def clean_empty_values(d: dict) -> dict:
     return {k: (None if isinstance(v, str) and v.strip() == "" else v) for k, v in d.items()}
 
@@ -526,6 +531,100 @@ def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
 def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
     batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
     return batch.batch_additions
+
+
+@router.post("/assays")
+def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(get_db)):
+    all_properties = {p.name: p for p in crud.get_properties(db)}
+    property_service = PropertyService(all_properties)
+
+    assays_to_insert = [
+        {"name": assay.name, "created_by": admin_user_id, "updated_by": admin_user_id} for assay in payload
+    ]
+
+    stmt = insert(models.Assay).returning(models.Assay.id)
+    inserted_ids = [row[0] for row in db.execute(stmt.values(assays_to_insert)).fetchall()]
+
+    detail_records = []
+    property_records = []
+
+    for assay_id, assay in zip(inserted_ids, payload):
+        entity_ids = {"assay_id": assay_id}
+        inserted, updated = property_service.build_details_records(
+            properties=assay.extra_fields,
+            entity_ids=entity_ids,
+            scope=enums.ScopeClass.ASSAY,
+            include_user_fields=False,
+        )
+        detail_records.extend(inserted)
+
+        for prop_data in assay.assay_result_properties:
+            prop_info = property_service.get_property_info(prop_data.name, enums.ScopeClass.ASSAY_RESULT)
+            property_records.append(
+                {
+                    "assay_id": assay_id,
+                    "property_id": prop_info["property"].id,
+                    "required": prop_data.required,
+                }
+            )
+
+    if detail_records:
+        db.execute(insert(models.AssayDetail).values(detail_records))
+    if property_records:
+        db.execute(insert(models.AssayProperty).values(property_records))
+
+    db.commit()
+    return {"status": "success", "created": assays_to_insert}
+
+
+@router.get("/assays/", response_model=list[models.AssayResponse])
+def get_assays(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    assays = crud.get_assays(db, skip=skip, limit=limit)
+    return assays
+
+
+@router.get("/assays/{assay_id}", response_model=models.AssayResponse)
+def get_assay_by_id(assay_id: int, db: Session = Depends(get_db)):
+    db_assay = crud.get_assay(db, assay_id=assay_id)
+    if db_assay is None:
+        raise HTTPException(status_code=404, detail="Assay not found")
+    return db_assay
+
+
+@router.post("/assay_runs/")
+def create_assay_runs(
+    csv_file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
+    output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
+    db: Session = Depends(get_db),
+):
+    return process_registration(AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db)
+
+
+@router.get("/assay_runs/", response_model=list[models.AssayRunResponse])
+def get_assay_runs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    assay_runs = crud.get_assay_runs(db, skip=skip, limit=limit)
+    return assay_runs
+
+
+@router.get("/assay_runs/{assay_run_id}", response_model=models.AssayRunResponse)
+def get_assay_run_by_id(assay_run_id: int, db: Session = Depends(get_db)):
+    db_assay_run = crud.get_assay_run(db, assay_run_id=assay_run_id)
+    if db_assay_run is None:
+        raise HTTPException(status_code=404, detail="Assay run found")
+    return db_assay_run
+
+
+@router.post("/assay_results/")
+def create_assay_results(
+    csv_file: UploadFile = File(...),
+    mapping: Optional[str] = Form(None),
+    error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
+    output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
+    db: Session = Depends(get_db),
+):
+    return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 app.include_router(router)

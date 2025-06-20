@@ -17,6 +17,7 @@ class ValueType(str, enum.Enum):
     bool = "bool"
     datetime = "datetime"
     string = "string"
+    uuid = "uuid"
 
 
 class PropertyClass(CaseInsensitiveEnum):

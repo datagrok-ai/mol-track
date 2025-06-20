@@ -318,7 +318,7 @@ To successfully load assay data, you will need to load the:
             "unit": "uL/min/10^6 cells",
             "required": true,
             "property_class": "measured",
-            "scope": "assay_results"
+            "scope": "assay_result"
          },
          {
             "name": "Mean HTC recovery",
@@ -326,7 +326,7 @@ To successfully load assay data, you will need to load the:
             "required": false,
             "value_type": "double",
             "property_class": "measured",
-            "scope": "assay_results"
+            "scope": "assay_result"
          },
          {
             "name": "SD HTC recovery",
@@ -334,7 +334,7 @@ To successfully load assay data, you will need to load the:
             "required": false,
             "value_type": "double",
             "property_class": "measured",
-            "scope": "assay_results"
+            "scope": "assay_result"
          },
          {
             "name": "Dosed Concentration",
@@ -342,7 +342,7 @@ To successfully load assay data, you will need to load the:
             "required": true,
             "value_type": "double",
             "property_class": "measured",
-            "scope": "assay_results"
+            "scope": "assay_result"
          }
       ]
    }
@@ -357,7 +357,7 @@ To successfully load assay data, you will need to load the:
       {
          "name": "Hepatocyte Stability",
          "assay format": "in cellulo",
-         "biological_system": "hepatocyte",
+         "biological system": "hepatocyte",
          "assay_result_properties": [
                {
                   "name": "Reported CLint",

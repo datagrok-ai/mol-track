@@ -3,14 +3,14 @@ import io
 import json
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
-import uuid
-from datetime import datetime
 
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, text
 from fastapi import HTTPException
 
 import enums
+from services import property_service
+import models
 
 
 class BaseRegistrar(ABC):
@@ -23,6 +23,9 @@ class BaseRegistrar(ABC):
         """
         self.db = db
         self.error_handling = error_handling
+        self.property_records_map = self._load_reference_map(models.Property, "name")
+        self.property_service = property_service.PropertyService(self.property_records_map)
+
         self.user_mapping = self._load_mapping(mapping)
         self.output_records: List[Dict[str, Any]] = []
         self.sql_statements = []
@@ -61,33 +64,7 @@ class BaseRegistrar(ABC):
     def model_to_dict(self, obj):
         return {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
 
-    # === SQL construction methods ===
-
-    def _values_sql(self, data: List[Dict[str, Any]], columns: List[str]) -> str:
-        def quote(val: Any) -> str:
-            if val is None:
-                return "NULL"
-            if isinstance(val, str):
-                escaped = val.replace("'", "''")
-                return f"'{escaped}'"
-            if isinstance(val, datetime):
-                return f"'{val.isoformat()}'::timestamp with time zone"
-            if isinstance(val, uuid.UUID):
-                return f"'{val}'::uuid"
-            return str(val)
-
-        rows = []
-        for row in data:
-            values = [quote(row.get(col)) for col in columns]
-            rows.append(f"({', '.join(values)})")
-        return ",\n".join(rows)
-
-    def register_all(self, rows: List[Dict[str, Any]]):
-        self.build_sql(rows)
-        if self.sql_statements:
-            for sql in self.sql_statements:
-                self.db.execute(text(sql))
-                self.db.commit()
+    # === SQL construction and registration methods ===
 
     @abstractmethod
     def build_sql(self, rows: List[Dict[str, Any]]):
@@ -96,6 +73,13 @@ class BaseRegistrar(ABC):
     @abstractmethod
     def generate_sql(self) -> Optional[str]:
         pass
+
+    def register_all(self, rows: List[Dict[str, Any]]):
+        self.build_sql(rows)
+        if self.sql_statements:
+            for sql in self.sql_statements:
+                self.db.execute(text(sql))
+                self.db.commit()
 
     # === Output formatting methods ===
 
@@ -130,3 +114,12 @@ class BaseRegistrar(ABC):
                 headers={"Content-Disposition": "attachment; filename=compounds_result.csv"},
             )
         return {"status": "Success", "data": self.output_records}
+
+    # === Error handling methods ===
+
+    def handle_row_error(self, row, exception, global_idx, all_rows):
+        self._add_output_row(row, {}, "failed", str(exception))
+        if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
+            for remaining_row in all_rows[global_idx + 1 :]:
+                self._add_output_row(remaining_row, {}, "not_processed")
+            raise HTTPException(status_code=400, detail=self.result())
