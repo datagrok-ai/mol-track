@@ -37,7 +37,9 @@ class CompoundRegistrar(BaseRegistrar):
         inchikey = Chem.InchiToInchiKey(Chem.MolToInchi(mol))
         existing_compound = self.compound_records_map.get(inchikey)
         if existing_compound is not None:
-            return self.model_to_dict(existing_compound)
+            compound_dict = self.model_to_dict(existing_compound)
+            compound_dict.pop("id", None)
+            return compound_dict
 
         now = datetime.utcnow()
         standarized_mol = standardize_mol(mol)
@@ -68,11 +70,11 @@ class CompoundRegistrar(BaseRegistrar):
             "is_archived": compound_data.get("is_archived", False),
         }
 
-    def _compound_update_checker(self, entity_ids, detail, field_name, new_value: Any) -> Optional[Dict[str, Any]]:
+    def _compound_update_checker(self, entity_ids, detail, field_name, new_value: Any) -> models.UpdateCheckResult:
         id_field, entity_id = next(iter(entity_ids.items()))
         compound = self.compound_records_map.get(entity_id)
         if not compound:
-            return None
+            return models.UpdateCheckResult(action="insert")
 
         compound_id = getattr(compound, "id")
         prop_id = detail["property_id"]
@@ -80,12 +82,14 @@ class CompoundRegistrar(BaseRegistrar):
             detail_dict = self.model_to_dict(compound_detail)
             if detail_dict["compound_id"] == compound_id and detail_dict["property_id"] == prop_id:
                 if detail_dict.get(field_name) != new_value:
-                    return {
+                    update_data = {
                         ("compound_id" if k == id_field else k): (compound_id if k == id_field else v)
                         for k, v in detail.items()
                     }
-                break
-        return None
+                    return models.UpdateCheckResult(action="update", update_data=update_data)
+                else:
+                    return models.UpdateCheckResult(action="skip")
+        return models.UpdateCheckResult(action="insert")
 
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
         global_idx = 0
@@ -101,6 +105,7 @@ class CompoundRegistrar(BaseRegistrar):
                     self.compounds_to_insert.append(compound)
 
                     inserted, updated = self.property_service.build_details_records(
+                        models.CompoundDetail,
                         grouped.get("compounds_details", {}),
                         {"inchikey": compound["inchikey"]},
                         enums.ScopeClass.COMPOUND,
@@ -172,16 +177,22 @@ class CompoundRegistrar(BaseRegistrar):
         """
         return insert_cte + available_cte
 
-    def _generate_details_update_sql(self, details) -> str:
+    def _generate_details_update_sql(self, details: List[Dict[str, Any]]) -> str:
         if not details:
             return ""
 
-        cols = ["compound_id", "property_id", "value_datetime", "value_num", "value_string", "updated_by"]
-        vals = sql_utils.values_sql(details, cols)
+        required_cols = ["compound_id", "property_id", "updated_by"]
+        value_cols = {key for detail in details for key in detail if key.startswith("value_")}
+        all_cols = required_cols + sorted(value_cols)
+        set_clauses = [f"{col} = v.{col}" for col in sorted(value_cols)] + ["updated_by = v.updated_by"]
+        set_clause_sql = ", ".join(set_clauses)
+        alias_cols_sql = ", ".join(all_cols)
+        vals_sql = sql_utils.values_sql(details, all_cols)
+
         return f"""updated_details AS (
             UPDATE moltrack.compound_details cd
-            SET value_datetime = v.value_datetime, value_num = v.value_num, value_string = v.value_string, updated_by = v.updated_by
-            FROM (VALUES {vals}) AS v(compound_id, property_id, value_datetime, value_num, value_string, updated_by)
+            SET {set_clause_sql}
+            FROM (VALUES {vals_sql}) AS v({alias_cols_sql})
             WHERE cd.compound_id = v.compound_id
             AND cd.property_id = v.property_id
             RETURNING cd.*

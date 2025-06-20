@@ -111,7 +111,8 @@ class AssayResultsRegistrar(BaseRegistrar):
         )
         return self._check_single_result(assay_runs, "assay runs")
 
-    def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
+    # TODO: Identify the specific data row(s) in assay_results.csv causing failures
+    def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 10):
         global_idx = 0
         for batch in sql_utils.chunked(rows, batch_size):
             self.assay_results_to_insert = []
@@ -125,6 +126,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                     )
 
                     inserted, updated = self.property_service.build_details_records(
+                        models.AssayResult,
                         grouped.get("assay_results", {}),
                         {"batch_id": getattr(batch_record, "id"), "assay_run_id": getattr(assay_run_record, "id")},
                         enums.ScopeClass.ASSAY_RESULT,

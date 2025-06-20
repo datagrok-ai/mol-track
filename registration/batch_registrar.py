@@ -57,7 +57,10 @@ class BatchRegistrar(CompoundRegistrar):
         self.batches_to_insert.append(batch_record)
 
         inserted, updated = self.property_service.build_details_records(
-            grouped.get("batches_details", {}), {"batch_regno": batch_record["batch_regno"]}, enums.ScopeClass.BATCH
+            models.BatchDetail,
+            grouped.get("batches_details", {}),
+            {"batch_regno": batch_record["batch_regno"]},
+            enums.ScopeClass.BATCH,
         )
         self.batch_details.extend(inserted)
         self.batch_additions.extend(

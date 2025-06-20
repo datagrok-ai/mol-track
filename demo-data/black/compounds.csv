@@ -7,7 +7,7 @@ Bisphenol AF,1478-61-1,Oc1ccc(cc1)C(c2ccc(O)cc2)(C(F)(F)F)C(F)(F)F,EPA-002,4.508
 "4,4'-Sulfonylbis[2-(prop-2-en-1-yl)phenol]",41481-66-7,C=CCc1cc(ccc1O)S(=O)(=O)c2ccc(cc2)CC=C,EPA-006,3.681999921798706
 "4-(1,1,3,3-Tetramethylbutyl)phenol ",140-66-9,CC(C)(C)CC(C)(C)c1ccc(O)cc1,EPA-007,4.105999946594238
 4-Hexylresorcinol,136-77-6,CCCCCCc1cc(O)c(cc1)O,EPA-008,3.220599889755249
-4-Nitroaniline,0100-01-06,c1cc(ccc1N)N(=O)=O,EPA-009,
+4-Nitroaniline,0100-01-06,Nc1ccc(cc1)N+[O-],EPA-009,
 4-Nonylphenol (Branched),84852-15-3,CC(C)CCCCCCc1ccc(O)cc1,EPA-010,4.685299873352051
 4-Octylphenol,1806-26-4,CCCCCCCCc1ccc(O)cc1,EPA-011,4.295199871063232
 4-n-Nonylphenol,104-40-5,CCCCCCCCCc1ccc(O)cc1,EPA-012,4.685299873352051

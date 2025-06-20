@@ -1,16 +1,28 @@
 from typing import List, Dict, Any
 from psycopg2.extensions import adapt
 
+column_types = {
+    "value_datetime": "timestamptz",
+    "value_num": "double precision",
+    "value_uuid": "uuid",
+    "value_string": "text",
+    "value_bool": "boolean",
+    "value_qualifier": "smallint",
+}
+
 
 def values_sql(data: List[Dict[str, Any]], columns: List[str]) -> str:
-    def escape_val(val):
+    def escape_val(val, col_name):
         if val is None:
+            sql_type = column_types.get(col_name)
+            if sql_type:
+                return f"NULL::{sql_type}"
             return "NULL"
         return adapt(val).getquoted().decode()
 
     rows = []
     for row in data:
-        values = [escape_val(row.get(col)) for col in columns]
+        values = [escape_val(row.get(col), col) for col in columns]
         rows.append(f"({', '.join(values)})")
     return ",\n".join(rows)
 

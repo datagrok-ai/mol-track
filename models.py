@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union, Literal
+from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal
 from pydantic import Extra, root_validator, validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
@@ -632,3 +632,8 @@ class AssayCreateBase(AssayBase):
         extra = {k: v for k, v in values.items() if k not in known_keys}
         values["extra_fields"] = extra
         return values
+
+
+class UpdateCheckResult(NamedTuple):
+    action: str
+    update_data: Optional[Dict[str, Any]] = None
