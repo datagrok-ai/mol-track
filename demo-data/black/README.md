@@ -6,8 +6,7 @@ To boot strap MolTrack, you should
 
 - [ ] Load the schema for compounds using [compounds_schema.json](./compounds_schema.json)
 - [ ] Load the schema for batches using [batches_schema.json](./batches_schema.json)
-- [ ] Load the schema for assay_types using [assay_types_schema.json](./assay_type_schema.json)
-- [ ] Load the schema for assays using [assays_schema.json](./assays_schema.json) which adds properties definitions
+- [ ] Load the schema for assay data domain using [assay_data_schema.json](assay_data_schema.json)
 
 ## Compounds ##
 
@@ -19,6 +18,10 @@ To test the batches functionality, you should register [batches.csv](./batches.c
 
 ## Assay related ##
 
-Assay results will be shown in [assay_results.csv](assay_results.csv).  Processing this file you should be creating assays instances with *assay_details* property values and a *assay_results* instances with property/values that correspond to those declared in the *assay_type_properties* table.
+Assays and the corresponding results profiles (assay_properties) will be created using [assays_instances.json](assays_instances.json)
+
+Assays Runs will be created using [assay_runs.csv](assay_runs.csv).  The mapping of csv columns to fixed and dynamic assay_run attributes will be done by case insensitve mapping or a mapping file can be provided. A potential mapping file is [assay_runs_mapping.json](assay_runs_mapping.json)
+
+Assay results will be shown in [assay_results.csv](assay_results.csv).  Processing this file you should be creating assays instances with *assay_details* property values and a *assay_results* instances with property/values that correspond to those declared in the *assay_type_properties* table. A potential mapping file is [assay_results_mapping.json](./assay_results_mapping.json).  It is critical that one column of the csv can be used to uniquely lookup the batch.
 
 Assay raw data will be shown in assay_raw_results.csv.  This will be used for assay results calculation, not MolTrack registration.

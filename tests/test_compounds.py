@@ -210,7 +210,7 @@ def test_search_compound_structure_tautomer(client, predefined_compounds):
     assert predefined_compounds[3] not in result_ids, "Tautomer2 S should NOT match the query"
 
 
-def test_search_compound_structure_stero(client, predefined_compounds):
+def test_search_compound_structure_stereo(client, predefined_compounds):
     """Test stereo search using the /search/compounds/structure endpoint"""
     smiles_list = [
         "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R

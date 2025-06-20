@@ -153,40 +153,8 @@ def read_property(property_id: int, db: Session = Depends(get_db)):
 
 
 # AssayType endpoints
-@app.post("/assay-types/", response_model=models.AssayTypeResponse)
-def create_assay_type(assay_type: models.AssayTypeCreate, db: Session = Depends(get_db)):
-    # Validate that all property IDs exist
-    if assay_type.property_ids:
-        for property_id in assay_type.property_ids:
-            db_property = crud.get_property(db, property_id=property_id)
-            if db_property is None:
-                raise HTTPException(status_code=404, detail=f"Property with ID {property_id} not found")
-
-    return crud.create_assay_type(db=db, assay_type=assay_type)
-
-
-@app.get("/assay-types/", response_model=list[models.AssayTypeResponse])
-def read_assay_types(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    assay_types = crud.get_assay_types(db, skip=skip, limit=limit)
-    return assay_types
-
-
-@app.get("/assay-types/{assay_type_id}", response_model=models.AssayTypeResponse)
-def read_assay_type(assay_type_id: int, db: Session = Depends(get_db)):
-    db_assay_type = crud.get_assay_type(db, assay_type_id=assay_type_id)
-    if db_assay_type is None:
-        raise HTTPException(status_code=404, detail="Assay type not found")
-    return db_assay_type
-
-
-# Assay endpoints
 @app.post("/assays/", response_model=models.AssayResponse)
 def create_assay(assay: models.AssayCreate, db: Session = Depends(get_db)):
-    # Validate that the assay type exists
-    db_assay_type = crud.get_assay_type(db, assay_type_id=assay.assay_type_id)
-    if db_assay_type is None:
-        raise HTTPException(status_code=404, detail=f"Assay type with ID {assay.assay_type_id} not found")
-
     # Validate that all property IDs exist
     if assay.property_ids:
         for property_id in assay.property_ids:
@@ -211,13 +179,45 @@ def read_assay(assay_id: int, db: Session = Depends(get_db)):
     return db_assay
 
 
+# Assay endpoints
+@app.post("/assay-runs/", response_model=models.AssayRunResponse)
+def create_assay_run(assay: models.AssayRunCreate, db: Session = Depends(get_db)):
+    # Validate that the assay type exists
+    db_assay = crud.get_assay(db, assay_id=assay.assay_id)
+    if db_assay is None:
+        raise HTTPException(status_code=404, detail=f"Assay type with ID {assay.assay_id} not found")
+
+    # Validate that all property IDs exist
+    if assay.property_ids:
+        for property_id in assay.property_ids:
+            db_property = crud.get_property(db, property_id=property_id)
+            if db_property is None:
+                raise HTTPException(status_code=404, detail=f"Property with ID {property_id} not found")
+
+    return crud.create_assay_run(db=db, assay=assay)
+
+
+@app.get("/assay-runs/", response_model=list[models.AssayRunResponse])
+def read_assay_runs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    assay_runs = crud.get_assay_runs(db, skip=skip, limit=limit)
+    return assay_runs
+
+
+@app.get("/assay-runs/{assay_run_id}", response_model=models.AssayRunResponse)
+def read_assay_run(assay_run_id: int, db: Session = Depends(get_db)):
+    db_assay_run = crud.get_assay_run(db, assay_run_id=assay_run_id)
+    if db_assay_run is None:
+        raise HTTPException(status_code=404, detail="Assay Run not found")
+    return db_assay_run
+
+
 # AssayResult endpoints
 @app.post("/assay-results/", response_model=models.AssayResultResponse)
 def create_assay_result(assay_result: models.AssayResultBase, db: Session = Depends(get_db)):
     """
     Create a single assay result entry for a specific property.
 
-    - **assay_id**: The ID of the assay
+    - **assay_run_id**: The ID of the assay
     - **batch_id**: The ID of the batch
     - **property_id**: The ID of the property
     - **value_num/value_string/value_bool**: The value of the measurement (use the appropriate field based on property type)
@@ -230,7 +230,7 @@ def create_batch_assay_results(batch_results: models.BatchAssayResultsCreate, db
     """
     Register multiple measurements for a batch against an assay at once.
 
-    - **assay_id**: The ID of the assay
+    - **assay_run_id**: The ID of the assay
     - **batch_id**: The ID of the batch
     - **measurements**: A dictionary mapping property names to their values
     """
