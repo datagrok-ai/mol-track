@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 
 import models
+import enums
 from registration.base_registrar import BaseRegistrar
+from utils import sql_utils
 
 
 class AssayResultsRegistrar(BaseRegistrar):
@@ -27,14 +29,25 @@ class AssayResultsRegistrar(BaseRegistrar):
         details: Dict[str, Any],
         details_model,
         parent_id_field: str,
+        scope: str,
         parent_id_value: Optional[int],
     ):
+        """
+        Generic lookup for detail-based models, e.g. batch_details or assay_run_details.
+
+        :param details: dict of property_name -> value
+        :param details_model: model (BatchDetail or AssayRunDetail)
+        :param parent_id_field: str, e.g. 'batch_id' or 'assay_run_id'
+        :param parent_id_value: int or None, the parent entity id to filter details by;
+                                if None, don't filter by parent id (optional)
+        :return: subquery returning matching parent ids
+        """
         if not details:
             raise HTTPException(status_code=400, detail="No details provided for lookup")
 
         property_values = []
         for prop_name, value in details.items():
-            prop_info = self.property_service.get_property_info(prop_name)
+            prop_info = self.property_service.get_property_info(prop_name, scope)
 
             property_values.append(
                 {
@@ -44,6 +57,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                 }
             )
 
+        # Construct OR conditions, where each condition ensures that a row matches a specific property and value
         num_details = len(property_values)
         or_conditions = []
         for pv in property_values:
@@ -59,15 +73,17 @@ class AssayResultsRegistrar(BaseRegistrar):
 
         subq = (
             self.db.query(getattr(details_model, parent_id_field))
-            .filter(or_(*or_conditions))
-            .group_by(getattr(details_model, parent_id_field))
-            .having(func.count(getattr(details_model, parent_id_field)) == num_details)
+            .filter(or_(*or_conditions))  # Match any of the provided pairs
+            .group_by(getattr(details_model, parent_id_field))  # Group by parent id
+            .having(
+                func.count(getattr(details_model, parent_id_field)) == num_details
+            )  # Keep only those with all matches
             .subquery()
         )
         return subq
 
     def _lookup_batch_by_details(self, batch_details: Dict[str, Any]) -> models.Batch:
-        subq = self._lookup_by_details(batch_details, models.BatchDetail, "batch_id", None)
+        subq = self._lookup_by_details(batch_details, models.BatchDetail, "batch_id", enums.ScopeClass.BATCH, None)
 
         batch_matches = self.db.query(models.Batch).filter(models.Batch.id.in_(subq)).all()
         return self._check_single_result(batch_matches, "batches")
@@ -84,8 +100,9 @@ class AssayResultsRegistrar(BaseRegistrar):
 
         assays = assay_query.all()
         assay = self._check_single_result(assays, "assays")
-        subq = self._lookup_by_details(assay_run_details, models.AssayRunDetail, "assay_run_id", None)
-
+        subq = self._lookup_by_details(
+            assay_run_details, models.AssayRunDetail, "assay_run_id", enums.ScopeClass.ASSAY_RUN, None
+        )
         assay_runs = (
             self.db.query(models.AssayRun)
             .filter(models.AssayRun.assay_id == assay.id)
@@ -96,7 +113,7 @@ class AssayResultsRegistrar(BaseRegistrar):
 
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
         global_idx = 0
-        for batch in self.sql_service.chunked(rows, batch_size):
+        for batch in sql_utils.chunked(rows, batch_size):
             self.assay_results_to_insert = []
 
             for idx, row in enumerate(batch):
@@ -110,10 +127,11 @@ class AssayResultsRegistrar(BaseRegistrar):
                         self.property_service.build_details_records(
                             grouped.get("assay_results", {}),
                             {"batch_id": getattr(batch_record, "id"), "assay_run_id": getattr(assay_run_record, "id")},
+                            enums.ScopeClass.ASSAY_RESULT,
                             False,
                         )
                     )
-                    self._add_output_row(assay_run_record, grouped, "success")
+                    self._add_output_row(row, grouped, "success")
                 except Exception as e:
                     self.handle_row_error(row, e, global_idx, rows)
                 global_idx += 1
@@ -124,13 +142,13 @@ class AssayResultsRegistrar(BaseRegistrar):
 
     def generate_sql(self, assay_results) -> str:
         details_sql = self._generate_details_sql(assay_results)
-        return self.sql_service.generate_sql(details_sql, terminate_with_select=False)
+        return sql_utils.generate_sql(details_sql, terminate_with_select=False)
 
     def _generate_details_sql(self, details) -> str:
         if not details:
             return ""
 
-        cols_without_key, values_sql = self.sql_service.prepare_sql_parts(details)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(details)
         return f"""
             INSERT INTO moltrack.assay_results (batch_id, {", ".join(cols_without_key)})
             VALUES {values_sql}

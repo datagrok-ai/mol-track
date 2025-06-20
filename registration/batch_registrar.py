@@ -6,6 +6,8 @@ from pytest import Session
 from registration.compound_registrar import CompoundRegistrar
 import main
 import models
+import enums
+from utils import sql_utils
 
 
 class BatchRegistrar(CompoundRegistrar):
@@ -55,7 +57,7 @@ class BatchRegistrar(CompoundRegistrar):
 
         self.batch_details.extend(
             self.property_service.build_details_records(
-                grouped.get("batches_details", {}), {"batch_regno": batch_record["batch_regno"]}
+                grouped.get("batches_details", {}), {"batch_regno": batch_record["batch_regno"]}, enums.ScopeClass.BATCH
             )
         )
         self.batch_additions.extend(
@@ -77,7 +79,7 @@ class BatchRegistrar(CompoundRegistrar):
         return batch_cte
 
     def _build_inserted_batches_cte(self, batches) -> str:
-        cols_without_key, values_sql = self.sql_service.prepare_sql_parts(batches)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(batches)
         return f"""
             inserted_batches AS (
                 INSERT INTO moltrack.batches (compound_id, {", ".join(cols_without_key)})
@@ -88,7 +90,7 @@ class BatchRegistrar(CompoundRegistrar):
             )"""
 
     def _build_batch_details_cte(self, details) -> str:
-        cols_without_key, values_sql = self.sql_service.prepare_sql_parts(details)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(details)
         return f""",
             inserted_batch_details AS (
                 INSERT INTO moltrack.batch_details (batch_id, {", ".join(cols_without_key)})
@@ -98,7 +100,7 @@ class BatchRegistrar(CompoundRegistrar):
             )"""
 
     def _build_batch_additions_cte(self, additions) -> str:
-        cols_without_key, values_sql = self.sql_service.prepare_sql_parts(additions)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(additions)
         return f""",
             inserted_batch_additions AS (
                 INSERT INTO moltrack.batch_additions (batch_id, {", ".join(cols_without_key)})

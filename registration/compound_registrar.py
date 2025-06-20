@@ -11,6 +11,8 @@ from chemistry_utils import generate_hash_layers, generate_uuid_from_string, sta
 from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
 import main
 import models
+import enums
+from utils import sql_utils
 from registration.base_registrar import BaseRegistrar
 
 
@@ -62,7 +64,7 @@ class CompoundRegistrar(BaseRegistrar):
 
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
         global_idx = 0
-        for batch in self.sql_service.chunked(rows, batch_size):
+        for batch in sql_utils.chunked(rows, batch_size):
             self.compounds_to_insert = []
             details = []
 
@@ -75,7 +77,9 @@ class CompoundRegistrar(BaseRegistrar):
 
                     details.extend(
                         self.property_service.build_details_records(
-                            grouped.get("compounds_details", {}), {"inchikey": compound["inchikey"]}
+                            grouped.get("compounds_details", {}),
+                            {"inchikey": compound["inchikey"]},
+                            enums.ScopeClass.COMPOUND,
                         )
                     )
                     self.get_additional_records(grouped, compound["inchikey"])
@@ -95,11 +99,11 @@ class CompoundRegistrar(BaseRegistrar):
         parts = [compound_sql, details_sql]
         if extra_sql:
             parts.append(extra_sql)
-        return self.sql_service.generate_sql(*parts)
+        return sql_utils.generate_sql(*parts)
 
     def _generate_compound_sql(self, compounds) -> str:
         cols = list(compounds[0].keys())
-        values_sql = self.sql_service.values_sql(compounds, cols)
+        values_sql = sql_utils.values_sql(compounds, cols)
         return f"""
             WITH inserted_compounds AS (
                 INSERT INTO moltrack.compounds ({", ".join(cols)})
@@ -111,7 +115,7 @@ class CompoundRegistrar(BaseRegistrar):
         if not details:
             return ""
 
-        cols_without_key, values_sql = self.sql_service.prepare_sql_parts(details)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(details)
         return f"""
             inserted_details AS (
                 INSERT INTO moltrack.compound_details (compound_id, {", ".join(cols_without_key)})

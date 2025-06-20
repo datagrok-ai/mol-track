@@ -42,7 +42,6 @@ except ImportError:
 warnings.filterwarnings("ignore", category=SAWarning)
 app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
-warnings.filterwarnings("ignore", category=SAWarning)
 
 admin_user_id: str | None = None
 
@@ -554,12 +553,15 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
         entity_ids = {"assay_id": assay_id}
         detail_records.extend(
             property_service.build_details_records(
-                properties=assay.extra_fields, entity_ids=entity_ids, include_user_fields=False
+                properties=assay.extra_fields,
+                entity_ids=entity_ids,
+                scope=enums.ScopeClass.ASSAY,
+                include_user_fields=False,
             )
         )
 
         for prop_data in assay.assay_result_properties:
-            prop_info = property_service.get_property_info(prop_data.name)
+            prop_info = property_service.get_property_info(prop_data.name, enums.ScopeClass.ASSAY_RESULT)
             property_records.append(
                 {
                     "assay_id": assay_id,

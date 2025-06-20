@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 
 import main
 import models
+import enums
 from registration.base_registrar import BaseRegistrar
+from utils import sql_utils
 
 
 class AssayRunRegistrar(BaseRegistrar):
@@ -31,7 +33,7 @@ class AssayRunRegistrar(BaseRegistrar):
 
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
         global_idx = 0
-        for batch in self.sql_service.chunked(rows, batch_size):
+        for batch in sql_utils.chunked(rows, batch_size):
             self.assay_runs_to_insert = []
             details = []
 
@@ -44,7 +46,10 @@ class AssayRunRegistrar(BaseRegistrar):
 
                     details.extend(
                         self.property_service.build_details_records(
-                            grouped.get("assay_run_details", {}), {"name": assay_run["name"]}, False
+                            grouped.get("assay_run_details", {}),
+                            {"name": assay_run["name"]},
+                            enums.ScopeClass.ASSAY_RUN,
+                            False,
                         )
                     )
                     self._add_output_row(assay_run, grouped, "success")
@@ -59,11 +64,11 @@ class AssayRunRegistrar(BaseRegistrar):
     def generate_sql(self, assay_runs, details) -> str:
         assay_runs_sql = self._generate_assay_run_sql(assay_runs)
         details_sql = self._generate_details_sql(details)
-        return self.sql_service.generate_sql(assay_runs_sql, details_sql)
+        return sql_utils.generate_sql(assay_runs_sql, details_sql)
 
     def _generate_assay_run_sql(self, assay_runs) -> str:
         cols = list(assay_runs[0].keys())
-        values_sql = self.sql_service.values_sql(assay_runs, cols)
+        values_sql = sql_utils.values_sql(assay_runs, cols)
         return f"""
             WITH inserted_assay_runs AS (
                 INSERT INTO moltrack.assay_runs ({", ".join(cols)})
@@ -75,7 +80,7 @@ class AssayRunRegistrar(BaseRegistrar):
         if not details:
             return ""
 
-        cols_without_key, values_sql = self.sql_service.prepare_sql_parts(details)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(details)
         return f"""
             inserted_assay_run_details AS (
                 INSERT INTO moltrack.assay_run_details (assay_run_id, {", ".join(cols_without_key)})

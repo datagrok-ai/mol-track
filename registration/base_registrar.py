@@ -9,7 +9,7 @@ from sqlalchemy import select, text
 from fastapi import HTTPException
 
 import enums
-from services import property_service, sql_service
+from services import property_service
 import models
 
 
@@ -25,7 +25,6 @@ class BaseRegistrar(ABC):
         self.error_handling = error_handling
         self.property_records_map = self._load_reference_map(models.Property, "name")
         self.property_service = property_service.PropertyService(self.property_records_map)
-        self.sql_service = sql_service.SQLService()
 
         self.user_mapping = self._load_mapping(mapping)
         self.output_records: List[Dict[str, Any]] = []

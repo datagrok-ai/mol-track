@@ -25,7 +25,6 @@ class PropertyClass(CaseInsensitiveEnum):
     CALCULATED = "CALCULATED"
     MEASURED = "MEASURED"
     PREDICTED = "PREDICTED"
-    ASSERTED = "ASSERTED"
 
 
 class ScopeClass(CaseInsensitiveEnum):
@@ -33,7 +32,7 @@ class ScopeClass(CaseInsensitiveEnum):
     COMPOUND = "COMPOUND"
     ASSAY = "ASSAY"
     ASSAY_RUN = "ASSAY_RUN"
-    ASSAY_RESULTS = "ASSAY_RESULTS"
+    ASSAY_RESULT = "ASSAY_RESULT"
     SYSTEM = "SYSTEM"
 
 

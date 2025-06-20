@@ -10,7 +10,7 @@
         {
             "name": "Batch QC",
             "scope": "batch",
-            "property_class": "asserted",
+            "property_class": "declared",
             "value_type": "string",
             "unit": ""
         }

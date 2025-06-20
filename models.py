@@ -362,11 +362,11 @@ class Property(PropertyResponse, table=True):
             "value_type IN ('int', 'double', 'bool', 'datetime', 'string', 'uuid')", name="properties_value_type_check"
         ),
         CheckConstraint(
-            "property_class IN ('DECLARED', 'CALCULATED', 'MEASURED', 'PREDICTED', 'ASSERTED')",
+            "property_class IN ('DECLARED', 'CALCULATED', 'MEASURED', 'PREDICTED')",
             name="properties_property_class_check",
         ),
         CheckConstraint(
-            "scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULTS', 'SYSTEM')",
+            "scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULT', 'SYSTEM')",
             name="properties_scope_check",
         ),
         {"schema": DB_SCHEMA},
