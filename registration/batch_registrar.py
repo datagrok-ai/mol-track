@@ -1,11 +1,13 @@
 from datetime import datetime
-import random
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pytest import Session
+from sqlalchemy import func
 from registration.compound_registrar import CompoundRegistrar
 import main
 import models
+import enums
+from utils import sql_utils
 
 
 class BatchRegistrar(CompoundRegistrar):
@@ -18,18 +20,19 @@ class BatchRegistrar(CompoundRegistrar):
         self.batch_details = []
         self.batch_additions = []
 
-    def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
-        batch_regno = random.randint(0, 1000)
-        if self.batch_records_map.get(batch_regno) is not None:
-            raise HTTPException(status_code=400, detail=f"Batch with batch_regno {batch_regno} already exists")
+    def _next_batch_regno(self) -> int:
+        db_max = self.db.query(func.max(models.Batch.batch_regno)).scalar() or 0
+        local_max = max((b.get("batch_regno", 0) for b in self.batches_to_insert), default=0)
+        return max(db_max, local_max) + 1
 
+    def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
         return {
             "inchikey": inchikey,
             "notes": None,
             "created_by": main.admin_user_id,
             "updated_by": main.admin_user_id,
             "created_at": datetime.now(),
-            "batch_regno": batch_regno,
+            "batch_regno": self._next_batch_regno(),
         }
 
     def _build_batch_addition_record(self, batch_additions: Dict[str, Any], batch_regno: int) -> List[Dict[str, Any]]:
@@ -53,11 +56,10 @@ class BatchRegistrar(CompoundRegistrar):
         batch_record = self._build_batch_record(inchikey)
         self.batches_to_insert.append(batch_record)
 
-        self.batch_details.extend(
-            self._build_details_records(
-                grouped.get("batches_details", {}), batch_record["batch_regno"], "batch_regno"
-            )
+        inserted, updated = self.property_service.build_details_records(
+            grouped.get("batches_details", {}), {"batch_regno": batch_record["batch_regno"]}, enums.ScopeClass.BATCH
         )
+        self.batch_details.extend(inserted)
         self.batch_additions.extend(
             self._build_batch_addition_record(grouped.get("batches_additions", {}), batch_record["batch_regno"])
         )
@@ -65,9 +67,7 @@ class BatchRegistrar(CompoundRegistrar):
     def get_additional_cte(self):
         if not self.batches_to_insert:
             return ""
-        return self._build_batch_ctes(
-            self.batches_to_insert, self.batch_details, self.batch_additions
-        )
+        return self._build_batch_ctes(self.batches_to_insert, self.batch_details, self.batch_additions)
 
     def _build_batch_ctes(self, batches, details, additions) -> str:
         batch_cte = self._build_inserted_batches_cte(batches)
@@ -79,18 +79,19 @@ class BatchRegistrar(CompoundRegistrar):
         return batch_cte
 
     def _build_inserted_batches_cte(self, batches) -> str:
-        cols_without_key, values_sql = self._prepare_sql_parts(batches)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(batches)
         return f"""
             inserted_batches AS (
                 INSERT INTO moltrack.batches (compound_id, {", ".join(cols_without_key)})
                 SELECT ic.id, {", ".join([f"b.{col}" for col in cols_without_key])}
                 FROM (VALUES {values_sql}) AS b (inchikey, {", ".join(cols_without_key)})
-                JOIN inserted_compounds ic ON b.inchikey = ic.inchikey
+                JOIN available_compounds ic ON b.inchikey = ic.inchikey
+                ON CONFLICT (batch_regno) DO NOTHING
                 RETURNING id, batch_regno
             )"""
 
     def _build_batch_details_cte(self, details) -> str:
-        cols_without_key, values_sql = self._prepare_sql_parts(details)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(details)
         return f""",
             inserted_batch_details AS (
                 INSERT INTO moltrack.batch_details (batch_id, {", ".join(cols_without_key)})
@@ -100,7 +101,7 @@ class BatchRegistrar(CompoundRegistrar):
             )"""
 
     def _build_batch_additions_cte(self, additions) -> str:
-        cols_without_key, values_sql = self._prepare_sql_parts(additions)
+        cols_without_key, values_sql = sql_utils.prepare_sql_parts(additions)
         return f""",
             inserted_batch_additions AS (
                 INSERT INTO moltrack.batch_additions (batch_id, {", ".join(cols_without_key)})

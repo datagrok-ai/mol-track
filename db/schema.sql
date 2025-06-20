@@ -65,7 +65,7 @@ CREATE TABLE moltrack.properties (
   semantic_type_id INTEGER REFERENCES moltrack.semantic_types (id),
   property_class text check (property_class in ('DECLARED','CALCULATED', 'MEASURED', 'PREDICTED')) NOT NULL,
   unit text,
-  scope text check (scope in ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')) NOT NULL,
+  scope text check (scope in ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_RUN', 'ASSAY_RESULT', 'SYSTEM')) NOT NULL,
   pattern text, -- regex for validating string value_type properties, e.g., identifier: CHEMBL.* 
   UNIQUE(name, scope) -- Ensure unique property names within each scope
 );
@@ -91,7 +91,7 @@ CREATE TABLE moltrack.compounds (
   inchi text NOT NULL,                          -- IUPAC InChI
   inchikey text NOT NULL,                -- IUPAC InChIKey
   formula text NOT NULL,                        -- e.g., C10H16N2O2
-  hash_mol CHAR(40) UNIQUE NOT NULL,            -- https://rdkit.org/docs/source/rdkit.Chem.RegistrationHash.html#rdkit.Chem.RegistrationHash.GetMolHash
+  hash_mol CHAR(40) NOT NULL,            -- https://rdkit.org/docs/source/rdkit.Chem.RegistrationHash.html#rdkit.Chem.RegistrationHash.GetMolHash
   hash_tautomer uuid NOT NULL,           -- hash of the tautomer
   hash_canonical_smiles uuid NOT NULL,   -- hash of the canonical SMILES
   hash_no_stereo_smiles uuid NOT NULL,   -- hash of the no stereo SMILES

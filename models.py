@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Union, Literal
-from pydantic import validator
+from pydantic import Extra, root_validator, validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
@@ -359,13 +359,16 @@ class Property(PropertyResponse, table=True):
     __tablename__ = "properties"
     __table_args__ = (
         CheckConstraint(
-            "value_type IN ('int', 'double', 'bool', 'datetime', 'string')", name="properties_value_type_check"
+            "value_type IN ('int', 'double', 'bool', 'datetime', 'string', 'uuid')", name="properties_value_type_check"
         ),
         CheckConstraint(
             "property_class IN ('DECLARED', 'CALCULATED', 'MEASURED', 'PREDICTED')",
             name="properties_property_class_check",
         ),
-        CheckConstraint("scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'SYSTEM')", name="properties_scope_check"),
+        CheckConstraint(
+            "scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULT', 'SYSTEM')",
+            name="properties_scope_check",
+        ),
         {"schema": DB_SCHEMA},
     )
 
@@ -531,6 +534,12 @@ class SchemaPayload(SQLModel):
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
 
 
+class AssayPropertiesPayload(SQLModel):
+    assay_type_details_properties: List["PropertyBase"] = Field(default_factory=list)
+    assay_details_properties: List["PropertyBase"] = Field(default_factory=list)
+    assay_type_properties: List["PropertyBase"] = Field(default_factory=list)
+
+
 class AdditionsPayload(SQLModel):
     additions: List["AdditionBase"] = Field(default_factory=list)
 
@@ -593,3 +602,33 @@ class ComplexQueryRequest(SQLModel):
 class ExactSearchParameters(SQLModel):
     field: str
     value: Optional[str] = None
+
+
+class AssayTypeCreateBase(SQLModel):
+    name: str
+    description: Optional[str] = None
+    details: Dict[str, Any]
+
+
+class AssayTypeCreate(SQLModel):
+    assay_type: AssayTypeCreateBase
+
+
+class AssayResultProperty(SQLModel):
+    name: str
+    required: bool
+
+
+class AssayCreateBase(AssayBase):
+    assay_result_properties: List[AssayResultProperty]
+    extra_fields: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        extra = Extra.allow
+
+    @root_validator(pre=True)
+    def collect_extra_fields(cls, values):
+        known_keys = {"name", "assay_result_properties"}
+        extra = {k: v for k, v in values.items() if k not in known_keys}
+        values["extra_fields"] = extra
+        return values
