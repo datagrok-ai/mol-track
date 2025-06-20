@@ -56,7 +56,6 @@ def get_admin_user(db: Session):
     admin = db.query(models.User).filter(models.User.first_name == "Admin").first()
     if not admin:
         raise Exception("Admin user not found.")
-
     global admin_user_id
     admin_user_id = admin.id
 
