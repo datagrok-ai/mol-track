@@ -123,14 +123,14 @@ class AssayResultsRegistrar(BaseRegistrar):
                     assay_run_record = self._lookup_assay_run_by_details(
                         grouped.get("assays"), grouped.get("assay_run_details")
                     )
-                    self.assay_results_to_insert.extend(
-                        self.property_service.build_details_records(
-                            grouped.get("assay_results", {}),
-                            {"batch_id": getattr(batch_record, "id"), "assay_run_id": getattr(assay_run_record, "id")},
-                            enums.ScopeClass.ASSAY_RESULT,
-                            False,
-                        )
+
+                    inserted, updated = self.property_service.build_details_records(
+                        grouped.get("assay_results", {}),
+                        {"batch_id": getattr(batch_record, "id"), "assay_run_id": getattr(assay_run_record, "id")},
+                        enums.ScopeClass.ASSAY_RESULT,
+                        False,
                     )
+                    self.assay_results_to_insert.extend(inserted)
                     self._add_output_row(row, grouped, "success")
                 except Exception as e:
                     self.handle_row_error(row, e, global_idx, rows)

@@ -61,7 +61,6 @@ def get_admin_user(db: Session):
     admin = db.query(models.User).filter(models.User.first_name == "Admin").first()
     if not admin:
         raise Exception("Admin user not found.")
-
     global admin_user_id
     admin_user_id = admin.id
 
@@ -551,14 +550,13 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
 
     for assay_id, assay in zip(inserted_ids, payload):
         entity_ids = {"assay_id": assay_id}
-        detail_records.extend(
-            property_service.build_details_records(
-                properties=assay.extra_fields,
-                entity_ids=entity_ids,
-                scope=enums.ScopeClass.ASSAY,
-                include_user_fields=False,
-            )
+        inserted, updated = property_service.build_details_records(
+            properties=assay.extra_fields,
+            entity_ids=entity_ids,
+            scope=enums.ScopeClass.ASSAY,
+            include_user_fields=False,
         )
+        detail_records.extend(inserted)
 
         for prop_data in assay.assay_result_properties:
             prop_info = property_service.get_property_info(prop_data.name, enums.ScopeClass.ASSAY_RESULT)

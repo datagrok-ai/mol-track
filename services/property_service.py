@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from utils import type_casting_utils
 import main
-from typing import Dict, Any, List
+from typing import Callable, Dict, Any, List, Optional, Tuple
 
 
 class PropertyService:
@@ -33,24 +33,45 @@ class PropertyService:
             "cast_fn": type_casting_utils.value_type_cast_map[value_type],
         }
 
+    # TODO: Design a more robust and efficient approach for handling updates to compound details
     def build_details_records(
-        self, properties: Dict[str, Any], entity_ids: Dict[str, Any], scope: str, include_user_fields: bool = True
-    ) -> List[Dict[str, Any]]:
-        records = []
+        self,
+        properties: Dict[str, Any],
+        entity_ids: Dict[str, Any],
+        scope: str,
+        include_user_fields: bool = True,
+        update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        records_to_insert, records_to_update = [], []
+
         for prop_name, value in properties.items():
             prop_info = self.get_property_info(prop_name, scope)
+            prop = prop_info["property"]
+            cast_fn = prop_info["cast_fn"]
+            field_name = prop_info["field_name"]
+            prop_id = getattr(prop, "id")
+
+            try:
+                casted_value = cast_fn(value)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
+
             detail = {
                 **entity_ids,
-                "property_id": getattr(prop_info["property"], "id"),
+                "property_id": prop_id,
+                field_name: casted_value,
             }
+
             if include_user_fields:
                 detail["created_by"] = main.admin_user_id
                 detail["updated_by"] = main.admin_user_id
 
-            try:
-                detail[prop_info["field_name"]] = prop_info["cast_fn"](value)
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
+            if update_checker:
+                existing = update_checker(entity_ids, detail, field_name, casted_value)
+                if existing:
+                    records_to_update.append(existing)
+                    continue
 
-            records.append(detail)
-        return records
+            records_to_insert.append(detail)
+
+        return records_to_insert, records_to_update
