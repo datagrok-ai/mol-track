@@ -24,6 +24,7 @@ from chemistry_utils import (
 from logging_setup import logger
 import warnings
 from sqlalchemy.exc import SAWarning
+from search.engine import SearchEngine
 
 
 # Handle both package imports and direct execution
@@ -677,81 +678,138 @@ def search_compound_structure(request: models.SearchCompoundStructure, db: Sessi
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/search/complex", response_model=list[dict[str, Any]])
-def search_complex_query(request: models.ComplexQueryRequest, db: Session = Depends(get_db)):
+# Advanced Search Endpoints
+@app.post("/search", response_model=models.SearchResponse)
+def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)):
     """
-    Perform a complex query across multiple tables (e.g., compounds, batch, assays).
+    Advanced multi-level search endpoint supporting compounds, batches, and assay_results.
     """
     try:
-        # Validate and build the query
-        query_parts = []
-        query_params = {}  # Dictionary to hold query parameters
-        selected_columns = {}  # Dictionary to track selected columns for each table
-
-        for idx, condition in enumerate(request.conditions):
-            table = condition.table
-            field = condition.field
-            operator = condition.operator
-            value = condition.value
-            if table not in ["compounds", "batch", "assays"]:
-                raise HTTPException(status_code=400, detail=f"Invalid table name: {table}")
-
-            # Handle SMILES-based queries substructure, tautomer, similarity etc
-            if condition.query_smiles:
-                mol = Chem.MolFromSmiles(condition.query_smiles)
-                if mol is None:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Invalid SMILES string: {condition.query_smiles}",
-                    )
-                standardized_mol = standardize_mol(mol)
-
-                # Calculate the appropriate hash based on the field
-                if field == "hash_tautomer":
-                    value = calculate_tautomer_hash(standardized_mol)
-                elif field == "hash_no_stereo_smiles":
-                    value = calculate_no_stereo_smiles_hash(standardized_mol)
-                else:
-                    raise HTTPException(status_code=400, detail=f"Unsupported hash field: {field}")
-
-            # If the field is a UUID field, inline the UUID value directly into the query
-            if field in ["hash_tautomer", "hash_no_stereo_smiles"]:
-                query_parts.append(f"{table}.{field} {operator} '{value}'")
-            else:
-                # For non-UUID fields, use parameterized queries
-                param_name = f"param_{idx}"  # Unique parameter name
-                query_parts.append(f"{table}.{field} {operator} :{param_name}")
-                query_params[param_name] = value  # Store the parameter value
-
-            if condition.columns:
-                selected_columns[table] = condition.columns
-            elif table == "compounds":
-                # Default columns to return for the compounds table
-                selected_columns[table] = ["id", "canonical_smiles"]
-
-        # Combine conditions with the specified logic
-        combined_conditions = f" {request.logic} ".join(query_parts)
-
-        select_clauses = []
-        for table, columns in selected_columns.items():
-            for column in columns:
-                select_clauses.append(f"{table}.{column}")
-        select_clause = ", ".join(select_clauses)
-
-        # Build the final SQL query
-        sql_query = f"""
-            SELECT {select_clause}
-            FROM {", ".join(set([cond.table for cond in request.conditions]))}
-            WHERE {combined_conditions}
-        """
-
-        # Execute the query
-        result = db.execute(text(sql_query), query_params)
-        column_names = [col[0] for col in result.cursor.description]
-
-        # Convert the result into a list of dictionaries
-        json_result = [dict(zip(column_names, row)) for row in result]
-        return json_result
-
+        engine = SearchEngine(db)
+        return engine.search(request)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error building or executing query: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/search/validate", response_model=models.ValidationResponse)
+def validate_search_request(request: models.SearchRequest, db: Session = Depends(get_db)):
+    """
+    Validate a search request without executing it.
+    """
+    engine = SearchEngine(db)
+    errors = engine.validate_request(request)
+    return models.ValidationResponse(is_valid=len(errors) == 0, validation_errors=errors)
+
+
+@app.post("/search/explain")
+def explain_search_query(request: models.SearchRequest, db: Session = Depends(get_db)):
+    """
+    Explain a search query without executing it.
+    """
+    engine = SearchEngine(db)
+    return engine.explain_query(request)
+
+
+@app.get("/search/operators")
+def get_supported_search_operators():
+    """
+    Get list of supported search operators with descriptions.
+    
+    Now returns the new CompareOp enum values with descriptions.
+    
+    Returns:
+        Dict mapping operator names to their descriptions and requirements
+    """
+    try:
+        # Return the new CompareOp enum values
+        operators_info = {}
+        
+        for op in models.CompareOp:
+            operators_info[op.value] = {
+                'enum_name': op.name,
+                'value': op.value,
+                'description': f"Comparison operator: {op.value}",
+                'requires_threshold': op == models.CompareOp.IS_SIMILAR
+            }
+        
+        # Add LogicOp information
+        logic_operators = {}
+        for op in models.LogicOp:
+            logic_operators[op.value] = {
+                'enum_name': op.name,
+                'value': op.value,
+                'description': f"Logical operator: {op.value}"
+            }
+        
+        return {
+            'compare_operators': operators_info,
+            'logic_operators': logic_operators
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+# Shortcut endpoints for common search patterns - Updated for new structure
+@app.post("/search/compounds", response_model=models.SearchResponse) 
+def search_compounds_advanced(
+    output: List[str],
+    filter: Optional[models.Filter] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Shortcut endpoint for compound-level searches.
+    
+    Automatically sets level to 'compounds' and accepts filter parameters directly.
+    Now supports the new recursive Filter structure.
+    """
+    request = models.SearchRequest(
+        level="compounds",
+        output=output,
+        filter=filter
+    )
+    
+    return advanced_search(request, db)
+
+
+@app.post("/search/batches", response_model=models.SearchResponse)
+def search_batches_advanced(
+    output: List[str], 
+    filter: Optional[models.Filter] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Shortcut endpoint for batch-level searches.
+    
+    Automatically sets level to 'batches' and accepts filter parameters directly.
+    Now supports the new recursive Filter structure.
+    """
+    request = models.SearchRequest(
+        level="batches",
+        output=output,
+        filter=filter
+    )
+    
+    return advanced_search(request, db)
+
+
+@app.post("/search/assay-results", response_model=models.SearchResponse)
+def search_assay_results_advanced(
+    output: List[str],
+    filter: Optional[models.Filter] = None, 
+    db: Session = Depends(get_db)
+):
+    """
+    Shortcut endpoint for assay result-level searches.
+    
+    Automatically sets level to 'assay_results' and accepts filter parameters directly.
+    Now supports the new recursive Filter structure.
+    """
+    request = models.SearchRequest(
+        level="assay_results", 
+        output=output,
+        filter=filter
+    )
+    
+    return advanced_search(request, db)
+

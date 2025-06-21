@@ -35,5 +35,8 @@ alwaysApply: true
 - Add comments for complex queries or triggers
 - Follow PostgreSQL best practices for performance
 
+## Unit tests
+- run unit tests like that:
+  `uv run pytest tests/test_batches.py`
 
 - Document all schema changes in version control
