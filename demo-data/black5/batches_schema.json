@@ -6,13 +6,6 @@
             "property_class": "measured",
             "value_type": "datetime",
             "unit": ""
-        },
-        {
-            "name": "Batch QC",
-            "scope": "batch",
-            "property_class": "declared",
-            "value_type": "string",
-            "unit": ""
         }
     ],
     "synonym_types": [

@@ -1,0 +1,7 @@
+{
+   "smiles": "smiles",
+   "Chemical": "compounds_details.common_name",
+   "CAS #": "compounds_details.cas",
+   "corporate_batch_id": "batches_details.batch_corporate_id",
+   "corporate_compound_id": "compounds_details.corporate_compound_id"
+}

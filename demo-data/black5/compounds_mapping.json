@@ -1,0 +1,7 @@
+{
+   "smiles": "smiles",
+   "Chemical": "compounds_details.common_name",
+   "CAS #": "compounds_details.cas",
+   "corporate_compound_id": "compounds_details.corporate_compound_id",
+   "MolLogP": "compounds_details.MolLogP"
+}

@@ -10,14 +10,24 @@
     ],
     "synonym_types": [
         {
-            "name": "xyz_id",
+            "name": "corporate_compound_id",
             "scope": "compound",
             "pattern": ""
         },
         {
-            "name": "ChEMBL ID",
+            "name": "cas",
             "scope": "compound",
-            "pattern": "CHEMBL[0-9]+"
+            "pattern": "\\b[1-9]{1}[0-9]{1,6}-\\d{2}-\\d\\b"
+        },
+        {
+            "name": "common_name",
+            "scope": "compound",
+            "pattern": ""
+        },
+        {
+            "name": "USAN",
+            "scope": "compound",
+            "pattern": ""
         }
     ]
 }
