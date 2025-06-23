@@ -121,8 +121,7 @@ class Compound(CompoundResponseBase, table=True):
     batches: List["Batch"] = Relationship(back_populates="compound")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="compound")
     properties: List["Property"] = Relationship(
-        back_populates="compounds",
-        link_model=CompoundDetail,
+        back_populates="compounds", link_model=CompoundDetail, sa_relationship_kwargs={"viewonly": True}
     )
 
 
@@ -182,7 +181,9 @@ class Batch(BatchResponseBase, table=True):
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
     batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
     batch_additions: List["BatchAddition"] = Relationship(back_populates="batch")
-    properties: List["Property"] = Relationship(back_populates="batches", link_model=BatchDetail)
+    properties: List["Property"] = Relationship(
+        back_populates="batches", link_model=BatchDetail, sa_relationship_kwargs={"viewonly": True}
+    )
 
 
 class SemanticTypeBase(SQLModel):
@@ -292,7 +293,9 @@ class Assay(AssayResponseBase, table=True):
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
-    properties: List["Property"] = Relationship(back_populates="assays", link_model=AssayProperty)
+    properties: List["Property"] = Relationship(
+        back_populates="assays", link_model=AssayProperty, sa_relationship_kwargs={"viewonly": True}
+    )
 
     assay_runs: List["AssayRun"] = Relationship(back_populates="assay")
     assay_details: List["AssayDetail"] = Relationship(back_populates="assay")
@@ -351,7 +354,9 @@ class AssayRun(AssayRunResponseBase, table=True):
     assay_run_details: List["AssayRunDetail"] = Relationship(back_populates="assay_run")
 
     properties: List["Property"] = Relationship(
-        back_populates="assay_runs", link_model=AssayRunDetail, sa_relationship_kwargs={"lazy": "joined"}
+        back_populates="assay_runs",
+        link_model=AssayRunDetail,
+        sa_relationship_kwargs={"lazy": "joined", "viewonly": True},
     )
 
 
@@ -379,15 +384,16 @@ class Property(PropertyResponse, table=True):
     assay_results: List["AssayResult"] = Relationship(back_populates="property")
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
-    assays: List["Assay"] = Relationship(link_model=AssayProperty)
-    assay_runs: List["AssayRun"] = Relationship(back_populates="properties", link_model=AssayRunDetail)
+
+    assays: List["Assay"] = Relationship(link_model=AssayProperty, sa_relationship_kwargs={"viewonly": True})
+    assay_runs: List["AssayRun"] = Relationship(
+        back_populates="properties", link_model=AssayRunDetail, sa_relationship_kwargs={"viewonly": True}
+    )
     compounds: List["Compound"] = Relationship(
-        back_populates="properties",
-        link_model=CompoundDetail,
+        back_populates="properties", link_model=CompoundDetail, sa_relationship_kwargs={"viewonly": True}
     )
     batches: List["Batch"] = Relationship(
-        back_populates="properties",
-        link_model=BatchDetail,
+        back_populates="properties", link_model=BatchDetail, sa_relationship_kwargs={"viewonly": True}
     )
 
 
