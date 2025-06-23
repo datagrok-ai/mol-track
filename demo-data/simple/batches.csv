@@ -1,0 +1,6 @@
+common name,cas,smiles,epa batch id,epa compound id
+"1,3-Benzenedicarboxylic acid ",121-91-5,C1=CC(=CC(=C1)C(=O)O)C(=O)O,EPA-001-001,EPA-001
+Bisphenol AF,1478-61-1,Oc1ccc(cc1)C(c2ccc(O)cc2)(C(F)(F)F)C(F)(F)F,EPA-002-001,EPA-002
+"2,5-Di-tert-butylbenzene-1,4-diol",88-58-4,CC(C)(C)C1=CC(O)=C(C=C1O)C(C)(C)C,EPA-003-001,EPA-003
+2-Ethylhexyl paraben,5153-25-3,CCCCC(CC)COC(=O)C1=CC=C(C=C1)O,EPA-004-001,EPA-004
+"3,3',5,5'-Tetrabromobisphenol A",79-94-7,CC(C)(c1cc(Br)c(O)c(Br)c1)c1cc(Br)c(O)c(Br)c1,EPA-005-001,EPA-005

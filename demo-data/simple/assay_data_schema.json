@@ -1,0 +1,68 @@
+{
+    "properties": [
+       {
+          "name": "assay format",
+          "scope": "assay",
+          "property_class": "declared",
+          "value_type": "string"
+       },
+       {
+          "name": "biological system",
+          "scope": "assay",
+          "property_class": "declared",
+          "value_type": "string"
+       },
+       {
+          "name": "cell species",
+          "value_type": "string",
+          "required": true,
+          "scope": "assay_run",
+          "property_class": "declared"
+       },
+       {
+          "name": "cell lot",
+          "value_type": "string",
+          "required": true,
+          "scope": "assay_run",
+          "property_class": "measured"
+       },
+       {
+          "name": "cell concentration",
+          "value_type": "double",
+          "required": true,
+          "scope": "assay_run",
+          "property_class": "measured",
+          "units": "10^6 cells/mL"
+       },
+       {
+          "name": "Assay Run Date",
+          "value_type": "datetime",
+          "required": true,
+          "scope": "assay_run",
+          "property_class": "measured"
+       },
+       {
+          "name": "assayer",
+          "value_type": "uuid",
+          "required": true,
+          "scope": "assay_run",
+          "property_class": "measured"
+       },
+       {
+          "name": "clearance",
+          "value_type": "double",
+          "unit": "uL/min/10^6 cells",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "dosed conc",
+          "unit": "uM",
+          "required": true,
+          "value_type": "double",
+          "property_class": "measured",
+          "scope": "assay_result"
+       }
+    ]
+}

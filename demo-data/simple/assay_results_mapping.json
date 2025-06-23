@@ -1,0 +1,11 @@
+{
+    "epa batch id": "batch_details.epa batch id",
+    "cell species": "assay_run_details.cell species",
+    "dosed conc": "assay_results.dosed conc",
+    "clearance": "assay_results.clearance",
+    "mean htc": "assay_results.mean htc",
+    "sd htc": "assay_results.sd htc",
+    "assay name": "assays.name",
+    "cell lot": "assay_run_details.cell lot",
+    "assay run date": "assay_run_details.Assay Run Date"
+}
