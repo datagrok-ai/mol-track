@@ -78,8 +78,11 @@ class BaseRegistrar(ABC):
         self.build_sql(rows)
         if self.sql_statements:
             for sql in self.sql_statements:
-                self.db.execute(text(sql))
-                self.db.commit()
+                try:
+                    self.db.execute(text(sql))
+                    self.db.commit()
+                except Exception:
+                    self.db.rollback()
 
     # === Output formatting methods ===
 

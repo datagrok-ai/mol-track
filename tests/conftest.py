@@ -43,6 +43,31 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 
 DATA_DIR = Path(__file__).parent.parent / "demo-data"
 BLACK_DIR = DATA_DIR / "black"
+EXCLUDE_TABLES = ["users", "semantic_types"]
+SCHEMA_FILES = ["batches_schema.json", "compounds_schema.json", "assay_data_schema.json"]
+BLACK_PATHS = {
+    "compounds": ("compounds.csv", "compounds_mapping.json"),
+    "batches": ("batches.csv", "batches_mapping.json"),
+    "assay_runs": ("assay_runs.csv", "assay_runs_mapping.json"),
+    "assay_results": ("assay_results.csv", "assay_results_mapping.json"),
+}
+
+
+def truncate_all_except(db, schema, exclude_tables):
+    tables_query = text("""
+        SELECT tablename FROM pg_tables
+        WHERE schemaname = :schema
+          AND tablename NOT IN :exclude_tables
+    """)
+    result = db.execute(tables_query, {"schema": schema, "exclude_tables": tuple(exclude_tables)})
+    tables = [row[0] for row in result]
+
+    if not tables:
+        return
+
+    tables_str = ", ".join(f"{schema}.{table}" for table in tables)
+    db.execute(text(f"TRUNCATE {tables_str} RESTART IDENTITY CASCADE;"))
+    db.commit()
 
 
 @pytest.fixture(scope="module")
@@ -135,12 +160,7 @@ def test_db(test_engine):
         yield db
     finally:
         # Clean up data after each test
-        db.execute(
-            text(
-                f"TRUNCATE {DB_SCHEMA}.compounds, {DB_SCHEMA}.batches, {DB_SCHEMA}.properties RESTART IDENTITY CASCADE;"
-            )
-        )
-        db.commit()
+        truncate_all_except(db, DB_SCHEMA, EXCLUDE_TABLES)
 
 
 @pytest.fixture
@@ -172,7 +192,7 @@ def read_csv(file_path: Path) -> str:
 
 @pytest.fixture
 def preload_schema(client):
-    for schema_file in ["batches_schema.json", "compounds_schema.json"]:
+    for schema_file in SCHEMA_FILES:
         data = read_json(BLACK_DIR / schema_file)
         client.post("/v1/schema/", json=data)
 
@@ -206,6 +226,59 @@ def _preload_batches(client, csv_path, mapping_path, error_handling=enums.ErrorH
 @pytest.fixture
 def preload_batches(client):
     return _preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
+
+
+@pytest.fixture
+def preload_assays(client):
+    data = read_json(BLACK_DIR / "assays_instances.json")
+    client.post("/v1/assays", json=data)
+
+
+def _preload_assay_runs(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+    return preload_entity(client, "/v1/assay_runs/", csv_path, mapping_path, error_handling)
+
+
+@pytest.fixture
+def preload_assay_runs(client):
+    return _preload_assay_runs(client, BLACK_DIR / "assay_runs.csv", BLACK_DIR / "assay_runs_mapping.json")
+
+
+def _preload_assay_results(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+    return preload_entity(client, "/v1/assay_results/", csv_path, mapping_path, error_handling)
+
+
+@pytest.fixture
+def preload_assay_results(client):
+    return _preload_assay_results(client, BLACK_DIR / "assay_results.csv", BLACK_DIR / "assay_results_mapping.json")
+
+
+@pytest.fixture
+def preload_black_data(client):
+    for schema_file in SCHEMA_FILES:
+        schema_data = read_json(BLACK_DIR / schema_file)
+        client.post("/v1/schema/", json=schema_data)
+
+    file_path = DATA_DIR / "additions.csv"
+    files = {"file": (str(file_path), read_csv(file_path), "text/csv")}
+    client.post("/v1/additions/", files=files)
+
+    assays_data = read_json(BLACK_DIR / "assays_instances.json")
+    client.post("/v1/assays", json=assays_data)
+
+    for endpoint, (csv_file, mapping_file) in {
+        "/v1/compounds/": BLACK_PATHS["compounds"],
+        "/v1/batches/": BLACK_PATHS["batches"],
+        "/v1/assay_runs/": BLACK_PATHS["assay_runs"],
+        "/v1/assay_results/": BLACK_PATHS["assay_results"],
+    }.items():
+        csv_path = BLACK_DIR / csv_file
+        mapping_path = BLACK_DIR / mapping_file
+        files = {"csv_file": (str(csv_path), read_csv(csv_path), "text/csv")}
+        data = {
+            "error_handling": enums.ErrorHandlingOptions.reject_row.value,
+            "mapping": json.dumps(read_json(mapping_path)),
+        }
+        client.post(endpoint, files=files, data=data)
 
 
 # Common test data

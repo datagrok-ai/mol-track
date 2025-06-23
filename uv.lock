@@ -178,6 +178,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "python-dateutil" },
     { name = "python-dotenv" },
     { name = "python-multipart" },
     { name = "pyyaml" },
@@ -195,6 +196,7 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.10.6" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", specifier = ">=0.26.0" },
+    { name = "python-dateutil", specifier = ">=2.9.0.post0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "pyyaml", specifier = "==6.0.2" },
@@ -467,6 +469,18 @@ wheels = [
 ]
 
 [[package]]
+name = "python-dateutil"
+version = "2.9.0.post0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
+]
+
+[[package]]
 name = "python-dotenv"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -543,6 +557,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/07/e1/5090aa7d040fb0b89a51309c7b9f077df18dad29140ac50d7130fa3cb728/rdkit-2025.3.1-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:3d99cf40b2f0464d643a4d1dab7d120c07d1baa155a8d9a8d9bdc6e126753875", size = 33607065, upload-time = "2025-05-09T07:16:05.572Z" },
     { url = "https://files.pythonhosted.org/packages/c4/af/809e82bc5b3e04f0110a2ca1198272259013039e4b4af5d62cdee62d3b7c/rdkit-2025.3.1-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:2204e76c40113705237deb72fbbfbefe9e208f3c51e21333f1c895481b1d848f", size = 34486625, upload-time = "2025-05-09T07:16:09.602Z" },
     { url = "https://files.pythonhosted.org/packages/72/63/20b763a263c7533bf69725aa47d4eb12ff01ee166ee4f5aec9a53422eadc/rdkit-2025.3.1-cp313-cp313-win_amd64.whl", hash = "sha256:f0b4ab9aaebd9500318a882f7b7d6fe410f0c7c480c6a416063ed0ca4582ce23", size = 22717258, upload-time = "2025-05-09T07:16:13.45Z" },
+]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
 
 [[package]]

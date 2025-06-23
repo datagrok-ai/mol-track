@@ -45,6 +45,7 @@ class AssayRunRegistrar(BaseRegistrar):
                     self.assay_runs_to_insert.append(assay_run)
 
                     inserted, updated = self.property_service.build_details_records(
+                        models.AssayRunDetail,
                         grouped.get("assay_run_details", {}),
                         {"name": assay_run["name"]},
                         enums.ScopeClass.ASSAY_RUN,
