@@ -228,10 +228,14 @@ def preload_batches(client):
     return _preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
 
 
+def _preload_assays(client, json_path):
+    data = read_json(json_path)
+    return client.post("/v1/assays", json=data)
+
+
 @pytest.fixture
 def preload_assays(client):
-    data = read_json(BLACK_DIR / "assays_instances.json")
-    client.post("/v1/assays", json=data)
+    return _preload_assays(client, BLACK_DIR / "assays_instances.json")
 
 
 def _preload_assay_runs(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
