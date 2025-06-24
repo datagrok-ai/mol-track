@@ -40,6 +40,7 @@ class AssayRunRegistrar(BaseRegistrar):
             for idx, row in enumerate(batch):
                 try:
                     grouped = self._group_data(row)
+                    row_number = global_idx + 1
                     assay_data = grouped.get("assays", {})
                     assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
                     self.assay_runs_to_insert.append(assay_run)
@@ -47,7 +48,7 @@ class AssayRunRegistrar(BaseRegistrar):
                     inserted, updated = self.property_service.build_details_records(
                         models.AssayRunDetail,
                         grouped.get("assay_run_details", {}),
-                        {"name": assay_run["name"]},
+                        {"rn": row_number},
                         enums.ScopeClass.ASSAY_RUN,
                         False,
                     )
@@ -66,6 +67,7 @@ class AssayRunRegistrar(BaseRegistrar):
         details_sql = self._generate_details_sql(details)
         return sql_utils.generate_sql(assay_runs_sql, details_sql)
 
+    # TODO: Think of a more robust key than row number for joining
     def _generate_assay_run_sql(self, assay_runs) -> str:
         cols = list(assay_runs[0].keys())
         values_sql = sql_utils.values_sql(assay_runs, cols)
@@ -73,7 +75,11 @@ class AssayRunRegistrar(BaseRegistrar):
             WITH inserted_assay_runs AS (
                 INSERT INTO moltrack.assay_runs ({", ".join(cols)})
                 VALUES {values_sql}
-                RETURNING id, name
+                RETURNING id
+            ),
+            numbered_assay_runs AS (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS rn
+                FROM inserted_assay_runs
             )"""
 
     def _generate_details_sql(self, details) -> str:
@@ -84,7 +90,7 @@ class AssayRunRegistrar(BaseRegistrar):
         return f"""
             inserted_assay_run_details AS (
                 INSERT INTO moltrack.assay_run_details (assay_run_id, {", ".join(cols_without_key)})
-                SELECT ir.id, {", ".join([f"d.{col}" for col in cols_without_key])}
-                FROM (VALUES {values_sql}) AS d(name, {", ".join(cols_without_key)})
-                JOIN inserted_assay_runs ir ON d.name = ir.name
+                SELECT nr.id, {", ".join([f"d.{col}" for col in cols_without_key])}
+                FROM (VALUES {values_sql}) AS d(rn, {", ".join(cols_without_key)})
+                JOIN numbered_assay_runs nr ON d.rn = nr.rn
             )"""
