@@ -131,6 +131,29 @@ uvicorn main:app --reload
 
 You can now access the API at [http://localhost:8000](http://localhost:8000).
 
+## Setting up pytest in VS Code
+
+To configure pytest in VS Code, follow these steps:
+
+1. Install the **Python** extension
+
+   * Open the **Extensions** view (`Ctrl+Shift+X` on Windows/Linux or `Cmd+Shift+X` on macOS).
+   * Search for **Python** and install the official extension by Microsoft.
+
+2. Click the **Testing** icon (beaker icon) in the **Activity bar**.
+
+3. Configure python tests
+
+   * Click on **Configure Python Tests** button.
+   * When prompted, select:
+
+     * **Test framework**: `pytest`
+     * **Test directory**: root folder (important: ensure it contains an `__init__.py` file — this is required for test discovery to work properly)
+
+Your tests should now be detected and listed in the **Testing panel**.
+
+
+
 ## API Documentation
 
 Once the server is running, you can access:
