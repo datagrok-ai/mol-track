@@ -44,14 +44,39 @@ class BaseRegistrar(ABC):
         rows = list(csv.DictReader(io.StringIO(csv_content), skipinitialspace=True))
         if not rows:
             raise HTTPException(status_code=400, detail="CSV file is empty or invalid")
-        self.normalized_mapping = self.user_mapping or {k: k for k in rows[0]}
+
+        if self.user_mapping:
+            self.normalized_mapping = self.user_mapping
+        else:
+            self.normalized_mapping = {}
+            for col in rows[0].keys():
+                assigned = self._assign_column(col)
+                self.normalized_mapping[col] = assigned
         return rows
 
-    def _group_data(self, row: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _assign_column(self, col: str) -> str:
+        prop = self.property_records_map.get(col)
+        if prop is None:
+            return col
+
+        scope_to_prefix = {
+            enums.ScopeClass.COMPOUND: "compounds_details",
+            enums.ScopeClass.BATCH: "batches_details",
+            enums.ScopeClass.ASSAY_RUN: "assay_run_details",
+        }
+
+        prefix = scope_to_prefix.get(getattr(prop, "scope"))
+        return f"{prefix}.{col}" if prefix else col
+
+    def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
         grouped = {}
         for src_key, mapped_key in self.normalized_mapping.items():
             value = row.get(src_key)
-            table, field = mapped_key.split(".", 1) if "." in mapped_key else ("compounds", mapped_key)
+            table, field = (
+                mapped_key.split(".", 1)
+                if "." in mapped_key
+                else (entity_name if entity_name else "compounds", mapped_key)
+            )
             grouped.setdefault(table, {})[field] = value
         return grouped
 

@@ -39,7 +39,7 @@ class AssayRunRegistrar(BaseRegistrar):
 
             for idx, row in enumerate(batch):
                 try:
-                    grouped = self._group_data(row)
+                    grouped = self._group_data(row, "assays")
                     row_number = global_idx + 1
                     assay_data = grouped.get("assays", {})
                     assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
