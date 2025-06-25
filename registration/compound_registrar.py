@@ -14,6 +14,7 @@ import models
 import enums
 from utils import sql_utils
 from registration.base_registrar import BaseRegistrar
+from sqlalchemy.sql import text
 
 
 class CompoundRegistrar(BaseRegistrar):
@@ -25,9 +26,8 @@ class CompoundRegistrar(BaseRegistrar):
         self.output_records: List[Dict[str, Any]] = []
 
     def _next_molregno(self) -> int:
-        db_max = self.db.query(func.max(models.Compound.molregno)).scalar() or 0
-        local_max = max((c.get("molregno", 0) for c in self.compounds_to_insert), default=0)
-        return max(db_max, local_max) + 1
+        molregno = self.db.execute(text("SELECT nextval('moltrack.molregno_seq')")).scalar()
+        return molregno
 
     def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:
         mol = Chem.MolFromSmiles(compound_data.get("smiles"))

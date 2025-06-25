@@ -628,6 +628,72 @@ def create_assay_results(
     return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
+@router.patch("/admin/molregno-sequence-start")
+def set_molregno_sequence_start(
+    start_value: int = Form(...),  
+    db: Session = Depends(get_db)
+):
+    """
+    Set the starting value for the molregno sequence.
+    This is useful for resetting or initializing the sequence.
+    """
+    if start_value < 1:
+        raise HTTPException(status_code=400, detail="Start value must be greater than 0")
+
+    max_molregno = db.execute(
+        text("SELECT last_value FROM moltrack.molregno_seq")
+    ).scalar_one()
+
+    if start_value <= max_molregno:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Start value {start_value} must be greater than the current max molregno {max_molregno}",
+        )
+
+    try:
+        db.execute(text("SELECT setval('moltrack.molregno_seq', :start_value)"), {"start_value": start_value})
+        db.commit()
+        return {
+            "status": "success", 
+            "message": f"Molregno sequence set to {start_value}"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error setting molregno sequence: {str(e)}")
+
+@router.patch("/admin/batchregno-sequence-start")
+def set_molregno_sequence_start(
+    start_value: int = Form(...),  
+    db: Session = Depends(get_db)
+):
+    """
+    Set the starting value for the batchregno sequence.
+    This is useful for resetting or initializing the sequence.
+    """
+    if start_value < 1:
+        raise HTTPException(status_code=400, detail="Start value must be greater than 0")
+
+    max_batchregno = db.execute(
+        text("SELECT last_value FROM moltrack.batch_regno_seq")
+    ).scalar_one()
+
+    if start_value <= max_batchregno:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Start value {start_value} must be greater than the current max batchregno {max_batchregno}",
+        )
+
+    try:
+        db.execute(text("SELECT setval('moltrack.batch_regno_seq', :start_value)"), {"start_value": start_value})
+        db.commit()
+        return {
+            "status": "success",
+            "message": f"Batchregno sequence set to {start_value}"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error setting batchregno sequence: {str(e)}")
+
 app.include_router(router)
 
 
