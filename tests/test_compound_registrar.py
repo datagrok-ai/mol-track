@@ -39,6 +39,29 @@ def test_schema(client, endpoint, schema_file, response_key, expected_keys, prel
         assert "additions" in response_data
 
 
+def test_register_compounds_without_mapping(client, preload_schema):
+    register_response = _preload_compounds(client, BLACK_DIR / "compounds.csv")
+    assert register_response.status_code == 200
+
+    register_data = register_response.json().get("data", [])
+    assert len(register_data) == 54
+
+    get_response = client.get("/v1/compounds/")
+    assert get_response.status_code == 200
+
+    compounds = get_response.json()
+    expected_properties = {"corporate_compound_id", "MolLogP"}
+
+    for compound in compounds:
+        properties = compound.get("properties", [])
+        assert len(properties) == len(expected_properties), (
+            f"Expected {len(expected_properties)} properties, got {len(properties)}"
+        )
+
+        prop_names = {p["name"] for p in properties}
+        assert prop_names == expected_properties, f"Property names mismatch: {prop_names} != {expected_properties}"
+
+
 def test_register_compounds_reject_all(client, preload_schema):
     response = _preload_compounds(
         client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json", enums.ErrorHandlingOptions.reject_all

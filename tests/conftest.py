@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Optional
 import pytest
 import os
 import uuid
@@ -204,13 +205,25 @@ def preload_additions(client):
     client.post("/v1/additions/", files=files)
 
 
-def preload_entity(client, endpoint: str, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+def preload_entity(
+    client,
+    endpoint: str,
+    csv_path: str,
+    mapping_path: Optional[Path] = None,
+    error_handling=enums.ErrorHandlingOptions.reject_row,
+):
     files = {"csv_file": (str(csv_path), read_csv(csv_path), "text/csv")}
-    data = {"error_handling": error_handling.value, "mapping": json.dumps(read_json(mapping_path))}
+    data = {"error_handling": error_handling.value}
+
+    if mapping_path is not None:
+        data["mapping"] = json.dumps(read_json(mapping_path))
+
     return client.post(endpoint, files=files, data=data)
 
 
-def _preload_compounds(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+def _preload_compounds(
+    client, csv_path: str, mapping_path: Optional[str] = None, error_handling=enums.ErrorHandlingOptions.reject_row
+):
     return preload_entity(client, "/v1/compounds/", csv_path, mapping_path, error_handling)
 
 
@@ -219,7 +232,9 @@ def preload_compounds(client):
     return _preload_compounds(client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
 
 
-def _preload_batches(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+def _preload_batches(
+    client, csv_path: str, mapping_path: Optional[str] = None, error_handling=enums.ErrorHandlingOptions.reject_row
+):
     return preload_entity(client, "/v1/batches/", csv_path, mapping_path, error_handling)
 
 
@@ -228,7 +243,7 @@ def preload_batches(client):
     return _preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
 
 
-def _preload_assays(client, json_path):
+def _preload_assays(client, json_path: str):
     data = read_json(json_path)
     return client.post("/v1/assays", json=data)
 
@@ -238,7 +253,9 @@ def preload_assays(client):
     return _preload_assays(client, BLACK_DIR / "assays_instances.json")
 
 
-def _preload_assay_runs(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+def _preload_assay_runs(
+    client, csv_path: str, mapping_path: Optional[str] = None, error_handling=enums.ErrorHandlingOptions.reject_row
+):
     return preload_entity(client, "/v1/assay_runs/", csv_path, mapping_path, error_handling)
 
 
@@ -247,7 +264,9 @@ def preload_assay_runs(client):
     return _preload_assay_runs(client, BLACK_DIR / "assay_runs.csv", BLACK_DIR / "assay_runs_mapping.json")
 
 
-def _preload_assay_results(client, csv_path, mapping_path, error_handling=enums.ErrorHandlingOptions.reject_row):
+def _preload_assay_results(
+    client, csv_path: str, mapping_path: Optional[str] = None, error_handling=enums.ErrorHandlingOptions.reject_row
+):
     return preload_entity(client, "/v1/assay_results/", csv_path, mapping_path, error_handling)
 
 
