@@ -44,9 +44,10 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 
 DATA_DIR = Path(__file__).parent.parent / "demo-data"
 BLACK_DIR = DATA_DIR / "black"
+SIMPLE_DIR = DATA_DIR / "simple"
 EXCLUDE_TABLES = ["users", "semantic_types"]
 SCHEMA_FILES = ["batches_schema.json", "compounds_schema.json", "assay_data_schema.json"]
-BLACK_PATHS = {
+DATA_PATHS = {
     "compounds": ("compounds.csv", "compounds_mapping.json"),
     "batches": ("batches.csv", "batches_mapping.json"),
     "assay_runs": ("assay_runs.csv", "assay_runs_mapping.json"),
@@ -275,33 +276,42 @@ def preload_assay_results(client):
     return _preload_assay_results(client, BLACK_DIR / "assay_results.csv", BLACK_DIR / "assay_results_mapping.json")
 
 
-@pytest.fixture
-def preload_black_data(client):
+def preload_data_from_dir(client, data_dir: str):
     for schema_file in SCHEMA_FILES:
-        schema_data = read_json(BLACK_DIR / schema_file)
+        schema_data = read_json(data_dir / schema_file)
         client.post("/v1/schema/", json=schema_data)
 
     file_path = DATA_DIR / "additions.csv"
     files = {"file": (str(file_path), read_csv(file_path), "text/csv")}
     client.post("/v1/additions/", files=files)
 
-    assays_data = read_json(BLACK_DIR / "assays_instances.json")
+    assays_data = read_json(data_dir / "assays_instances.json")
     client.post("/v1/assays", json=assays_data)
 
     for endpoint, (csv_file, mapping_file) in {
-        "/v1/compounds/": BLACK_PATHS["compounds"],
-        "/v1/batches/": BLACK_PATHS["batches"],
-        "/v1/assay_runs/": BLACK_PATHS["assay_runs"],
-        "/v1/assay_results/": BLACK_PATHS["assay_results"],
+        "/v1/compounds/": DATA_PATHS["compounds"],
+        "/v1/batches/": DATA_PATHS["batches"],
+        "/v1/assay_runs/": DATA_PATHS["assay_runs"],
+        "/v1/assay_results/": DATA_PATHS["assay_results"],
     }.items():
-        csv_path = BLACK_DIR / csv_file
-        mapping_path = BLACK_DIR / mapping_file
+        csv_path = data_dir / csv_file
+        mapping_path = data_dir / mapping_file
         files = {"csv_file": (str(csv_path), read_csv(csv_path), "text/csv")}
         data = {
             "error_handling": enums.ErrorHandlingOptions.reject_row.value,
             "mapping": json.dumps(read_json(mapping_path)),
         }
         client.post(endpoint, files=files, data=data)
+
+
+@pytest.fixture
+def preload_black_data(client):
+    preload_data_from_dir(client, BLACK_DIR)
+
+
+@pytest.fixture
+def preload_simple_data(client):
+    preload_data_from_dir(client, SIMPLE_DIR)
 
 
 # Common test data
