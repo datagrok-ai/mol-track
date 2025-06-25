@@ -49,24 +49,44 @@ class PropertyService:
         for prop_name, value in properties.items():
             prop_info = self.get_property_info(prop_name, scope)
             prop = prop_info["property"]
+            value_type = prop_info["value_type"]
             cast_fn = prop_info["cast_fn"]
             field_name = prop_info["field_name"]
             prop_id = getattr(prop, "id")
 
+            #  Detect and parse value qualifiers
+            value_qualifier = 0
+            if value_type in ("double", "int") and isinstance(value, str):
+                qualifiers = {
+                    "<": 1,
+                    ">": 2,
+                    "=": 0,
+                }
+
+                first_char = value[0] if value else ""
+                if first_char in qualifiers:
+                    value_qualifier = qualifiers[first_char]
+                    value = value[1:].strip()
+
             try:
-                casted_value = None if value in ("", None) else cast_fn(value)
+                casted_value = None if value in ("", "none", None) else cast_fn(value)
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
 
             detail = {
                 **entity_ids,
                 "property_id": prop_id,
+                "value_qualifier": value_qualifier,
                 field_name: casted_value,
             }
 
             # TODO: Refactor to generically handle all value_* fields without hardcoding model-specific attributes
             mapper = inspect(model)
-            value_columns = [col.key for col in mapper.columns if col.key.startswith("value") and col.key != field_name]
+            value_columns = [
+                col.key
+                for col in mapper.columns
+                if col.key.startswith("value") and col.key not in [field_name, "value_qualifier"]
+            ]
 
             for col_name in value_columns:
                 column = mapper.columns[col_name]
