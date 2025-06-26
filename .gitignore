@@ -4,3 +4,8 @@
 __pycache__/
 .python-version
 **/.DS_Store
+mol_venv/
+launch.json
+.moltrack-env
+setup_db.sh
+.gitignore
