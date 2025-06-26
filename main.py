@@ -4,11 +4,12 @@ from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, Uplo
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
+import app.crud as crud
 from app.services.registrars.assay_result_registrar import AssayResultsRegistrar
 from app.services.registrars.assay_run_registrar import AssayRunRegistrar
 from app.services.registrars.batch_registrar import BatchRegistrar
 from app.services.registrars.compound_registrar import CompoundRegistrar
-from app import models, crud
+from app import models
 from app.utils import enums
 from app.services.property_service import PropertyService
 
@@ -28,12 +29,11 @@ from app.utils.logging_utils import logger
 try:
     # When imported as a package (for tests)
     from .app import models
-    from .database import SessionLocal
+    from .app.setup.database import SessionLocal
 except ImportError:
     # When run directly
     import app.models as models
-    import app.crud as crud
-    from database import SessionLocal
+    from app.setup.database import SessionLocal
 
 # models.Base.metadata.create_all(bind=engine)
 
@@ -84,7 +84,6 @@ def get_or_raise_exception(get_func, db, id, not_found_msg):
 def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
     created_synonyms = crud.create_properties(db, payload.synonym_types)
     created_properties = crud.create_properties(db, payload.properties)
-
     return {
         "status": "success",
         "created": {
