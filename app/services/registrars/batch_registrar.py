@@ -2,11 +2,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pytest import Session
-from sqlalchemy import func
 from app.services.registrars.compound_registrar import CompoundRegistrar
 from app import main
 from app import models
 from app.utils import enums, sql_utils
+from sqlalchemy.sql import text
 
 
 class BatchRegistrar(CompoundRegistrar):
@@ -20,9 +20,7 @@ class BatchRegistrar(CompoundRegistrar):
         self.batch_additions = []
 
     def _next_batch_regno(self) -> int:
-        db_max = self.db.query(func.max(models.Batch.batch_regno)).scalar() or 0
-        local_max = max((b.get("batch_regno", 0) for b in self.batches_to_insert), default=0)
-        return max(db_max, local_max) + 1
+        return self.db.execute(text("SELECT nextval('moltrack.batch_regno_seq');")).scalar()
 
     def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
         return {

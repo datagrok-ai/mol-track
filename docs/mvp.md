@@ -2,13 +2,15 @@
 
 We describe here the capabilities that we see as appropriate for a minimal viable product that can be used to test the chemistry, synonym, property, and assay features and provide feedback on evolution and hackability.  We use the terminology of a role (implementer, admin, chemist, biologist).  *In this MVP, this will be a single global trusted user.*
 
+User Story - As an academic lab researcher, I want to improve the way I manage my compound, batch, and assay data to improved data quality, minimize rework,increase data transparency, and get on with my science.
+
 1. Implementor can
     - [x] deploy postgres database with RDkit
     - [ ] configure business rules
         - [x] compound standardization rules
-        - [ ] compound uniqueness rules
-        - [ ] compound identification rules and synonym
-        - [ ] batch identification rules and synonym
+        - [o] compound uniqueness rules
+        - [o] compound identification rules and synonym
+        - [o] batch identification rules and synonym
     - [ ] configure
         - [ ] required compound properties
         - [x] optional compound properties
@@ -42,21 +44,21 @@ We describe here the capabilities that we see as appropriate for a minimal viabl
     - [ ] Delete batches
 
 6. Biologists can *(for MVP, global user)*
-    - [ ] configure result_types (properties).
-    - [ ] configure assay_types and property associations.
-    - [ ] register assays
-    - [ ] register assay_results
+    - [x] configure result_types (properties).
+    - [x] register assays and property associations.
+    - [x] register assay_runs
+    - [x] register assay_results
 
 7. Users can *(for MVP, global user)*
-    - [ ] Search for compounds by exact search, substructure search, no stereo, tautomer, similarity
-    - [ ] Search for compounds by synonyms.
-    - [ ] Search for batches based on compounds using above criteria.
-    - [ ] Search for batches based on synonyms.
-    - [ ] Search for batches based on properties.
-    - [ ] Search for compounds or batches using a combination of search conditions
-    - [ ] Search, list assay_types and associated properties
-    - [ ] Retrieve assay_results based on compound criteria and/or batch criteria and/or assay_type criteria
+    - [o] Search for compounds by exact search, substructure search, no stereo, tautomer, similarity
+    - [o] Search for compounds by synonyms.
+    - [o] Search for batches based on compounds using above criteria.
+    - [o] Search for batches based on synonyms.
+    - [o] Search for batches based on properties.
+    - [o] Search for compounds or batches using a combination of search conditions
+    - [o] Search, list assays and associated properties
+    - [o] Retrieve assay_results based on compound criteria and/or batch criteria and/or assays, assay_runs criteria
 
 8. UX
     - [x] Swagger based API calling
-    - [ ] python command line client
+    - [o] python command line client

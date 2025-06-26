@@ -386,6 +386,40 @@ def create_assay_results(
     return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
+@router.patch("/admin/molregno-sequence-start")
+def set_molregno_sequence_start(start_value: int = Form(...), db: Session = Depends(get_db)):
+    return seq_start_update(start_value, "moltrack.molregno_seq", db)
+
+
+@router.patch("/admin/batchregno-sequence-start")
+def set_batchregno_sequence_start(start_value: int = Form(...), db: Session = Depends(get_db)):
+    return seq_start_update(start_value, "moltrack.batch_regno_seq", db)
+
+
+def seq_start_update(start_value: int, seq_name, db: Session):
+    """
+    Set the starting value for the sequence.
+    """
+    if start_value < 1:
+        raise HTTPException(status_code=400, detail="Start value must be greater than 0")
+
+    max_batchregno = db.execute(text(f"SELECT last_value FROM {seq_name}")).scalar_one()
+
+    if start_value <= max_batchregno:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Start value {start_value} must be greater than the current max {seq_name} {max_batchregno}",
+        )
+
+    try:
+        db.execute(text("SELECT setval(:seq_name, :start_value)"), {"seq_name": seq_name, "start_value": start_value})
+        db.commit()
+        return {"status": "success", "message": f"The {seq_name} set to {start_value}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error setting {seq_name}: {str(e)}")
+
+
 # === Search endpoints ===
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#search---wip
 @router.post("/search/compounds/exact", response_model=list[models.Compound])
