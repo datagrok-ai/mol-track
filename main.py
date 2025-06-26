@@ -4,35 +4,35 @@ from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, Uplo
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
-from registration.assay_result_registrar import AssayResultsRegistrar
-from registration.assay_run_registrar import AssayRunRegistrar
-from registration.batch_registrar import BatchRegistrar
-from registration.compound_registrar import CompoundRegistrar
-import models
-import enums
-from services.property_service import PropertyService
+from app.services.registrars.assay_result_registrar import AssayResultsRegistrar
+from app.services.registrars.assay_run_registrar import AssayRunRegistrar
+from app.services.registrars.batch_registrar import BatchRegistrar
+from app.services.registrars.compound_registrar import CompoundRegistrar
+from app import models, crud
+from app.utils import enums
+from app.services.property_service import PropertyService
 
 from typing import Any
 from sqlalchemy.sql import text
 from rdkit import Chem
 
-from chemistry_utils import (
+from app.utils.chemistry_utils import (
     calculate_no_stereo_smiles_hash,
     calculate_tautomer_hash,
     standardize_mol,
 )
-from logging_setup import logger
+from app.utils.logging_utils import logger
 
 
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
-    from . import models, crud
+    from .app import models
     from .database import SessionLocal
 except ImportError:
     # When run directly
-    import models
-    import crud
+    import app.models as models
+    import app.crud as crud
     from database import SessionLocal
 
 # models.Base.metadata.create_all(bind=engine)

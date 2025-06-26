@@ -5,15 +5,14 @@ from typing import List, Optional
 from sqlalchemy import insert, text
 from sqlalchemy.orm import selectinload
 from datetime import datetime
-import models as models
+import app.models as models
 from rdkit.Chem import Descriptors, rdMolDescriptors
 import main
-import enums
-
 
 from typing import Type, Dict, Any
 from rdkit.Chem.RegistrationHash import HashLayer
-from chemistry_utils import standardize_mol, generate_hash_layers, generate_uuid_from_string
+from app.utils.chemistry_utils import standardize_mol, generate_hash_layers, generate_uuid_from_string
+from app.utils import enums
 
 # Handle both package imports and direct execution
 try:
@@ -21,7 +20,7 @@ try:
     from . import models
 except ImportError:
     # When run directly
-    import models
+    import app.models as models
 
 
 # === Compound-related operations ===

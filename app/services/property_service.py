@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy import inspect
-from utils import type_casting_utils
+from app.utils import type_casting_utils
 import main
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
 
@@ -76,19 +76,20 @@ class PropertyService:
             detail = {
                 **entity_ids,
                 "property_id": prop_id,
-                "value_qualifier": value_qualifier,
                 field_name: casted_value,
             }
 
             # TODO: Refactor to generically handle all value_* fields without hardcoding model-specific attributes
             mapper = inspect(model)
             value_columns = [
-                col.key
-                for col in mapper.columns
-                if col.key.startswith("value") and col.key not in [field_name, "value_qualifier"]
+                col.key for col in mapper.columns if col.key.startswith("value") and col.key not in field_name
             ]
 
             for col_name in value_columns:
+                if col_name == "value_qualifier":
+                    default = value_qualifier
+                    continue
+
                 column = mapper.columns[col_name]
                 default = None
                 if column.default is not None:

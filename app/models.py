@@ -3,12 +3,12 @@ from pydantic import Extra, root_validator, validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
-import enums
+from app.utils import enums
 import os
 from datetime import datetime
 import uuid
 from rdkit.Chem.RegistrationHash import GetMolHash
-from logging_setup import logger
+from app.utils.logging_utils import logger
 # import crud
 # # Handle both package imports and direct execution
 # try:
@@ -569,7 +569,7 @@ class ExactSearchModel(SQLModel):
         """
         Validate or generate a UUID hash from the standardized SMILES.
         """
-        import crud
+        import app.crud as crud
 
         query_smiles = values.get("query_smiles")
         layers = crud.get_standardized_mol_and_layers(query_smiles)

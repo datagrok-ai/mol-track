@@ -3,11 +3,10 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pytest import Session
 from sqlalchemy import func
-from registration.compound_registrar import CompoundRegistrar
+from app.services.registrars.compound_registrar import CompoundRegistrar
 import main
-import models
-import enums
-from utils import sql_utils
+from app import models
+from app.utils import enums, sql_utils
 
 
 class BatchRegistrar(CompoundRegistrar):

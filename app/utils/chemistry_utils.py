@@ -96,6 +96,7 @@ def generate_uuid_from_string(input_string: str) -> uuid.UUID:
     """
     return uuid.uuid5(uuid.NAMESPACE_DNS, input_string)
 
+
 def calculate_tautomer_hash(mol: Chem.Mol) -> str:
     """
     Calculate the tautomer hash for a given molecule.

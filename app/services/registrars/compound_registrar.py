@@ -7,13 +7,12 @@ from sqlalchemy.orm import Session
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 
-from chemistry_utils import generate_hash_layers, generate_uuid_from_string, standardize_mol
+from app.utils.chemistry_utils import generate_hash_layers, generate_uuid_from_string, standardize_mol
 from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
 import main
-import models
-import enums
-from utils import sql_utils
-from registration.base_registrar import BaseRegistrar
+from app import models
+from app.utils import enums, sql_utils
+from app.services.registrars.base_registrar import BaseRegistrar
 
 
 class CompoundRegistrar(BaseRegistrar):
@@ -148,7 +147,6 @@ class CompoundRegistrar(BaseRegistrar):
             combined_sql += "\nSELECT 1;"
         else:
             combined_sql = "SELECT 1;"
-
         return combined_sql
 
     def _generate_compound_sql(self, compounds) -> str:

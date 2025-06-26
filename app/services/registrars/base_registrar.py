@@ -8,9 +8,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, text
 from fastapi import HTTPException
 
-import enums
-from services import property_service
-import models
+from app.utils import enums
+from app.services import property_service
+from app import models
 
 
 class BaseRegistrar(ABC):

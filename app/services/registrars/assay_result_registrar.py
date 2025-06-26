@@ -4,10 +4,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 
-import models
-import enums
-from registration.base_registrar import BaseRegistrar
-from utils import sql_utils
+from app import models
+from app.utils import enums, sql_utils
+from app.services.registrars.base_registrar import BaseRegistrar
 
 
 class AssayResultsRegistrar(BaseRegistrar):
