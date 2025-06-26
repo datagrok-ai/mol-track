@@ -148,10 +148,9 @@ To configure pytest in VS Code, follow these steps:
    * When prompted, select:
 
      * **Test framework**: `pytest`
-     * **Test directory**: root folder (important: ensure it contains an `__init__.py` file — this is required for test discovery to work properly)
+     * **Test directory**: folder containing the tests (important: ensure it contains an `__init__.py` file — this is required for test discovery to work properly)
 
 Your tests should now be detected and listed in the **Testing panel**.
-
 
 
 ## API Documentation
