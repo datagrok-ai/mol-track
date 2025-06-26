@@ -8,8 +8,8 @@ import sys
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from logging_setup import logger
-import enums
+from app.utils.logging_utils import logger
+import app.utils.enums as enums
 
 # Set the DB_SCHEMA environment variable
 os.environ["DB_SCHEMA"] = "moltrack"
@@ -42,7 +42,7 @@ admin_engine = create_engine(ADMIN_DATABASE_URL, isolation_level="AUTOCOMMIT")
 # Get the schema name from environment variable or use default
 DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 
-DATA_DIR = Path(__file__).parent.parent / "demo-data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 BLACK_DIR = DATA_DIR / "black"
 SIMPLE_DIR = DATA_DIR / "simple"
 EXCLUDE_TABLES = ["users", "semantic_types"]
