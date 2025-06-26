@@ -633,14 +633,15 @@ def set_molregno_sequence_start(
     start_value: int = Form(...),  
     db: Session = Depends(get_db)
 ):
-    return seq_start_update(start_value, "moltrack.molregno_seq",db)
+    return seq_start_update(start_value, "moltrack.molregno_seq", db)
+
 
 @router.patch("/admin/batchregno-sequence-start")
 def set_batchregno_sequence_start(
     start_value: int = Form(...),  
     db: Session = Depends(get_db)
 ):
-    return seq_start_update(start_value, "moltrack.batch_regno_seq",db)
+    return seq_start_update(start_value, "moltrack.batch_regno_seq", db)
     
 
 def seq_start_update(start_value: int, seq_name, db: Session):
@@ -670,6 +671,7 @@ def seq_start_update(start_value: int, seq_name, db: Session):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error setting {seq_name}: {str(e)}")
+
 
 app.include_router(router)
 
