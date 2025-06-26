@@ -51,4 +51,4 @@ echo "Syncing dependencies with uv..."
 uv sync
 
 echo "Running Uvicorn app..."
-uv run uvicorn main:app --reload
+uv run --active uvicorn app.main:app --reload

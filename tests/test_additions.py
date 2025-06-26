@@ -1,6 +1,6 @@
 from tests.conftest import DATA_DIR
 import pandas as pd
-import enums
+from app.utils import enums
 
 
 def test_get_all_additions(client, preload_additions):

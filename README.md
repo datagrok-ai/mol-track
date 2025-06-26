@@ -2,7 +2,7 @@
 
 A lightweight, flexible and extendable FastAPI-based server for managing chemical compounds, batches, and properties, with the RDKit cartridge-enabled Postgres for chemical intelligence. Ideal for labs, startups, and small- to medium-sized biotech companies.
 
-See also [user stories](user-stories.md)
+See also [user stories](./docs/user-stories.md)
 
 ## Features
 
@@ -126,10 +126,32 @@ Make sure your database server is running and accessible.
 Start the FastAPI server with:
 
 ```bash
-uvicorn main:app --reload
+uv run --active uvicorn app.main:app --reload
 ```
 
 You can now access the API at [http://localhost:8000](http://localhost:8000).
+
+## Setting up pytest in VS Code
+
+To configure pytest in VS Code, follow these steps:
+
+1. Install the **Python** extension
+
+   * Open the **Extensions** view (`Ctrl+Shift+X` on Windows/Linux or `Cmd+Shift+X` on macOS).
+   * Search for **Python** and install the official extension by Microsoft.
+
+2. Click the **Testing** icon (beaker icon) in the **Activity bar**.
+
+3. Configure python tests
+
+   * Click on **Configure Python Tests** button.
+   * When prompted, select:
+
+     * **Test framework**: `pytest`
+     * **Test directory**: folder containing the tests (important: ensure it contains an `__init__.py` file — this is required for test discovery to work properly)
+
+Your tests should now be detected and listed in the **Testing panel**.
+
 
 ## API Documentation
 
