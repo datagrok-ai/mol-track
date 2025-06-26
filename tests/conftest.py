@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.utils.logging_utils import logger
-import app.utils.enums as enums
+from app.utils import enums
 
 # Set the DB_SCHEMA environment variable
 os.environ["DB_SCHEMA"] = "moltrack"

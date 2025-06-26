@@ -4,12 +4,12 @@ from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, Uplo
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
-import app.crud as crud
 from app.services.registrars.assay_result_registrar import AssayResultsRegistrar
 from app.services.registrars.assay_run_registrar import AssayRunRegistrar
 from app.services.registrars.batch_registrar import BatchRegistrar
 from app.services.registrars.compound_registrar import CompoundRegistrar
 from app import models
+from app import crud
 from app.utils import enums
 from app.services.property_service import PropertyService
 

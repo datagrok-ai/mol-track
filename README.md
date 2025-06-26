@@ -126,7 +126,7 @@ Make sure your database server is running and accessible.
 Start the FastAPI server with:
 
 ```bash
-uv run --active uvicorn main:app --reload
+uv run --active uvicorn app.main:app --reload
 ```
 
 You can now access the API at [http://localhost:8000](http://localhost:8000).
