@@ -49,8 +49,8 @@ class BatchRegistrar(CompoundRegistrar):
             )
         return records
 
-    def get_additional_records(self, grouped, inchikey):
-        batch_record = self._build_batch_record(inchikey)
+    def get_additional_records(self, grouped, molregno):
+        batch_record = self._build_batch_record(molregno)
         self.batches_to_insert.append(batch_record)
 
         inserted, updated = self.property_service.build_details_records(
@@ -84,8 +84,8 @@ class BatchRegistrar(CompoundRegistrar):
             inserted_batches AS (
                 INSERT INTO moltrack.batches (compound_id, {", ".join(cols_without_key)})
                 SELECT ic.id, {", ".join([f"b.{col}" for col in cols_without_key])}
-                FROM (VALUES {values_sql}) AS b (inchikey, {", ".join(cols_without_key)})
-                JOIN available_compounds ic ON b.inchikey = ic.inchikey
+                FROM (VALUES {values_sql}) AS b (molregno, {", ".join(cols_without_key)})
+                JOIN available_compounds ic ON b.molregno = ic.molregno
                 ON CONFLICT (batch_regno) DO NOTHING
                 RETURNING id, batch_regno
             )"""

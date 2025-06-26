@@ -9,6 +9,7 @@ from sqlalchemy import select, text
 from fastapi import HTTPException
 
 from app.utils import enums
+from app.utils.logging_utils import logger
 from app.services import property_service
 from app import models
 
@@ -106,7 +107,8 @@ class BaseRegistrar(ABC):
                 try:
                     self.db.execute(text(sql))
                     self.db.commit()
-                except Exception:
+                except Exception as e:
+                    logger.error(f"An exception occurred: {e}")
                     self.db.rollback()
 
     # === Output formatting methods ===

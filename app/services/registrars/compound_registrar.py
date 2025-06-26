@@ -18,7 +18,7 @@ from sqlalchemy.sql import text
 class CompoundRegistrar(BaseRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
-        self.compound_records_map = self._load_reference_map(models.Compound, "inchikey")
+        self.compound_records_map = self._load_reference_map(models.Compound, "hash_mol")
         self.compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
         self.compounds_to_insert = []
         self.output_records: List[Dict[str, Any]] = []
@@ -32,17 +32,18 @@ class CompoundRegistrar(BaseRegistrar):
         if mol is None:
             raise HTTPException(status_code=400, detail="Invalid SMILES string")
 
-        inchikey = Chem.InchiToInchiKey(Chem.MolToInchi(mol))
-        existing_compound = self.compound_records_map.get(inchikey)
+        standarized_mol = standardize_mol(mol)
+        mol_layers = generate_hash_layers(standarized_mol)
+        hash_mol = GetMolHash(mol_layers)
+        existing_compound = self.compound_records_map.get(hash_mol)
+        # TODO: Implement proper uniqueness rules to ensure data integrity
         if existing_compound is not None:
             compound_dict = self.model_to_dict(existing_compound)
             compound_dict.pop("id", None)
             return compound_dict
 
         now = datetime.utcnow()
-        standarized_mol = standardize_mol(mol)
-        mol_layers = generate_hash_layers(standarized_mol)
-        hash_mol = GetMolHash(mol_layers)
+        inchikey = Chem.InchiToInchiKey(Chem.MolToInchi(mol))
         canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
         hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
         hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
@@ -70,7 +71,9 @@ class CompoundRegistrar(BaseRegistrar):
 
     def _compound_update_checker(self, entity_ids, detail, field_name, new_value: Any) -> models.UpdateCheckResult:
         id_field, entity_id = next(iter(entity_ids.items()))
-        compound = self.compound_records_map.get(entity_id)
+        compound = next(
+            (c for c in self.compound_records_map.values() if getattr(c, id_field, None) == entity_id), None
+        )
         if not compound:
             return models.UpdateCheckResult(action="insert")
 
@@ -105,7 +108,7 @@ class CompoundRegistrar(BaseRegistrar):
                     inserted, updated = self.property_service.build_details_records(
                         models.CompoundDetail,
                         grouped.get("compounds_details", {}),
-                        {"inchikey": compound["inchikey"]},
+                        {"molregno": compound["molregno"]},
                         enums.ScopeClass.COMPOUND,
                         True,
                         self._compound_update_checker,
@@ -114,7 +117,7 @@ class CompoundRegistrar(BaseRegistrar):
                     details_to_insert.extend(inserted)
                     details_to_update.extend(updated)
 
-                    self.get_additional_records(grouped, compound["inchikey"])
+                    self.get_additional_records(grouped, compound["molregno"])
                     self._add_output_row(compound_data, grouped, "success")
                 except Exception as e:
                     self.handle_row_error(row, e, global_idx, rows)
@@ -158,18 +161,19 @@ class CompoundRegistrar(BaseRegistrar):
             inserted_compounds AS (
                 INSERT INTO moltrack.compounds ({", ".join(cols)})
                 VALUES {values_sql}
-                ON CONFLICT (molregno) DO NOTHING
-                RETURNING id, inchikey
+                ON CONFLICT (hash_mol) DO NOTHING
+                RETURNING id, molregno, hash_mol
             ),
         """
 
-        inchikeys = [f"'{c['inchikey']}'" for c in compounds]
-        inchikey_list = ", ".join(inchikeys)
+        hash_mols = [f"'{c['hash_mol']}'" for c in compounds]
+        hash_mol_list = ", ".join(hash_mols)
         available_cte = f"""
             available_compounds AS (
-                SELECT id, inchikey FROM inserted_compounds
+                SELECT id, molregno, hash_mol FROM inserted_compounds
                 UNION
-                SELECT id, inchikey FROM moltrack.compounds WHERE inchikey IN ({inchikey_list})
+                SELECT id, molregno, hash_mol FROM moltrack.compounds
+                WHERE hash_mol IN ({hash_mol_list})
             )
         """
         return insert_cte + available_cte
@@ -204,12 +208,12 @@ class CompoundRegistrar(BaseRegistrar):
             inserted_details AS (
                 INSERT INTO moltrack.compound_details (compound_id, {", ".join(cols_without_key)})
                 SELECT ic.id, {", ".join([f"d.{col}" for col in cols_without_key])}
-                FROM (VALUES {values_sql}) AS d(inchikey, {", ".join(cols_without_key)})
-                JOIN available_compounds ic ON d.inchikey = ic.inchikey
+                FROM (VALUES {values_sql}) AS d(molregno, {", ".join(cols_without_key)})
+                JOIN available_compounds ic ON d.molregno = ic.molregno
             )"""
 
     def get_additional_cte(self):
         pass
 
-    def get_additional_records(self, grouped, inchikey):
+    def get_additional_records(self, grouped, molregno):
         pass
