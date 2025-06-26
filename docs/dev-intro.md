@@ -4,10 +4,10 @@ This is an emerging document to provide some introduction material for developer
 
 ## MolTrack documentation ##
 
-- [README](./README.md)
-- [MVP](./MVP.md)
-- [API Design](./api_design.md)
-- [search](./search.md)
+- [README](../README.md)
+- [MVP](./mvp.md)
+- [API Design](./api-design.md)
+- [Search](./search.md)
 - [User Stories](./user-stories.md)
 
 ## Resources ##

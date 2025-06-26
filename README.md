@@ -2,7 +2,7 @@
 
 A lightweight, flexible and extendable FastAPI-based server for managing chemical compounds, batches, and properties, with the RDKit cartridge-enabled Postgres for chemical intelligence. Ideal for labs, startups, and small- to medium-sized biotech companies.
 
-See also [user stories](user-stories.md)
+See also [user stories](./docs/user-stories.md)
 
 ## Features
 

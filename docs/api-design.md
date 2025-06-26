@@ -31,7 +31,7 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
 
 - `POST /schema` - used to define/ensure that a set of context definitions exist.
 
-   For the [Black demo data set](./demo-data/black)  to register compounds and batches we need the following:
+   For the [Black demo data set](../demo-data/black)  to register compounds and batches we need the following:
 
    ```json
    {
@@ -63,7 +63,7 @@ The GET endpoints allow us to see the configuration of MolTrack from perspective
 
 ## Additions ##
 
-Additions are addtional chemical entities present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be pre-registered into MolTrack.  One of smiles and molfile must exist.  Any missing values should be computed if possible.  The return will be an array of additions added including the addition_id. `Is_archived` is archived by default; `Is_active` is true by default.  The MolTrack administator may update an addition's `is_active` flag (via `PUT`) to `false` to disallow subsequent use of the addtion.  A work-in-progress set of additions can be found in [additions.csv](./demo-data/additions.csv).
+Additions are addtional chemical entities present in the batch/lot of a material produced.  Examples include HCl salts or hydrates.  For these to be available as a part of the batch registration they need to be pre-registered into MolTrack.  One of smiles and molfile must exist.  Any missing values should be computed if possible.  The return will be an array of additions added including the addition_id. `Is_archived` is archived by default; `Is_active` is true by default.  The MolTrack administator may update an addition's `is_active` flag (via `PUT`) to `false` to disallow subsequent use of the addtion.  A work-in-progress set of additions can be found in [additions.csv](../demo-data/additions.csv).
 
 - `POST /additions` - used to register one or more additions into the MolTrack system.  The endpoint accepts an array of addition definitions in csv format (selected as the format for the MVP).  The return will show the status of the overal request. There should also be an item-by-item success status and if necessary a failure message:
   - Success - new addition is successfully registered.
@@ -121,7 +121,7 @@ Mapping is optional, but assumes that the field names directly map to the databa
       }
       ```
 
-    - An example set of batches with addtions and batch properties to be registered can be found [2_batches_with_additions.csv](./demo-data/black/2_batches_with_additions.csv).  The additions are listed in columns with the cells showing the equivalents.  Schemas posts should be performed with [compounds_schema.json](./demo-data/black/compounds_schema.json) and [batches_schema.json](./demo-data/black/batches_schema.json) first to prepare the appropriate schema.
+    - An example set of batches with addtions and batch properties to be registered can be found [2_batches_with_additions.csv](../demo-data/black/2_batches_with_additions.csv).  The additions are listed in columns with the cells showing the equivalents.  Schemas posts should be performed with [compounds_schema.json](../demo-data/black/compounds_schema.json) and [batches_schema.json](../demo-data/black/batches_schema.json) first to prepare the appropriate schema.
 
   - Output
    The batches, batches_details (includes synonyms), batch_additions, additions, compounds, compound_details (includes synonyms) tables will be joined appropriately, pivoted and concatenated appropriately to produce a single record.  The batch_regno and id should also be returned.  The row-by-row registration status and if necessary error message should be added as attributes.
@@ -259,7 +259,7 @@ To successfully load assay data, you will need to load the:
 - assay_runs instances.
 - assay_results
 
-- `POST /schema`  - will be used to define allowed/expected dynamic properties for assay_details, assay_run_details, assay_properties.  The properties represent categorization of the assay whose values would be stored in *assay_details*, experimental conditions that would be stored as the assays level in the *assay_run_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assays* level.  An example json payload is provided below and in [assay_data_schema.json](./demo-data/black/assay_data_schema.json)
+- `POST /schema`  - will be used to define allowed/expected dynamic properties for assay_details, assay_run_details, assay_properties.  The properties represent categorization of the assay whose values would be stored in *assay_details*, experimental conditions that would be stored as the assays level in the *assay_run_details* table, and result types and experimental conditions that would be stored at the *assay_results* level.  *in vivo*, *in vitro*, *in celluo* are examples of an **assay format** property that would likely be declared at the *assays* level.  An example json payload is provided below and in [assay_data_schema.json](../demo-data/black/assay_data_schema.json)
 
    ```json
    {
@@ -350,7 +350,7 @@ To successfully load assay data, you will need to load the:
 
    The output should be a listing of success / skipping / failure for the creation of each property.  A property may be skipped if it already exists at the proper scope. Skipped or failed records should provide a description as to why they did not succeed.
 
-- `POST /assays` will create an instance of an assay type and values in assay_details and assay_properties. An example payload is presented below and in the file [assay_instances.json](./demo-data/black/assays_instances.json)
+- `POST /assays` will create an instance of an assay type and values in assay_details and assay_properties. An example payload is presented below and in the file [assay_instances.json](../demo-data/black/assays_instances.json)
 
    ```json
    [
@@ -383,14 +383,14 @@ To successfully load assay data, you will need to load the:
 
    Output should be a json record with the success/skip/failure of creating each record, the details of each assay created with its corresponding id, and any neccessary message to explain the errors.  The commit to the database should be done on a per assay basis ('reject row' strategy).
 
-- `POST /assay_runs` will create instances of the 'assay_runs' or assay run and populate property values in *assay_run_details* table. Input will be in the form of a csv file where fixed and dynamic properties are mapped to the columns by case-insensitive mapping or a mapping file will be provided. Example properties to be populated would include assay date, assayer, and might include cell lot number for a *in cellulo* assay.  An example csv is [assay_runs.csv](./demo-data/black/assay_runs.csv).  An example mapping file is [assay_runs_mapping.json](./demo-data/black/assay_runs_mapping.json).  The 'reject row' strategy should be used.
+- `POST /assay_runs` will create instances of the 'assay_runs' or assay run and populate property values in *assay_run_details* table. Input will be in the form of a csv file where fixed and dynamic properties are mapped to the columns by case-insensitive mapping or a mapping file will be provided. Example properties to be populated would include assay date, assayer, and might include cell lot number for a *in cellulo* assay.  An example csv is [assay_runs.csv](../demo-data/black/assay_runs.csv).  An example mapping file is [assay_runs_mapping.json](../demo-data/black/assay_runs_mapping.json).  The 'reject row' strategy should be used.
 
    Output should be a csv with each assay run instance with success/skip/failure indication for each row, the resulting assay_run id if created, and an explanatory message for any skipped/failed assay runs.  A row is skipped if there is a preexisting record with all the matching details.
 
 - `POST /assay_results` This endpoint will be used populate data in assay_runs, assay_run_details, and assay_results with input from a csv file and mapping.  The properties that are populated here will mostly be result types like IC50, SD, % inhibtion, ...  Certain result-level experimental conditions may also be populated here, like dosed concentration for a stability study.  The mostly like input will be a csv file with a row per sample (batch) and columns per property from assay_runs and assay_results levels.  There will need to be a mapping. One csv column must be used to uniquely identify the batch via. Since there were be multiple results rows per assay run, the assay_runs instance will be to be determined by matching appropriate properties.  The 'reject-all' strategy is the only allowed commit strategy.
 
-  - See example [assay data](./demo-data/black/assay_results.csv)
-  - See example [mapping](./demo-data/black/assay_results_mapping.json)
+  - See example [assay data](../demo-data/black/assay_results.csv)
+  - See example [mapping](../demo-data/black/assay_results_mapping.json)
 
 ### Assay Data Getter endpoint ###
 
@@ -407,7 +407,7 @@ These are included for symmetrical thinking of user experience.  They may be dep
 
 ### Assay Data Deleter endpoints ###
 
-An example CSV can be found here [assay_results.csv](./demo-data/black/assay_results.csv).  An example mapping can be seen here [assay_results_mapping.json](./demo-data/black/assay_results_mapping.json).  Note that all fields are not mapped.
+An example CSV can be found here [assay_results.csv](../demo-data/black/assay_results.csv).  An example mapping can be seen here [assay_results_mapping.json](../demo-data/black/assay_results_mapping.json).  Note that all fields are not mapped.
 
 ## Search - WIP ##
 

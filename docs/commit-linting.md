@@ -1,6 +1,6 @@
 # Commit linting
 
-It's important to follow the same code conventions to maintain clean, consistent, and readable code. That's why we added tools like `flake8` for style checks, `isort` for sorting imports, and `black` for code formatting.
+It's important to follow consistent code conventions to maintain clean, readable, and maintainable code. That’s why we now use [ruff](https://github.com/astral-sh/ruff) — a faster alternative to `flake8`, `black`, and other tools for style checking and formatting.
 
 ### Setup
 
