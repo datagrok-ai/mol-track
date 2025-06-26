@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy import inspect
 from app.utils import type_casting_utils
-import main
+from app import main
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
 
 

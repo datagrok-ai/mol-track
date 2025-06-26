@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 import io
 import json
-import enums
+import app.utils.enums as enums
 
 
 def upload_compounds(client, smiles_list: List[str]) -> None:

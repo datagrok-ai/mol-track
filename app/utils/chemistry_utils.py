@@ -1,15 +1,20 @@
 import uuid
-
+import os
 import yaml
+
 from rdkit import Chem
 from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.RegistrationHash import HashLayer
 
+STANDARDIZER_CONFIG_FILE = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "setup", "molecule_standarizer_operations.yaml")
+)
+
 
 def standardize_mol(
     mol: Chem.Mol,
-    standardizer_config_file: str = "molecule_standarizer_operations.yaml",
+    standardizer_config_file: str = STANDARDIZER_CONFIG_FILE,
 ) -> Chem.Mol:
     """
     Standardizes a given RDKit molecule using operations defined in a YAML configuration file.

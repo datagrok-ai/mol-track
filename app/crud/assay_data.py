@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-import app.models as models
+from app import models
 
 
 # === Assay-related operations ===

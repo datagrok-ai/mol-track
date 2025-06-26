@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import main
+from app import main
 from app import models
 from app.utils import enums, sql_utils
 from app.services.registrars.base_registrar import BaseRegistrar

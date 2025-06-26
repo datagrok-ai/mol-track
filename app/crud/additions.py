@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import List
 from app.crud.properties import bulk_create_if_not_exists
-import app.models as models
+from app import models
 
 from app.utils import enums
 from rdkit import Chem

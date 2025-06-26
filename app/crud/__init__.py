@@ -21,4 +21,5 @@ from .search import (
     search_compounds_stereo,
     search_compounds_connectivity,
     search_compounds_similarity,
+    get_standardized_mol_and_layers,
 )

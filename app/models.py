@@ -569,7 +569,7 @@ class ExactSearchModel(SQLModel):
         """
         Validate or generate a UUID hash from the standardized SMILES.
         """
-        import app.crud as crud
+        import crud
 
         query_smiles = values.get("query_smiles")
         layers = crud.get_standardized_mol_and_layers(query_smiles)

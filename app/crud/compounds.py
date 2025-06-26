@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 from app.crud.properties import enrich_properties
-import app.models as models
+from app import models
 
 
 def get_compound_by_hash(db: Session, hash_mol: str):

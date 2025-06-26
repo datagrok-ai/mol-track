@@ -2,8 +2,8 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import List, Optional
 from sqlalchemy import insert
-import app.models as models
-import main
+from app import models
+from app import main
 
 from typing import Type, Dict, Any
 from app.utils import enums

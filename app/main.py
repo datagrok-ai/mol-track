@@ -28,8 +28,8 @@ from app.utils.logging_utils import logger
 # Handle both package imports and direct execution
 try:
     # When imported as a package (for tests)
-    from .app import models
-    from .app.setup.database import SessionLocal
+    from . import models
+    from .setup.database import SessionLocal
 except ImportError:
     # When run directly
     import app.models as models

@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from pytest import Session
 from sqlalchemy import func
 from app.services.registrars.compound_registrar import CompoundRegistrar
-import main
+from app import main
 from app import models
 from app.utils import enums, sql_utils
 

@@ -1,4 +1,4 @@
-import enums
+import app.utils.enums as enums
 from tests.conftest import BLACK_DIR, _preload_batches
 
 

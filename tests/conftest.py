@@ -18,8 +18,8 @@ os.environ["DB_SCHEMA"] = "moltrack"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Now import from the project directly
-from main import app, get_db
-from database import SQLALCHEMY_DATABASE_URL
+from app.main import app, get_db
+from app.setup.database import SQLALCHEMY_DATABASE_URL
 
 # Create a unique test database name
 test_db_suffix = str(uuid.uuid4())[:8]

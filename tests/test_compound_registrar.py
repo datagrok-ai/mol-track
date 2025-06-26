@@ -1,5 +1,5 @@
 import pytest
-import enums
+import app.utils.enums as enums
 from tests.conftest import BLACK_DIR, read_json, _preload_compounds
 
 

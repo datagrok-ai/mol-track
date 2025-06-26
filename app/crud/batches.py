@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload
 from app.crud.properties import enrich_properties
-import app.models as models
+from app import models
 
 
 def enrich_batch(batch: models.Batch) -> models.BatchResponse:

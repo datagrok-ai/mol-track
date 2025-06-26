@@ -9,7 +9,7 @@ from rdkit.Chem import rdMolDescriptors
 
 from app.utils.chemistry_utils import generate_hash_layers, generate_uuid_from_string, standardize_mol
 from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
-import main
+from app import main
 from app import models
 from app.utils import enums, sql_utils
 from app.services.registrars.base_registrar import BaseRegistrar
