@@ -101,13 +101,13 @@ class CompoundRegistrar(BaseRegistrar):
             for idx, row in enumerate(batch):
                 try:
                     grouped = self._group_data(row)
-                    compound_data = grouped.get("compounds", {})
+                    compound_data = grouped.get("compound", {})
                     compound = self._build_compound_record(compound_data)
                     self.compounds_to_insert.append(compound)
 
                     inserted, updated = self.property_service.build_details_records(
                         models.CompoundDetail,
-                        grouped.get("compounds_details", {}),
+                        grouped.get("compound_details", {}),
                         {"molregno": compound["molregno"]},
                         enums.ScopeClass.COMPOUND,
                         True,

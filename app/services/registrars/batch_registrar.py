@@ -55,13 +55,13 @@ class BatchRegistrar(CompoundRegistrar):
 
         inserted, updated = self.property_service.build_details_records(
             models.BatchDetail,
-            grouped.get("batches_details", {}),
+            grouped.get("batch_details", {}),
             {"batch_regno": batch_record["batch_regno"]},
             enums.ScopeClass.BATCH,
         )
         self.batch_details.extend(inserted)
         self.batch_additions.extend(
-            self._build_batch_addition_record(grouped.get("batches_additions", {}), batch_record["batch_regno"])
+            self._build_batch_addition_record(grouped.get("batch_additions", {}), batch_record["batch_regno"])
         )
 
     def get_additional_cte(self):
@@ -117,6 +117,6 @@ class BatchRegistrar(CompoundRegistrar):
         subset = {k: last_batch[k] for k in ("notes", "batch_regno")}
         return {
             **subset,
-            **{f"batch_property_{k}": v for k, v in grouped.get("batches_details", {}).items()},
-            **{f"batch_addition_{k}": v for k, v in grouped.get("batches_additions", {}).items()},
+            **{f"batch_property_{k}": v for k, v in grouped.get("batch_details", {}).items()},
+            **{f"batch_addition_{k}": v for k, v in grouped.get("batch_additions", {}).items()},
         }

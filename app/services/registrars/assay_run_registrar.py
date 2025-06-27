@@ -38,9 +38,9 @@ class AssayRunRegistrar(BaseRegistrar):
 
             for idx, row in enumerate(batch):
                 try:
-                    grouped = self._group_data(row, "assays")
+                    grouped = self._group_data(row, "assay")
                     row_number = global_idx + 1
-                    assay_data = grouped.get("assays", {})
+                    assay_data = grouped.get("assay", {})
                     assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
                     self.assay_runs_to_insert.append(assay_run)
 

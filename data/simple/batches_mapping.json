@@ -1,7 +1,7 @@
 {
    "smiles": "smiles",
-   "common name": "compounds_details.common name",
-   "cas": "compounds_details.cas",
-   "epa batch id": "batches_details.epa batch id",
-   "epa compound id": "compounds_details.epa compound id"
+   "common name": "compound_details.common name",
+   "cas": "compound_details.cas",
+   "epa batch id": "batch_details.epa batch id",
+   "epa compound id": "compound_details.epa compound id"
 }

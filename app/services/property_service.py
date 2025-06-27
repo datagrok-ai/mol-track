@@ -87,7 +87,7 @@ class PropertyService:
 
             for col_name in value_columns:
                 if col_name == "value_qualifier":
-                    default = value_qualifier
+                    detail[col_name] = value_qualifier
                     continue
 
                 column = mapper.columns[col_name]

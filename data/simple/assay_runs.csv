@@ -1,10 +1,10 @@
-assay name,cell species,cell lot,assay run date, assayer
-hepatocyte stability,human, h1, 2024-02-01, Jane Doe
-hepatocyte stability,human, h2, 2024-02-02, Jane Doe
-hepatocyte stability,rat, r1, 2024-02-03, Ricky Rodent
-hepatocyte stability,rat, r2, 2024-02-03, Ricky Rodent
-hepatocyte stability,trout, t1, 2024-02-04,Joe Fisherman 
-hepatocyte stability,trout, t2, 2024-02-05,Joe Fisherman 
-hepatocyte stability,trout, t3, 2024-02-06,Joe Fisherman 
-hepatocyte stability,trout, t4, 2024-02-07,Joe Fisherman    
-hepatocyte stability,trout, t5, 2024-02-08,Joe Fisherman 
+name,cell species,cell lot,Assay Run Date
+hepatocyte stability,human, h1, 2024-02-01
+hepatocyte stability,human, h2, 2024-02-02
+hepatocyte stability,rat, r1, 2024-02-03
+hepatocyte stability,rat, r2, 2024-02-03
+hepatocyte stability,trout, t1, 2024-02-04
+hepatocyte stability,trout, t2, 2024-02-05
+hepatocyte stability,trout, t3, 2024-02-06
+hepatocyte stability,trout, t4, 2024-02-07
+hepatocyte stability,trout, t5, 2024-02-08

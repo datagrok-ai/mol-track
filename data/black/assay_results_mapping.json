@@ -5,7 +5,7 @@
     "Mean HTC recovery (%; n=2)": "assay_results.Mean HTC recovery",
     "SD HTC recovery (%; n=2)": "assay_results.SD HTC recovery",
     "Reported CLint (µL/min/ 106 cells)": "assay_results.Reported CLint",
-    "assay_name": "assays.name",
+    "assay_name": "assay.name",
     "Cell Lot": "assay_run_details.Cell Lot",
     "assay_date": "assay_run_details.Assay Run Date"
 }

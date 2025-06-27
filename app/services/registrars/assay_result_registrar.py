@@ -94,7 +94,7 @@ class AssayResultsRegistrar(BaseRegistrar):
         for col_name, val in assay_filter.items():
             col = getattr(models.Assay, col_name, None)
             if col is None:
-                raise HTTPException(status_code=400, detail=f"Invalid assay filter column: {col_name}")
+                continue
             assay_query = assay_query.filter(col == val)
 
         assays = assay_query.all()
@@ -118,10 +118,10 @@ class AssayResultsRegistrar(BaseRegistrar):
 
             for idx, row in enumerate(batch):
                 try:
-                    grouped = self._group_data(row)
+                    grouped = self._group_data(row, "assay")
                     batch_record = self._lookup_batch_by_details(grouped.get("batch_details"))
                     assay_run_record = self._lookup_assay_run_by_details(
-                        grouped.get("assays"), grouped.get("assay_run_details")
+                        grouped.get("assay"), grouped.get("assay_run_details")
                     )
 
                     inserted, updated = self.property_service.build_details_records(

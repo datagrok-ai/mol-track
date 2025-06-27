@@ -61,9 +61,10 @@ class BaseRegistrar(ABC):
             return col
 
         scope_to_prefix = {
-            enums.ScopeClass.COMPOUND: "compounds_details",
-            enums.ScopeClass.BATCH: "batches_details",
+            enums.ScopeClass.COMPOUND: "compound_details",
+            enums.ScopeClass.BATCH: "batch_details",
             enums.ScopeClass.ASSAY_RUN: "assay_run_details",
+            enums.ScopeClass.ASSAY_RESULT: "assay_results",
         }
 
         prefix = scope_to_prefix.get(getattr(prop, "scope"))
@@ -76,7 +77,7 @@ class BaseRegistrar(ABC):
             table, field = (
                 mapped_key.split(".", 1)
                 if "." in mapped_key
-                else (entity_name if entity_name else "compounds", mapped_key)
+                else (entity_name if entity_name else "compound", mapped_key)
             )
             grouped.setdefault(table, {})[field] = value
         return grouped
@@ -116,7 +117,7 @@ class BaseRegistrar(ABC):
     def _add_output_row(self, compound_data, grouped, status, error_msg=None):
         output = {
             **compound_data,
-            **{f"property_{k}": v for k, v in grouped.get("compounds_details", {}).items()},
+            **{f"property_{k}": v for k, v in grouped.get("compound_details", {}).items()},
             "registration_status": status,
             "registration_error_message": error_msg,
         }
