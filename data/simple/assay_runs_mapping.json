@@ -1,6 +1,6 @@
 {
    "name": "assay.name",
-   "cell species": "assay_run_details.cell species",
-   "cell lot": "assay_run_details.cell lot",
+   "species": "assay_run_details.species",
+   "lot": "assay_run_details.lot",
    "Assay Run Date": "assay_run_details.Assay Run Date"
 }

@@ -1,0 +1,20 @@
+{
+    "properties": [
+       {
+          "name": "clearance",
+          "value_type": "double",
+          "unit": "uL/min/10^6 cells",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "concentration",
+          "unit": "uM",
+          "required": true,
+          "value_type": "double",
+          "property_class": "measured",
+          "scope": "assay_result"
+       }
+    ]
+} 

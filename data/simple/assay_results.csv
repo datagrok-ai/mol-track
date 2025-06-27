@@ -1,4 +1,4 @@
-epa batch id,cell species,dosed conc,clearance,cell lot,assay run date,name
+epa batch id,species,concentration,clearance,lot,Assay Run Date,name
 EPA-001-001,human,0.1,none,h2,2/2/2024,hepatocyte stability
 EPA-001-001,human,1.0,none,h2,2/2/2024,hepatocyte stability
 EPA-001-001,rat,1.0,1.44,r2,2/3/2024,hepatocyte stability
