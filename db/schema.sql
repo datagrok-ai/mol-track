@@ -70,6 +70,30 @@ CREATE TABLE moltrack.properties (
   UNIQUE(name, scope) -- Ensure unique property names within each scope
 );
 
+with ADMIN AS (
+  SELECT id FROM moltrack.users WHERE email = 'admin@datagrok.ai'
+),
+STYPE AS (
+  SELECT id FROM moltrack.semantic_types WHERE name = 'Synonym'
+)
+INSERT INTO moltrack.properties (created_by, updated_by, name, description, value_type, semantic_type_id, property_class, scope, pattern)
+VALUES (
+  (SELECT id FROM ADMIN),
+  (SELECT id FROM ADMIN),
+  'corporate_compound_id', 'Official institution synonym for compounds',
+  'string', 
+  (SELECT id FROM STYPE), 
+  'DECLARED', 'COMPOUND', 'DG-{:06d}'
+), (
+  (SELECT id FROM ADMIN),
+  (SELECT id FROM ADMIN),
+  'corporate_batch_id', 'Official institution synonym for batches',
+  'string', 
+  (SELECT id FROM STYPE), 
+  'DECLARED', 'BATCH',
+  'DGB-{:06d}'
+);
+
 -- System settings like compound standardization rules, compound uniqueness rules, compound identification rules and synonym generation rules.
 CREATE TABLE moltrack.settings (
   id serial PRIMARY KEY,

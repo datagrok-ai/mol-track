@@ -80,6 +80,10 @@ class BaseRegistrar(ABC):
                 else (entity_name if entity_name else "compound", mapped_key)
             )
             grouped.setdefault(table, {})[field] = value
+
+        if entity_name!=  "assay":  
+            for key,value in self.property_service.institution_synonym_dict.items():
+                grouped.setdefault(key, {})[value] = None
         return grouped
 
     # === Reference loading methods ===
