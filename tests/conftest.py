@@ -46,7 +46,13 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 BLACK_DIR = DATA_DIR / "black"
 SIMPLE_DIR = DATA_DIR / "simple"
 EXCLUDE_TABLES = ["users", "semantic_types"]
-SCHEMA_FILES = ["batches_schema.json", "compounds_schema.json", "assay_data_schema.json"]
+SCHEMA_FILES = [
+    "batches_schema.json",
+    "compounds_schema.json",
+    "assays_schema.json",
+    "assay_runs_schema.json",
+    "assay_results_schema.json",
+]
 DATA_PATHS = {
     "compounds": ("compounds.csv", "compounds_mapping.json"),
     "batches": ("batches.csv", "batches_mapping.json"),
@@ -276,7 +282,7 @@ def preload_assay_results(client):
     return _preload_assay_results(client, BLACK_DIR / "assay_results.csv", BLACK_DIR / "assay_results_mapping.json")
 
 
-def preload_data_from_dir(client, data_dir: str):
+def preload_data_from_dir(client, data_dir: str, use_mapping_files: bool = True):
     for schema_file in SCHEMA_FILES:
         schema_data = read_json(data_dir / schema_file)
         client.post("/v1/schema/", json=schema_data)
@@ -295,23 +301,25 @@ def preload_data_from_dir(client, data_dir: str):
         "/v1/assay_results/": DATA_PATHS["assay_results"],
     }.items():
         csv_path = data_dir / csv_file
-        mapping_path = data_dir / mapping_file
         files = {"csv_file": (str(csv_path), read_csv(csv_path), "text/csv")}
         data = {
             "error_handling": enums.ErrorHandlingOptions.reject_row.value,
-            "mapping": json.dumps(read_json(mapping_path)),
         }
+        if use_mapping_files:
+            mapping_path = data_dir / mapping_file
+            data["mapping"] = json.dumps(read_json(mapping_path))
+
         client.post(endpoint, files=files, data=data)
 
 
 @pytest.fixture
 def preload_black_data(client):
-    preload_data_from_dir(client, BLACK_DIR)
+    preload_data_from_dir(client, BLACK_DIR, use_mapping_files=True)
 
 
 @pytest.fixture
 def preload_simple_data(client):
-    preload_data_from_dir(client, SIMPLE_DIR)
+    preload_data_from_dir(client, SIMPLE_DIR, use_mapping_files=False)
 
 
 # Common test data
