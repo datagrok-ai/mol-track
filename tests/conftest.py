@@ -251,7 +251,7 @@ def _preload_assays(client, json_path: str):
 
 @pytest.fixture
 def preload_assays(client):
-    return _preload_assays(client, BLACK_DIR / "assays_instances.json")
+    return _preload_assays(client, BLACK_DIR / "assays.json")
 
 
 def _preload_assay_runs(
@@ -285,7 +285,7 @@ def preload_data_from_dir(client, data_dir: str):
     files = {"file": (str(file_path), read_csv(file_path), "text/csv")}
     client.post("/v1/additions/", files=files)
 
-    assays_data = read_json(data_dir / "assays_instances.json")
+    assays_data = read_json(data_dir / "assays.json")
     client.post("/v1/assays", json=assays_data)
 
     for endpoint, (csv_file, mapping_file) in {

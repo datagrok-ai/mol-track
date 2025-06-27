@@ -2,7 +2,7 @@ from tests.conftest import _preload_assays, _preload_assay_runs, BLACK_DIR
 
 
 def test_create_assay(client, preload_schema):
-    response = _preload_assays(client, BLACK_DIR / "assays_instances.json")
+    response = _preload_assays(client, BLACK_DIR / "assays.json")
     assert response.status_code == 200
 
     assays = response.json()["created"]

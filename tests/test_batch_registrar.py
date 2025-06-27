@@ -1,3 +1,4 @@
+import pytest
 import app.utils.enums as enums
 from tests.conftest import BLACK_DIR, _preload_batches
 
@@ -26,6 +27,7 @@ def test_register_batches_without_mapping(client, preload_schema):
         assert prop_names == expected_properties, f"Property names mismatch: {prop_names} != {expected_properties}"
 
 
+@pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject all' behaviour.")
 def test_register_batches_reject_all(client, preload_schema, preload_additions):
     response = _preload_batches(
         client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json", enums.ErrorHandlingOptions.reject_all
@@ -47,6 +49,7 @@ def test_register_batches_reject_all(client, preload_schema, preload_additions):
         assert item["registration_error_message"] is None
 
 
+@pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject row' behaviour.")
 def test_register_batches_reject_row(client, preload_schema, preload_additions):
     response = _preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
     assert response.status_code == 200

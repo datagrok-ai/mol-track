@@ -37,7 +37,7 @@ def test_create_compound_and_get_hash(client):
     smiles = ["C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1"]
 
     # Step 1: Create the compound
-    upload_compounds(client, [smiles])
+    upload_compounds(client, smiles)
 
     # Step 2: Use the /v1/search/compounds/exact endpoint to retrieve the hash_mol
     search_payload = {"query_smiles": smiles[0]}
