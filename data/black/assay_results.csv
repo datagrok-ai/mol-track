@@ -1,16 +1,16 @@
 corporate_batch_id,Chemical,CAS #,Species,Concentration (µM),Reported CLint (µL/min/ 106 cells),Mean HTC recovery (%; n=2),SD HTC recovery (%; n=2),Cell Lot,Cell conc. (106/mL),assay_date,assayer,assay_name
 EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Human,0.1,none,59.51,84.16,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Human,1.0,none,69.57,1.97,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Rat,1.0,1.44,86.48,2.70,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Rat,0.1,none,74.99,2.96,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Rat,1.0,1.44,86.48,2.70,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
+EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Rat,0.1,none,74.99,2.96,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-018-001,"2,2',4,4'-Tetrahydroxybenzophenone",131-55-5,Trout,0.1,>89.75,128.38,34.84,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-018-001,"2,2',4,4'-Tetrahydroxybenzophenone",131-55-5,Trout,1.0,29.04,104.43,6.27,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-018-001,"2,2',4,4'-Tetrahydroxybenzophenone",131-55-5,Rat,0.1,>102.98,125.87,7.41,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
 EPA-018-001,"2,2',4,4'-Tetrahydroxybenzophenone",131-55-5,Rat,1.0,>232.01,123.91,13.12,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-003-001,"2,5-Di-tert-butylbenzene-1,4-diol",88-58-4,Rat,0.1,none,44.32,7.53,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-003-001,"2,5-Di-tert-butylbenzene-1,4-diol",88-58-4,Rat,0.1,none,44.32,7.53,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-003-001,"2,5-Di-tert-butylbenzene-1,4-diol",88-58-4,Human,1.0,8.91,101.21,6.58,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-003-001,"2,5-Di-tert-butylbenzene-1,4-diol",88-58-4,Human,0.1,2.75,110.33,2.23,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-003-001,"2,5-Di-tert-butylbenzene-1,4-diol",88-58-4,Rat,1.0,none,76.43,22.07,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-003-001,"2,5-Di-tert-butylbenzene-1,4-diol",88-58-4,Rat,1.0,none,76.43,22.07,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-004-001,2-Ethylhexyl paraben,5153-25-3,Human,0.1,>127.73,102.08,8.16,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
 EPA-004-001,2-Ethylhexyl paraben,5153-25-3,Human,1.0,178.16,114.26,7.52,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
 EPA-004-001,2-Ethylhexyl paraben,5153-25-3,Trout,0.1,62.03,122.00,30.24,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
@@ -40,8 +40,8 @@ EPA-009-001,4-Nitroaniline,100-01-6,Rat,1.0,<5.07,84.97,0.07,R1,0.50,2/3/2024,Ri
 EPA-009-001,4-Nitroaniline,100-01-6,Human,0.1,3.68,109.39,2.64,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
 EPA-009-001,4-Nitroaniline,100-01-6,Human,1.0,<2.57,89.66,2.37,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
 EPA-010-001,4-Nonylphenol (Branched),84852-15-3,Human,0.1,>103.72,52.31,21.23,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-010-001,4-Nonylphenol (Branched),84852-15-3,Trout,0.1,none,--,--,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
-EPA-010-001,4-Nonylphenol (Branched),84852-15-3,Trout,1.0,none,--,--,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
+EPA-010-001,4-Nonylphenol (Branched),84852-15-3,Trout,0.1,none,,,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
+EPA-010-001,4-Nonylphenol (Branched),84852-15-3,Trout,1.0,none,,,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-010-001,4-Nonylphenol (Branched),84852-15-3,Human,1.0,none,52.53,11.04,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-011-001,4-Octylphenol,1806-26-4,Trout,1.0,11.40,92.76,4.01,T1,1.00,2/4/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-011-001,4-Octylphenol,1806-26-4,Trout,0.1,none,82.28,9.44,T1,1.00,2/4/2024,Joe Fisherman ,Hepatocyte Stability
@@ -51,8 +51,8 @@ EPA-012-001,4-n-Nonylphenol,104-40-5,Rat,1.0,121.21,63.80,4.13,R1,0.50,2/3/2024,
 EPA-012-001,4-n-Nonylphenol,104-40-5,Trout,0.1,none,48.28,0.08,T1,1.00,2/4/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-012-001,4-n-Nonylphenol,104-40-5,Trout,1.0,none,47.14,4.16,T1,1.00,2/4/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-012-001,4-n-Nonylphenol,104-40-5,Human,0.1,62.60,68.21,24.35,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
-EPA-013-001,6:2 Fluorotelemer alcohol,647-42-7,Rat,1.0,none,0.05,0.01,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-013-001,6:2 Fluorotelemer alcohol,647-42-7,Rat,0.1,none,2.08,1.95,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-013-001,6:2 Fluorotelemer alcohol,647-42-7,Rat,1.0,none,0.05,0.01,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
+EPA-013-001,6:2 Fluorotelemer alcohol,647-42-7,Rat,0.1,none,2.08,1.95,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-013-001,6:2 Fluorotelemer alcohol,647-42-7,Human,0.1,none,7.45,1.83,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-013-001,6:2 Fluorotelemer alcohol,647-42-7,Human,1.0,none,2.07,0.88,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-013-001,6:2 Fluorotelemer alcohol,647-42-7,Trout,0.1,none,0.00,0.00,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
@@ -79,8 +79,8 @@ EPA-120-001,Celecoxib,169590-42-5,Rat,1.0,2.97,100.15,2.49,R1,0.50,2/3/2024,Rick
 EPA-120-001,Celecoxib,169590-42-5,Rat,0.1,<2.93,93.48,5.46,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
 EPA-120-001,Celecoxib,169590-42-5,Human,1.0,22.93,100.15,0.83,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-120-001,Celecoxib,169590-42-5,Human,0.1,24.55,105.42,10.78,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-020-001,Cymoxanil,57966-95-7,Human,1.0,none,21.78,0.50,R1,0.50,,,Hepatocyte Stability
-EPA-020-001,Cymoxanil,57966-95-7,Human,0.1,none,25.66,2.51,R1,0.50,,,Hepatocyte Stability
+EPA-020-001,Cymoxanil,57966-95-7,Human,1.0,none,21.78,0.50,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
+EPA-020-001,Cymoxanil,57966-95-7,Human,0.1,none,25.66,2.51,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
 EPA-020-001,Cymoxanil,57966-95-7,Rat,0.1,none,33.37,4.69,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
 EPA-020-001,Cymoxanil,57966-95-7,Rat,1.0,none,27.80,1.98,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
 EPA-021-001,Dapsone,80-08-0,Rat,1.0,1.46,97.74,7.20,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
@@ -97,24 +97,24 @@ EPA-023-001,Di(2-ethylhexyl) phthalate,117-81-7,Human,0.1,none,109.68,35.33,H1,0
 EPA-023-001,Di(2-ethylhexyl) phthalate,117-81-7,Trout,0.1,none,416.25,162.00,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-023-001,Di(2-ethylhexyl) phthalate,117-81-7,Trout,1.0,4.49,88.16,0.75,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-023-001,Di(2-ethylhexyl) phthalate,117-81-7,Human,1.0,none,51.97,1.51,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
-EPA-024-001,Dibutyl phthalate,84-74-2,Rat,0.1,>79.31,59.60,15.86,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-024-001,Dibutyl phthalate,84-74-2,Rat,1.0,none,11.22,5.18,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-024-001,Dibutyl phthalate,84-74-2,Rat,0.1,>79.31,59.60,15.86,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
+EPA-024-001,Dibutyl phthalate,84-74-2,Rat,1.0,none,11.22,5.18,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-024-001,Dibutyl phthalate,84-74-2,Trout,0.1,none,173.62,201.50,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-024-001,Dibutyl phthalate,84-74-2,Trout,1.0,>103.98,73.08,28.45,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-025-001,Diclobenil,1194-65-6,Trout,1.0,none,181.22,69.92,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-025-001,Diclobenil,1194-65-6,Trout,0.1,none,182.22,84.66,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-026-001,Dicumyl Peroxide,80-43-3,Human,0.1,none,28.52,3.05,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-026-001,Dicumyl Peroxide,80-43-3,Rat,0.1,none,28.40,9.10,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-026-001,Dicumyl Peroxide,80-43-3,Rat,0.1,none,28.40,9.10,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-026-001,Dicumyl Peroxide,80-43-3,Trout,1.0,9.18,118.19,51.78,T5,1.00,2/8/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-026-001,Dicumyl Peroxide,80-43-3,Human,1.0,none,7.15,0.84,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-026-001,Dicumyl Peroxide,80-43-3,Rat,1.0,none,24.82,10.21,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-026-001,Dicumyl Peroxide,80-43-3,Rat,1.0,none,24.82,10.21,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-026-001,Dicumyl Peroxide,80-43-3,Trout,0.1,none,56.22,4.19,T5,1.00,2/8/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-027-001,Ethylparaben,120-47-8,Trout,0.1,53.94,94.33,18.82,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-027-001,Ethylparaben,120-47-8,Trout,1.0,11.15,103.79,7.71,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
-EPA-028-001,Fenthion,55-38-9,Rat,0.1,>244.35,65.14,78.26,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-028-001,Fenthion,55-38-9,Rat,0.1,>244.35,65.14,78.26,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-028-001,Fenthion,55-38-9,Human,0.1,none,19.27,0.21,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-028-001,Fenthion,55-38-9,Trout,1.0,none,193.00,121.46,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
-EPA-028-001,Fenthion,55-38-9,Rat,1.0,none,17.58,3.98,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-028-001,Fenthion,55-38-9,Rat,1.0,none,17.58,3.98,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-028-001,Fenthion,55-38-9,Human,1.0,none,20.06,3.38,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-028-001,Fenthion,55-38-9,Trout,0.1,none,45.67,9.85,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-029-001,Heptylparaben,1085-12-7,Rat,0.1,none,201.59,15.98,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
@@ -148,8 +148,8 @@ EPA-033-001,Isofenphos,25311-71-1,Human,1.0,none,36.67,0.44,H2,0.50,2/2/2024,Jan
 EPA-034-001,Kaempferol,520-18-3,Human,0.1,>95.67,85.30,10.08,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
 EPA-034-001,Kaempferol,520-18-3,Human,1.0,181.65,65.75,4.04,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
 EPA-035-001,Mestranol,72-33-3,Human,1.0,none,69.47,2.17,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-035-001,Mestranol,72-33-3,Rat,0.1,>153.86,64.17,0.61,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-035-001,Mestranol,72-33-3,Rat,1.0,242.60,66.06,31.05,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-035-001,Mestranol,72-33-3,Rat,0.1,>153.86,64.17,0.61,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
+EPA-035-001,Mestranol,72-33-3,Rat,1.0,242.60,66.06,31.05,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-035-001,Mestranol,72-33-3,Human,0.1,10.22,94.85,6.78,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-054-001,Metconazole,125116-23-6,Human,0.1,16.67,98.51,5.64,H1,0.50,2/1/2024,Jane Doe,Hepatocyte Stability
 EPA-054-001,Metconazole,125116-23-6,Trout,1.0,0.96,108.73,5.83,T3,1.00,2/6/2024,Joe Fisherman ,Hepatocyte Stability
@@ -166,8 +166,8 @@ EPA-038-001,Myclobutanil,88671-89-0,Trout,0.1,0.67,96.19,6.40,T3,1.00,2/6/2024,J
 EPA-039-001,Octyl Gallate,1034-01-1,Human,1.0,none,63.88,2.70,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-039-001,Octyl Gallate,1034-01-1,Trout,1.0,none,53.88,16.13,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-039-001,Octyl Gallate,1034-01-1,Human,0.1,none,107.55,1.86,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-039-001,Octyl Gallate,1034-01-1,Rat,1.0,none,80.71,23.31,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-039-001,Octyl Gallate,1034-01-1,Rat,0.1,none,104.59,0.43,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-039-001,Octyl Gallate,1034-01-1,Rat,1.0,none,80.71,23.31,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
+EPA-039-001,Octyl Gallate,1034-01-1,Rat,0.1,none,104.59,0.43,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-039-001,Octyl Gallate,1034-01-1,Trout,0.1,none,59.17,7.76,T4,1.00,2/7/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-040-001,Phenthoate,2597-03-7,Rat,1.0,none,0.00,0.00,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
 EPA-040-001,Phenthoate,2597-03-7,Rat,0.1,none,0.00,0.00,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
@@ -185,10 +185,10 @@ EPA-042-001,Picoxystrobin,117428-22-5,Human,1.0,19.40,85.71,14.09,H2,0.50,2/2/20
 EPA-042-001,Picoxystrobin,117428-22-5,Human,0.1,38.20,85.99,6.07,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-042-001,Picoxystrobin,117428-22-5,Rat,0.1,88.42,71.48,0.03,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
 EPA-042-001,Picoxystrobin,117428-22-5,Rat,1.0,62.26,78.07,7.12,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-055-001,Propargite ,2312-35-8,Rat,1.0,none,12.91,12.48,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-055-001,Propargite ,2312-35-8,Human,0.1,none,9.43,1.36,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-055-001,Propargite ,2312-35-8,Human,1.0,none,10.32,3.30,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
-EPA-055-001,Propargite ,2312-35-8,Rat,0.1,none,8.28,11.71,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-043-001,Propargite ,2312-35-8,Rat,1.0,none,12.91,12.48,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
+EPA-043-001,Propargite ,2312-35-8,Human,0.1,none,9.43,1.36,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
+EPA-043-001,Propargite ,2312-35-8,Human,1.0,none,10.32,3.30,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
+EPA-043-001,Propargite ,2312-35-8,Rat,0.1,none,8.28,11.71,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-044-001,Propiconazole,60207-90-1,Trout,0.1,1.12,100.66,5.97,T3,1.00,2/6/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-044-001,Propiconazole,60207-90-1,Trout,1.0,0.88,95.97,4.10,T3,1.00,2/6/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-044-001,Propiconazole,60207-90-1,Rat,0.1,>232.42,100.53,4.31,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
@@ -207,8 +207,8 @@ EPA-047-001,Triclocarban,101-20-2,Rat,1.0,20.46,93.45,6.41,R1,0.50,2/3/2024,Rick
 EPA-047-001,Triclocarban,101-20-2,Rat,0.1,38.43,110.55,10.13,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
 EPA-048-001,Triclosan,3380-34-5,Trout,1.0,39.38,65.24,13.81,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
 EPA-048-001,Triclosan,3380-34-5,Trout,0.1,64.08,112.79,9.84,T2,1.00,2/5/2024,Joe Fisherman ,Hepatocyte Stability
-EPA-049-001,Trimethyl phosphate,512-56-1,Rat,1.0,<5.07,93.23,3.80,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
-EPA-049-001,Trimethyl phosphate,512-56-1,Rat,0.1,<2.93,97.67,0.81,R2,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
+EPA-049-001,Trimethyl phosphate,512-56-1,Rat,1.0,<5.07,93.23,3.80,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
+EPA-049-001,Trimethyl phosphate,512-56-1,Rat,0.1,<2.93,97.67,0.81,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
 EPA-049-001,Trimethyl phosphate,512-56-1,Human,0.1,<3.43,97.00,11.81,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-049-001,Trimethyl phosphate,512-56-1,Human,1.0,<2.57,94.81,3.89,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-050-001,Triphenyl phosphate,115-86-6,Rat,0.1,>128.12,63.02,6.66,R1,0.50,2/3/2024,Ricky Rodent,Hepatocyte Stability
