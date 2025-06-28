@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal
-from pydantic import Extra, root_validator, validator
+from pydantic import field_validator, model_validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
@@ -227,19 +227,19 @@ class SynonymTypeBase(PropertyBase):
     class Config:
         populate_by_name = True
 
-    @validator("value_type")
+    @field_validator("value_type")
     def validate_value_type(cls, v):
         if v != enums.ValueType.string:
             raise ValueError("SynonymType must have value_type of string")
         return v
 
-    @validator("property_class")
+    @field_validator("property_class")
     def validate_property_class(cls, v):
         if v != enums.PropertyClass.DECLARED:
             raise ValueError("SynonymType must have property_class of DECLARED")
         return v
 
-    @validator("unit")
+    @field_validator("unit")
     def validate_unit(cls, v):
         if v != "":
             raise ValueError("SynonymType must have empty unit")
@@ -417,7 +417,7 @@ class AssayResultResponse(AssayResultResponseBase):
     # Add a computed field for backward compatibility
     result_value: Optional[Union[float, str, bool]] = None
 
-    @validator("result_value", always=True)
+    @field_validator("result_value")
     def compute_result_value(cls, v, values):
         """Compute result_value from the appropriate typed value field"""
         if "value_num" in values and values["value_num"] is not None:
@@ -564,14 +564,14 @@ class ExactSearchModel(SQLModel):
     # Optional standardization steps
     hash_mol: Optional[str] = None  # UUID hash generated from the standardized SMILES
 
-    @validator("hash_mol", always=True, pre=True)
+    @field_validator("hash_mol", mode="before")
     def validate_or_generate_hash(cls, v, values):
         """
         Validate or generate a UUID hash from the standardized SMILES.
         """
         from app import crud
 
-        query_smiles = values.get("query_smiles")
+        query_smiles = values.data.get("query_smiles")
         layers = crud.get_standardized_mol_and_layers(query_smiles)
 
         # Generate the hash if not provided - this is a placeholder
@@ -629,10 +629,9 @@ class AssayCreateBase(AssayBase):
     assay_result_properties: List[AssayResultProperty]
     extra_fields: Dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        extra = Extra.allow
+    model_config = {"extra": "allow"}
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def collect_extra_fields(cls, values):
         known_keys = {"name", "assay_result_properties"}
         extra = {k: v for k, v in values.items() if k not in known_keys}

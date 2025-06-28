@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import csv
 import io
 from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
@@ -37,7 +38,19 @@ except ImportError:
 
 # models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db = SessionLocal()
+    try:
+        get_admin_user(db)
+    finally:
+        db.close()
+
+    yield
+
+
+app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches", lifespan=lifespan)
 router = APIRouter(prefix="/v1")
 
 admin_user_id: str | None = None
@@ -60,15 +73,6 @@ def get_admin_user(db: Session):
         raise Exception("Admin user not found.")
     global admin_user_id
     admin_user_id = admin.id
-
-
-@app.on_event("startup")
-def on_startup():
-    db = SessionLocal()
-    try:
-        get_admin_user(db)
-    finally:
-        db.close()
 
 
 def get_or_raise_exception(get_func, db, id, not_found_msg):
