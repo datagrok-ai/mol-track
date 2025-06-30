@@ -117,7 +117,7 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     assert first["inchikey"] == "QQVIHTHCMHWDBS-UHFFFAOYSA-N"
 
     props = {p["name"]: p for p in first["properties"]}
-    assert props["corporate_compound_id"]["value_string"] == "EPA-001"
+    assert props["corporate_compound_id"]["value_string"] == "DG-000001"
     assert props["cas"]["value_string"] == "121-91-5"
     assert props["common_name"]["value_string"].strip() == "1,3-Benzenedicarboxylic acid"
     assert abs(props["MolLogP"]["value_num"] - 1.083) < 1e-3
@@ -138,8 +138,9 @@ def test_get_compound_by_id(client, preload_schema, preload_compounds):
     assert result["batches"] == []
 
     props = {p["name"]: p for p in result["properties"]}
+    print(result)
 
-    assert props["corporate_compound_id"]["value_string"] == "EPA-002"
+    assert props["corporate_compound_id"]["value_string"] == "DG-000002"
     assert props["cas"]["value_string"] == "1478-61-1"
     assert props["common_name"]["value_string"].strip() == "Bisphenol AF"
     assert abs(props["MolLogP"]["value_num"] - 4.5085) < 1e-3

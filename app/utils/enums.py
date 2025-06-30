@@ -36,6 +36,11 @@ class ScopeClass(CaseInsensitiveEnum):
     SYSTEM = "SYSTEM"
 
 
+class ScopeClassReduced(CaseInsensitiveEnum):
+    BATCH = "BATCH"
+    COMPOUND = "COMPOUND"
+
+
 class AdditionsRole(CaseInsensitiveEnum):
     SALT = "SALT"
     SOLVATE = "SOLVATE"

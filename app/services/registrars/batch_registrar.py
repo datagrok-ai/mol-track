@@ -120,3 +120,9 @@ class BatchRegistrar(CompoundRegistrar):
             **{f"batch_property_{k}": v for k, v in grouped.get("batch_details", {}).items()},
             **{f"batch_addition_{k}": v for k, v in grouped.get("batch_additions", {}).items()},
         }
+    
+    def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+        grouped = super()._group_data(row, entity_name)
+        value = self.property_service.institution_synonym_dict["batch_details"]
+        grouped.setdefault("batch_details", {})[value] = None
+        return grouped

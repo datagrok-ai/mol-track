@@ -212,6 +212,12 @@ class CompoundRegistrar(BaseRegistrar):
                 JOIN available_compounds ic ON d.molregno = ic.molregno
             )"""
 
+    def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+        grouped = super()._group_data(row, entity_name)
+        value = self.property_service.institution_synonym_dict["compound_details"]
+        grouped.setdefault("compound_details", {})[value] = None
+        return grouped
+    
     def get_additional_cte(self):
         pass
 

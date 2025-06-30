@@ -55,7 +55,7 @@ def get_db():
 
 
 def get_admin_user(db: Session):
-    admin = db.query(models.User).filter(models.User.first_name == "Admin").first()
+    admin = db.query(models.User).filter(models.User.email == "admin@datagrok.ai").first()
     if not admin:
         raise Exception("Admin user not found.")
     global admin_user_id
@@ -388,15 +388,13 @@ def create_assay_results(
 
 @router.patch("/admin/institution-id-pattern")
 def update_institution_id_pattern(
-    scope: str = Query(..., regex="^(BATCH|COMPOUND)$"),
-    pattern: str = Form(...), 
+    scope: enums.ScopeClassReduced = Form(enums.ScopeClassReduced.BATCH),
+    pattern: str = Form(default="DG-{:05d}"), 
     db: Session = Depends(get_db)
 ):
     """
     Update the pattern for generating corporate IDs for compounds or batches.
     """
-    if scope not in ["BATCH", "COMPOUND"]:
-        raise HTTPException(status_code=400, detail="Invalid scope. Must be 'BATCH' or 'COMPOUND'.")
     
     EXPECTED_PATTERN = r"^.{0,10}\{\:0?[1-9]d\}.{0,10}$"
     import re
@@ -410,10 +408,8 @@ def update_institution_id_pattern(
                     Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc."""
         )
 
-    if scope == "BATCH":
-        setting_name = "corporate_batch_id"
-    else:
-        setting_name = "corporate_compound_id"
+    
+    setting_name = "corporate_batch_id" if scope == "BATCH" else "corporate_compound_id"
 
     try:
         db.execute(text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :setting"), 
