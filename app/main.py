@@ -389,6 +389,36 @@ def create_assay_results(
 ):
     return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
+@router.patch("/admin/compound-matching-rule")
+def update_compound_matching_rule(
+    rule: enums.CompoundMatchingRule = Form(enums.CompoundMatchingRule.ALL_LAYERS),
+    db: Session = Depends(get_db)
+):
+    """
+    Update the compound matching rule.
+    """
+    try:
+        old_value_query = db.execute(
+            text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'")
+        )
+        old_value = old_value_query.scalar()
+        
+        if old_value == rule.value:
+            return {
+                "status": "success", 
+                "message": f"Compound matching rule is already set to {rule.value}"
+            }
+        
+        db.execute(text("UPDATE moltrack.settings SET value = :rule WHERE name = 'Compound Matching Rule'"), {"rule": rule.value})
+        db.commit()
+        return {
+            "status": "success", 
+            "message": f"Compound matching rule updated from {old_value} to {rule.value}"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
+    
 
 @router.patch("/admin/institution-id-pattern")
 def update_institution_id_pattern(

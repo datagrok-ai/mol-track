@@ -102,6 +102,12 @@ CREATE TABLE moltrack.settings (
   description text NOT NULL
 );
 
+INSERT INTO moltrack.settings (name, value, description)
+VALUES ('Compound Matching Rule',
+        'ALL_LAYERS',
+        'Defines the rule for matching compounds. Possible values: ALL_LAYERS (default), STEREO_INSENSITIVE_LAYERS, TAUTOMER_INSENSITIVE_LAYERS');
+
+
 -- Sequence for compound registration numbers
 CREATE SEQUENCE moltrack.molregno_seq
     START WITH 1
