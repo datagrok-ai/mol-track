@@ -126,6 +126,7 @@ def setup_test_db():
             # Execute each statement in the schema
             for statement in schema_sql.split(";"):
                 statement = statement.replace("^", ";")  # had to replace it for trigger function
+                statement = statement.replace(":", "\\:")  # escape colons for SQLAlchemy
                 if statement.strip():
                     conn.execute(text(statement))
             conn.execute(text("COMMIT"))

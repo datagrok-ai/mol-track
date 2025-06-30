@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import csv
 import io
-from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile, Query
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
@@ -68,7 +68,7 @@ def get_db():
 
 
 def get_admin_user(db: Session):
-    admin = db.query(models.User).filter(models.User.first_name == "Admin").first()
+    admin = db.query(models.User).filter(models.User.email == "admin@datagrok.ai").first()
     if not admin:
         raise Exception("Admin user not found.")
     global admin_user_id
@@ -389,6 +389,44 @@ def create_assay_results(
 ):
     return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
+
+@router.patch("/admin/institution-id-pattern")
+def update_institution_id_pattern(
+    scope: enums.ScopeClassReduced = Form(enums.ScopeClassReduced.BATCH),
+    pattern: str = Form(default="DG-{:05d}"), 
+    db: Session = Depends(get_db)
+):
+    """
+    Update the pattern for generating corporate IDs for compounds or batches.
+    """
+    
+    EXPECTED_PATTERN = r"^.{0,10}\{\:0?[1-9]d\}.{0,10}$"
+    import re
+    if not pattern or not re.match(EXPECTED_PATTERN, pattern):
+        raise HTTPException(
+            status_code=400,
+            detail="""Invalid pattern format. 
+                    The pattern must contain '{:d}'.
+                    You can also use '{:0Nd}' for zero-padded numbers (numbers will be padded with zeros to N digits).,
+                    Pattern can also have prefix and postfix, meant for identification of institution.
+                    Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc."""
+        )
+
+    
+    setting_name = "corporate_batch_id" if scope == "BATCH" else "corporate_compound_id"
+
+    try:
+        db.execute(text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :setting"), 
+                        {"setting": setting_name, "pattern": pattern})
+        db.commit()
+        return {
+            "status": "success",
+            "message": f"Corporate ID pattern for {scope} updated to {pattern}, ids will be looking like {pattern.format(1)}",
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating corporate ID pattern: {str(e)}")
+    
 
 @router.patch("/admin/molregno-sequence-start")
 def set_molregno_sequence_start(start_value: int = Form(...), db: Session = Depends(get_db)):

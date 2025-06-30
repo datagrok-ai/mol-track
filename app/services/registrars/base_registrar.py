@@ -80,6 +80,7 @@ class BaseRegistrar(ABC):
                 else (entity_name if entity_name else "compound", mapped_key)
             )
             grouped.setdefault(table, {})[field] = value
+            
         return grouped
 
     # === Reference loading methods ===
