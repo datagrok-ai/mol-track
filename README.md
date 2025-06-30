@@ -45,6 +45,8 @@ To simplify and speed up the installation and launch process, we provide two aut
 
 [Manual setup](#manual-setup) can be time-consuming and error-prone, requiring multiple steps such as building Docker images, running containers, configuring virtual environments, and starting the server. These scripts handle all of that automatically, so you can get your environment ready with a single command.
 
+Both scripts accept an optional `--run_server` flag (if specified, the Uvicorn server is started).
+
 > **Note:** Docker must be installed and running on your machine before running these scripts.
 
 ### On Windows
@@ -53,7 +55,8 @@ To simplify and speed up the installation and launch process, we provide two aut
 2. Run:
 
 ```cmd
-setup.bat
+setup.bat # Run setup only, skip starting server
+setup.bat --run_server # Run setup and start server
 ```
 
 ### On macOS/Linux
@@ -63,7 +66,8 @@ setup.bat
 
 ```bash
 chmod +x setup.sh
-./setup.sh
+./setup.sh # Run setup only, skip starting server
+./setup.sh --run_server # Run setup and start server
 ```
 
 ## Manual setup

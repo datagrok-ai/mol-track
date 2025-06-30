@@ -1,6 +1,17 @@
 @echo off
 setlocal enabledelayedexpansion
 
+set RUN_SERVER=false
+
+:parse_args
+if "%~1"=="" goto args_done
+if "%~1"=="--run_server" (
+    set RUN_SERVER=true
+)
+shift
+goto parse_args
+:args_done
+
 set IMAGE_NAME=moltrack
 set ENV_DIR=.moltrack-env
 
@@ -55,7 +66,11 @@ uv venv
 echo Syncing dependencies with uv...
 uv sync
 
-echo Running Uvicorn app...
-uv run --active uvicorn app.main:app --reload
+if "%RUN_SERVER%"=="true" (
+    echo Running Uvicorn app...
+    uv run --active uvicorn app.main:app --reload
+) else (
+    echo Skipping server run (use --run_server to start it)
+)
 
 endlocal

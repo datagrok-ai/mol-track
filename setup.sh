@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+RUN_SERVER=false
+
+for arg in "$@"; do
+    case $arg in
+        --run_server)
+            RUN_SERVER=true
+            shift
+            ;;
+    esac
+done
+
 IMAGE_NAME="moltrack"
 ENV_DIR=".moltrack-env"
 
@@ -50,5 +61,9 @@ uv venv || true
 echo "Syncing dependencies with uv..."
 uv sync
 
-echo "Running Uvicorn app..."
-uv run --active uvicorn app.main:app --reload
+if [ "$RUN_SERVER" = true ]; then
+    echo "Running Uvicorn app..."
+    uv run --active uvicorn app.main:app --reload
+else
+    echo "Skipping server run (use --run_server to start it)"
+fi
