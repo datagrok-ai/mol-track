@@ -11,6 +11,7 @@ from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash, HashScheme
 from app import main
 from app import models
 from app.utils import enums, sql_utils
+from app.utils.logging_utils import logger
 from app.services.registrars.base_registrar import BaseRegistrar
 from sqlalchemy.sql import text
 
@@ -28,7 +29,7 @@ class CompoundRegistrar(BaseRegistrar):
         molregno = self.db.execute(text("SELECT nextval('moltrack.molregno_seq')")).scalar()
         return molregno
     
-    def _load_matching_setting(self):
+    def _load_matching_setting(self) -> HashScheme:
         try:
             setting = self.db.execute(
                 text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'")
@@ -37,7 +38,7 @@ class CompoundRegistrar(BaseRegistrar):
                 return HashScheme.ALL_LAYERS
             return HashScheme[setting]
         except Exception as e:
-            print(f"Error loading compound matching setting: {e}")
+            logger.error(f"Error loading compound matching setting: {e}")
             return HashScheme.ALL_LAYERS
         
     def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:

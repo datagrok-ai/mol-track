@@ -27,7 +27,7 @@ def test_update_institution_id_pattern_invalid_format(client):
             "pattern": "INVALID-PATTERN"
         }
     )
-    print(response.json())
+
     assert response.status_code == 400
     assert "Invalid pattern format" in response.json()["detail"]
 
@@ -40,16 +40,15 @@ def test_update_compound_matching_rule_already_set(client):
     )
 
     assert response.status_code == 200
-    assert "Compound matching rule is already set to ALL_LAYERS" in response.json()["message"]
-
+    assert f"Compound matching rule is already set to {CompoundMatchingRule.ALL_LAYERS.value}" in response.json()["message"]
 
 
 def test_update_compound_matching_rule_success(client):
-
+    # Update to a different rule succesfully
     response = client.patch(
         "/v1/admin/compound-matching-rule",
         data={"rule": CompoundMatchingRule.STEREO_INSENSITIVE_LAYERS.value} 
     )
 
     assert response.status_code == 200
-    assert "Compound matching rule updated from ALL_LAYERS to STEREO_INSENSITIVE_LAYERS" in response.json()["message"]
+    assert f"Compound matching rule updated from {CompoundMatchingRule.ALL_LAYERS.value} to {CompoundMatchingRule.STEREO_INSENSITIVE_LAYERS.value}" in response.json()["message"]
