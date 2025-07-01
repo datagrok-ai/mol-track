@@ -27,7 +27,11 @@ class CompoundRegistrar(BaseRegistrar):
         return molregno
 
     def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:
-        mol = Chem.MolFromSmiles(compound_data.get("smiles"))
+        smiles = compound_data.get("smiles")
+        if not smiles:
+            raise HTTPException(status_code=400, detail="SMILES value is required for compound creation.")
+
+        mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             raise HTTPException(status_code=400, detail="Invalid SMILES string")
 
