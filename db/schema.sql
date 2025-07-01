@@ -145,7 +145,8 @@ CREATE TABLE moltrack.compound_details (
   value_datetime timestamp with time zone DEFAULT (CURRENT_TIMESTAMP),
   value_uuid uuid,
   value_num float,
-  value_string text
+  value_string text,
+  value_qualifier smallint NOT NULL DEFAULT 0 check (value_qualifier in (0, 1, 2)) -- 0 for =, 1 for <, 2 for >
 );
 
 -- Additions table - for salts and solvates 
