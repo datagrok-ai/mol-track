@@ -138,7 +138,6 @@ def test_get_compound_by_id(client, preload_schema, preload_compounds):
     assert result["batches"] == []
 
     props = {p["name"]: p for p in result["properties"]}
-    print(result)
 
     assert props["corporate_compound_id"]["value_string"] == "DG-000002"
     assert props["cas"]["value_string"] == "1478-61-1"
