@@ -64,6 +64,7 @@ class PropertyService:
 
             if prop_name in self.institution_synonym_dict.values() and not value:
                 value = prop.pattern.format(next(iter(entity_ids.values())))
+                properties[prop_name] = value
 
             #  Detect and parse value qualifiers
             value_qualifier = 0

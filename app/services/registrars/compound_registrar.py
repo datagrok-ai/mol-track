@@ -7,10 +7,11 @@ from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 
 from app.utils.chemistry_utils import generate_hash_layers, generate_uuid_from_string, standardize_mol
-from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash
+from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash, HashScheme
 from app import main
 from app import models
 from app.utils import enums, sql_utils
+from app.utils.logging_utils import logger
 from app.services.registrars.base_registrar import BaseRegistrar
 from sqlalchemy.sql import text
 
@@ -21,12 +22,25 @@ class CompoundRegistrar(BaseRegistrar):
         self.compound_records_map = self._load_reference_map(models.Compound, "hash_mol")
         self.compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
         self.compounds_to_insert = []
-        self.output_records: List[Dict[str, Any]] = []
+        self.output_records: List[Dict[str, Any]] = []               
+        self.matching_setting = self._load_matching_setting()
 
     def _next_molregno(self) -> int:
         molregno = self.db.execute(text("SELECT nextval('moltrack.molregno_seq')")).scalar()
         return molregno
-
+    
+    def _load_matching_setting(self) -> HashScheme:
+        try:
+            setting = self.db.execute(
+                text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'")
+            ).scalar()
+            if setting is None:
+                return HashScheme.ALL_LAYERS
+            return HashScheme[setting]
+        except Exception as e:
+            logger.error(f"Error loading compound matching setting: {e}")
+            return HashScheme.ALL_LAYERS
+        
     def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:
         mol = Chem.MolFromSmiles(compound_data.get("smiles"))
         if mol is None:
@@ -34,7 +48,7 @@ class CompoundRegistrar(BaseRegistrar):
 
         standarized_mol = standardize_mol(mol)
         mol_layers = generate_hash_layers(standarized_mol)
-        hash_mol = GetMolHash(mol_layers)
+        hash_mol = GetMolHash(mol_layers, self.matching_setting)
         existing_compound = self.compound_records_map.get(hash_mol)
         # TODO: Implement proper uniqueness rules to ensure data integrity
         if existing_compound is not None:
