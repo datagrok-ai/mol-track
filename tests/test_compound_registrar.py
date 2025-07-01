@@ -33,6 +33,11 @@ def test_schema(client, endpoint, schema_file, response_key, expected_keys, prel
     for key in expected_keys:
         expected.extend(expected_data.get(key, []))
 
+    if "/compounds" in endpoint:
+        expected.append({"name": "corporate_compound_id", "scope": enums.ScopeClass.COMPOUND})
+    if "/batches" in endpoint:
+        expected.append({"name": "corporate_batch_id", "scope": enums.ScopeClass.BATCH})
+
     assert_name_scope_equal(actual, expected)
 
     if "/v1/schema/batches" in endpoint:
@@ -48,18 +53,18 @@ def test_register_compounds_without_mapping(client, preload_schema):
 
     get_response = client.get("/v1/compounds/")
     assert get_response.status_code == 200
-
     compounds = get_response.json()
-    expected_properties = {"corporate_compound_id", "MolLogP"}
 
-    for compound in compounds:
+    def assert_properties(compound, expected_props, index):
         properties = compound.get("properties", [])
-        assert len(properties) == len(expected_properties), (
-            f"Expected {len(expected_properties)} properties, got {len(properties)}"
+        assert len(properties) == len(expected_props), (
+            f"[Compound {index}] Expected {len(expected_props)} properties, got {len(properties)}"
         )
+        names = {p["name"] for p in properties}
+        assert names == expected_props, f"[Compound {index}] Property names mismatch: {names} != {expected_props}"
 
-        prop_names = {p["name"] for p in properties}
-        assert prop_names == expected_properties, f"Property names mismatch: {prop_names} != {expected_properties}"
+    assert_properties(compounds[0], {"epa_compound_id", "corporate_compound_id", "MolLogP"}, index=0)
+    assert_properties(compounds[8], {"epa_compound_id", "corporate_compound_id"}, index=8)
 
 
 @pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject all' behaviour.")
@@ -117,7 +122,7 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     assert first["inchikey"] == "QQVIHTHCMHWDBS-UHFFFAOYSA-N"
 
     props = {p["name"]: p for p in first["properties"]}
-    assert props["corporate_compound_id"]["value_string"] == "DG-000001"
+    assert props["epa_compound_id"]["value_string"] == "EPA-001"
     assert props["cas"]["value_string"] == "121-91-5"
     assert props["common_name"]["value_string"].strip() == "1,3-Benzenedicarboxylic acid"
     assert abs(props["MolLogP"]["value_num"] - 1.083) < 1e-3
@@ -139,7 +144,7 @@ def test_get_compound_by_id(client, preload_schema, preload_compounds):
 
     props = {p["name"]: p for p in result["properties"]}
 
-    assert props["corporate_compound_id"]["value_string"] == "DG-000002"
+    assert props["epa_compound_id"]["value_string"] == "EPA-002"
     assert props["cas"]["value_string"] == "1478-61-1"
     assert props["common_name"]["value_string"].strip() == "Bisphenol AF"
     assert abs(props["MolLogP"]["value_num"] - 4.5085) < 1e-3

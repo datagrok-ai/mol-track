@@ -1,4 +1,4 @@
-Batch Corporate ID,Species,Dosed Concentration (µM),Reported CLint (µL/min/ 106 cells),Mean HTC recovery (%; n=2),SD HTC recovery (%; n=2),assay_type name,Cell Lot,assay_date
+EPA Batch ID,Species,Dosed Concentration (µM),Reported CLint (µL/min/ 106 cells),Mean HTC recovery (%; n=2),SD HTC recovery (%; n=2),assay_type name,Cell Lot,assay_date
 EPA-001-001,Human,0.1,none,59.51,84.16,Hepatocyte Stability,H2,2024-02-02
 EPA-001-001,Human,1,none,69.57,1.97,Hepatocyte Stability,H2,2024-02-02
 EPA-120-001,Human,0.1,24.55,105.42,10.78,Hepatocyte Stability,H2,2024-02-02

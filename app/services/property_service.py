@@ -54,8 +54,6 @@ class PropertyService:
         records_to_insert, records_to_update = [], []
 
         for prop_name, value in properties.items():
-            if value in ("", "none", None):
-                continue
             prop_info = self.get_property_info(prop_name, scope)
             prop = prop_info["property"]
             value_type = prop_info["value_type"]
@@ -65,6 +63,9 @@ class PropertyService:
 
             if prop_name in self.institution_synonym_dict.values() and not value:
                 value = prop.pattern.format(next(iter(entity_ids.values())))
+
+            if value in ("", "none", None):
+                continue
 
             #  Detect and parse value qualifiers
             value_qualifier = 0

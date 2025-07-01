@@ -241,7 +241,7 @@ class SynonymTypeBase(PropertyBase):
 
     @field_validator("unit")
     def validate_unit(cls, v):
-        if v != "":
+        if v not in (None, ""):
             raise ValueError("SynonymType must have empty unit")
         return v
 
