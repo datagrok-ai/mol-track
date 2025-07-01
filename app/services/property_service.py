@@ -9,13 +9,12 @@ class PropertyService:
     def __init__(self, property_records_map: Dict[str, Any]):
         self.property_records_map = property_records_map
         self.institution_synonym_dict = self._load_institution_synonym_dict()
-    
-    def _load_institution_synonym_dict(self) -> Dict[str, Any]:
-        return{
-            "compound_details" : "corporate_compound_id",
-            "batch_details" : "corporate_batch_id"
-        }
 
+    def _load_institution_synonym_dict(self) -> Dict[str, Any]:
+        return {
+            "compound_details": "corporate_compound_id",
+            "batch_details": "corporate_batch_id",
+        }
 
     def get_property_info(self, prop_name: str, scope: str) -> Dict[str, Any]:
         prop = self.property_records_map.get(prop_name)
@@ -55,6 +54,8 @@ class PropertyService:
         records_to_insert, records_to_update = [], []
 
         for prop_name, value in properties.items():
+            if value in ("", "none", None):
+                continue
             prop_info = self.get_property_info(prop_name, scope)
             prop = prop_info["property"]
             value_type = prop_info["value_type"]
@@ -80,7 +81,7 @@ class PropertyService:
                     value = value[1:].strip()
 
             try:
-                casted_value = None if value in ("", "none", None) else cast_fn(value)
+                casted_value = cast_fn(value)
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
 
