@@ -36,18 +36,19 @@ def test_update_compound_matching_rule_already_set(client):
     # Assuming the default value in the database is 'ALL_LAYERS'
     response = client.patch(
         "/v1/admin/compound-matching-rule",
-        data={"rule": CompoundMatchingRule.ALL_LAYERS.value}  # Sending rule as data
+        data={"rule": CompoundMatchingRule.ALL_LAYERS.value} 
     )
 
     assert response.status_code == 200
     assert "Compound matching rule is already set to ALL_LAYERS" in response.json()["message"]
 
-# Test 2: When the compound matching rule is updated successfully
+
+
 def test_update_compound_matching_rule_success(client):
-    # Assuming the database currently has 'SOME_OTHER_VALUE' as the rule
+
     response = client.patch(
         "/v1/admin/compound-matching-rule",
-        data={"rule": CompoundMatchingRule.STEREO_INSENSITIVE_LAYERS.value}  # Send new rule to update to
+        data={"rule": CompoundMatchingRule.STEREO_INSENSITIVE_LAYERS.value} 
     )
 
     assert response.status_code == 200

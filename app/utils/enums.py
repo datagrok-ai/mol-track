@@ -60,6 +60,7 @@ class OutputFormat(str, enum.Enum):
     json = "json"
     csv = "csv"
 
+
 class CompoundMatchingRule(CaseInsensitiveEnum):
     ALL_LAYERS = "ALL_LAYERS"
     STEREO_INSENSITIVE_LAYERS = "STEREO_INSENSITIVE_LAYERS"

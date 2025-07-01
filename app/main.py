@@ -389,6 +389,7 @@ def create_assay_results(
 ):
     return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
+
 @router.patch("/admin/compound-matching-rule")
 def update_compound_matching_rule(
     rule: enums.CompoundMatchingRule = Form(enums.CompoundMatchingRule.ALL_LAYERS),
