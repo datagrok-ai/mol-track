@@ -2,6 +2,6 @@
    "smiles": "smiles",
    "Chemical": "compound_details.common_name",
    "CAS #": "compound_details.cas",
-   "corporate_compound_id": "compound_details.corporate_compound_id",
+   "epa_compound_id": "compound_details.epa_compound_id",
    "MolLogP": "compound_details.MolLogP"
 }

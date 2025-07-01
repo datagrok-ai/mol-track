@@ -10,7 +10,7 @@
     ],
     "synonym_types": [
         {
-            "name": "corporate_compound_id",
+            "name": "epa_compound_id",
             "scope": "compound",
             "pattern": ""
         },

@@ -14,6 +14,7 @@ done
 
 IMAGE_NAME="moltrack"
 ENV_DIR=".moltrack-env"
+ENV_FILE=".env"
 
 echo "Building Docker image: $IMAGE_NAME from Dockerfile"
 docker build -t $IMAGE_NAME .
@@ -34,6 +35,18 @@ echo "Found free host port: $HOST_PORT"
 
 export DB_PORT=$HOST_PORT
 echo "Set DB_PORT environment variable to $DB_PORT"
+
+if [ -f "$ENV_FILE" ]; then
+    if grep -q '^DB_PORT=' "$ENV_FILE"; then
+        sed -i.bak "s/^DB_PORT=.*/DB_PORT=$DB_PORT/" "$ENV_FILE"
+    else
+        echo "DB_PORT=$DB_PORT" >> "$ENV_FILE"
+    fi
+else
+    echo "DB_PORT=$DB_PORT" > "$ENV_FILE"
+fi
+
+echo "Updated $ENV_FILE with DB_PORT=$DB_PORT"
 
 if [ "$(docker ps -aq -f name=$IMAGE_NAME)" ]; then
     echo "Stopping and removing existing container: $IMAGE_NAME"

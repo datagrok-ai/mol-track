@@ -15,8 +15,7 @@ def test_register_batches_without_mapping(client, preload_schema):
 
     batches = get_response.json()
     # TODO: Use data from the simple folder because column names don’t match property names
-    expected_properties = set()
-    expected_properties.add("corporate_batch_id")
+    expected_properties = {"epa_batch_id", "corporate_batch_id"}
 
     for batch in batches:
         properties = batch.get("properties", [])

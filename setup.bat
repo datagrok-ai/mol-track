@@ -14,6 +14,7 @@ goto parse_args
 
 set IMAGE_NAME=moltrack
 set ENV_DIR=.moltrack-env
+set ENV_FILE =.env
 
 echo Building Docker image: %IMAGE_NAME% from Dockerfile
 docker build -t %IMAGE_NAME% .
@@ -37,6 +38,29 @@ exit /b 1
 :found_port
 set DB_PORT=%HOST_PORT%
 echo Set DB_PORT environment variable to %DB_PORT%
+
+if exist %ENV_FILE% (
+    findstr /b "DB_PORT=" %ENV_FILE% >nul
+    if %errorlevel% == 0 (
+        set "tempFile=%ENV_FILE%.tmp"
+        (for /f "usebackq delims=" %%L in (%ENV_FILE%) do (
+            set "line=%%L"
+            echo !line! | findstr /b "DB_PORT=" >nul
+            if !errorlevel! == 0 (
+                echo DB_PORT=%DB_PORT%
+            ) else (
+                echo !line!
+            )
+        )) > %tempFile%
+        move /y %tempFile% %ENV_FILE% >nul
+    ) else (
+        echo DB_PORT=%DB_PORT% >> %ENV_FILE%
+    )
+) else (
+    echo DB_PORT=%DB_PORT% > %ENV_FILE%
+)
+
+echo Updated %ENV_FILE% with DB_PORT=%DB_PORT%
 
 docker ps -aq -f "name=%IMAGE_NAME%" > temp_containers.txt
 set /p EXISTING_CONTAINER=<temp_containers.txt

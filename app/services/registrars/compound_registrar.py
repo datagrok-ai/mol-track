@@ -6,11 +6,10 @@ from sqlalchemy.orm import Session
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 
-from app.utils.chemistry_utils import generate_hash_layers, generate_uuid_from_string, standardize_mol
 from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash, HashScheme
 from app import main
 from app import models
-from app.utils import enums, sql_utils
+from app.utils import enums, sql_utils, chemistry_utils
 from app.utils.logging_utils import logger
 from app.services.registrars.base_registrar import BaseRegistrar
 from sqlalchemy.sql import text
@@ -22,13 +21,13 @@ class CompoundRegistrar(BaseRegistrar):
         self.compound_records_map = self._load_reference_map(models.Compound, "hash_mol")
         self.compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
         self.compounds_to_insert = []
-        self.output_records: List[Dict[str, Any]] = []               
+        self.output_records: List[Dict[str, Any]] = []
         self.matching_setting = self._load_matching_setting()
 
     def _next_molregno(self) -> int:
         molregno = self.db.execute(text("SELECT nextval('moltrack.molregno_seq')")).scalar()
         return molregno
-    
+
     def _load_matching_setting(self) -> HashScheme:
         try:
             setting = self.db.execute(
@@ -40,14 +39,18 @@ class CompoundRegistrar(BaseRegistrar):
         except Exception as e:
             logger.error(f"Error loading compound matching setting: {e}")
             return HashScheme.ALL_LAYERS
-        
+
     def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:
-        mol = Chem.MolFromSmiles(compound_data.get("smiles"))
+        smiles = compound_data.get("smiles")
+        if not smiles:
+            raise HTTPException(status_code=400, detail="SMILES value is required for compound creation.")
+
+        mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             raise HTTPException(status_code=400, detail="Invalid SMILES string")
 
-        standarized_mol = standardize_mol(mol)
-        mol_layers = generate_hash_layers(standarized_mol)
+        standarized_mol = chemistry_utils.standardize_mol(mol)
+        mol_layers = chemistry_utils.generate_hash_layers(standarized_mol)
         hash_mol = GetMolHash(mol_layers, self.matching_setting)
         existing_compound = self.compound_records_map.get(hash_mol)
         # TODO: Implement proper uniqueness rules to ensure data integrity
@@ -57,12 +60,18 @@ class CompoundRegistrar(BaseRegistrar):
             return compound_dict
 
         now = datetime.utcnow()
+
         inchikey = Chem.InchiToInchiKey(Chem.MolToInchi(mol))
+        if inchikey is None:
+            raise HTTPException(status_code=400, detail="Failed to generate InChIKey: possibly invalid molecule")
+
         canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
-        hash_canonical_smiles = generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
-        hash_tautomer = generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
-        hash_no_stereo_smiles = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
-        hash_no_stereo_tautomer = generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH])
+        hash_canonical_smiles = chemistry_utils.generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
+        hash_tautomer = chemistry_utils.generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
+        hash_no_stereo_smiles = chemistry_utils.generate_uuid_from_string(mol_layers[HashLayer.NO_STEREO_SMILES])
+        hash_no_stereo_tautomer = chemistry_utils.generate_uuid_from_string(
+            mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH]
+        )
 
         return {
             "canonical_smiles": canonical_smiles,
@@ -231,7 +240,7 @@ class CompoundRegistrar(BaseRegistrar):
         value = self.property_service.institution_synonym_dict["compound_details"]
         grouped.setdefault("compound_details", {})[value] = None
         return grouped
-    
+
     def get_additional_cte(self):
         pass
 
