@@ -199,15 +199,15 @@ def clean_empty_values(d: dict) -> dict:
 # === Additions endpoints ===
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#additions
 @router.post("/additions/")
-def create_additions(file: Optional[UploadFile] = File(None), db: Session = Depends(get_db)):
-    if not file:
+def create_additions(csv_file: Optional[UploadFile] = File(None), db: Session = Depends(get_db)):
+    if not csv_file:
         raise HTTPException(status_code=400, detail="CSV file is required.")
 
-    if file.content_type != "text/csv":
+    if csv_file.content_type != "text/csv":
         raise HTTPException(status_code=400, detail="Only CSV files are accepted.")
 
     try:
-        content = file.file.read().decode("utf-8")
+        content = csv_file.file.read().decode("utf-8")
         reader = csv.DictReader(io.StringIO(content))
         input_additions = [models.AdditionBase.model_validate(clean_empty_values(row)) for row in reader]
     except Exception as e:
