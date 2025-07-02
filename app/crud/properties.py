@@ -45,6 +45,7 @@ def bulk_create_if_not_exists(
     Returns:
         List[Dict[str, Any]]: List of inserted records.
     """
+    reserved_names = ["smiles"]
     input_names = [getattr(item, name_attr) for item in items]
     existing_names = {
         name
@@ -54,9 +55,23 @@ def bulk_create_if_not_exists(
     }
 
     to_insert = []
+    inserted_input_items = []
+    result = []
+
     for item in items:
         item_name = getattr(item, name_attr)
-        if item_name not in existing_names:
+
+        if item_name in reserved_names:
+            result.append(
+                {"name": item_name} | {"status": f"Failed: {item_name} is a reserved name and cannot be used"}
+            )
+            continue
+
+        if item_name in existing_names:
+            result.append(item.model_dump() | {"status": "Skipped: already exists"})
+            continue
+
+        try:
             validated = base_model_cls.model_validate(item) if validate else item
             data = validated.model_dump()
             data.update(
@@ -66,14 +81,24 @@ def bulk_create_if_not_exists(
                 }
             )
             to_insert.append(data)
+            inserted_input_items.append(item)
+        except Exception as e:
+            result.append(item.model_dump() | {"status": f"Failed: {str(e)}"})
 
-    if not to_insert:
-        return []
+    if to_insert:
+        try:
+            stmt = insert(model_cls).values(to_insert).returning(model_cls)
+            db_result = db.execute(stmt).fetchall()
+            db.commit()
 
-    stmt = insert(model_cls).values(to_insert).returning(model_cls)
-    result = db.execute(stmt).fetchall()
-    db.commit()
-    return [model_cls.model_validate(row[0]) for row in result]
+            for i, row in enumerate(db_result):
+                result.append(model_cls.model_validate(row[0]).model_dump() | {"status": "created"})
+        except Exception as e:
+            reason = f"Insert error: {str(e)}"
+            for item in inserted_input_items:
+                result.append(item.model_dump() | {"status": f"Failed: {reason}"})
+
+    return result
 
 
 def get_synonym_id(db: Session) -> int:
