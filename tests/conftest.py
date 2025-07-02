@@ -45,7 +45,7 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 DATA_DIR = Path(__file__).parent.parent / "data"
 BLACK_DIR = DATA_DIR / "black"
 SIMPLE_DIR = DATA_DIR / "simple"
-EXCLUDE_TABLES = ["users", "semantic_types"]
+EXCLUDE_TABLES = ["users", "settings", "semantic_types", "properties"]
 SCHEMA_FILES = [
     "batches_schema.json",
     "compounds_schema.json",
