@@ -114,6 +114,7 @@ def setup_test_db():
     schema_paths = [
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "schema.sql"),
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "schema_rdkit.sql"),  # new file
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "setup.sql"),
     ]
 
     # Apply the schemas to the test database

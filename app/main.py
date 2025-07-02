@@ -299,6 +299,14 @@ def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
     return batch.batch_additions
 
 
+@router.delete("/batches/{batch_id}", response_model=models.Batch)
+def delete_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
+    assay_results = crud.get_all_assay_results_for_batch(db, batch_id)
+    if assay_results:
+        raise HTTPException(status_code=400, detail="Batch has dependent assay results")
+    return crud.delete_batch(db, batch_id)
+
+
 # === Assay data endpoints ===
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#assay-data-domain
 @router.post("/assays")

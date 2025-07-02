@@ -1,3 +1,4 @@
+from http.client import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload
 from app.crud.properties import enrich_properties
@@ -27,3 +28,13 @@ def get_batches(db: Session, skip: int = 0, limit: int = 100):
 
 def get_batches_by_compound(db: Session, compound_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Batch).filter(models.Batch.compound_id == compound_id).offset(skip).limit(limit).all()
+
+
+def delete_batch(db: Session, batch_id: int):
+    db_batch = db.get(models.Batch, batch_id)
+    if db_batch is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    db.delete(db_batch)
+    db.commit()
+    return db_batch
