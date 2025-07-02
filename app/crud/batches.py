@@ -1,4 +1,4 @@
-from http.client import HTTPException
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload
 from app.crud.properties import enrich_properties
@@ -35,6 +35,8 @@ def delete_batch(db: Session, batch_id: int):
     if db_batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")
 
+    db.query(models.BatchDetail).filter(models.BatchDetail.batch_id == batch_id).delete(synchronize_session=False)
+    db.query(models.BatchAddition).filter(models.BatchAddition.batch_id == batch_id).delete(synchronize_session=False)
     db.delete(db_batch)
     db.commit()
     return db_batch

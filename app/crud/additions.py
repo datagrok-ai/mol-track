@@ -70,8 +70,6 @@ def update_addition_by_id(db: Session, addition_id: int, addition_update: models
 
 def delete_addition_by_id(db: Session, addition_id: int):
     db_addition = get_addition_by_id(db, addition_id=addition_id)
-    db_addition.deleted_at = datetime.now()
-    db_addition.is_active = False
+    db.delete(db_addition)
     db.commit()
-    db.refresh(db_addition)
     return db_addition
