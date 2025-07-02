@@ -251,6 +251,9 @@ def update_addition_v1(addition_id: int, addition_update: models.AdditionUpdate,
 
 @router.delete("/additions/{addition_id}", response_model=models.Addition)
 def delete_addition(addition_id: int, db: Session = Depends(get_db)):
+    dependent_batch_addition = crud.get_batch_addition_for_addition(db, addition_id)
+    if dependent_batch_addition is not None:
+        raise HTTPException(status_code=400, detail="Addition has dependent batches")
     return crud.delete_addition_by_id(db, addition_id=addition_id)
 
 

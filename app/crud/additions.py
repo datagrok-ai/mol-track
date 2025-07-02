@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from typing import List
+from typing import List, Optional
 from app.crud.properties import bulk_create_if_not_exists
 from app import models
 
@@ -49,6 +49,10 @@ def get_addition_by_id(db: Session, addition_id: int) -> models.Addition:
     if db_addition is None:
         raise HTTPException(status_code=404, detail="Addition not found")
     return db_addition
+
+
+def get_batch_addition_for_addition(db: Session, addition_id: int) -> Optional[models.BatchAddition]:
+    return db.query(models.BatchAddition).filter(models.BatchAddition.addition_id == addition_id).first()
 
 
 def update_addition_by_id(db: Session, addition_id: int, addition_update: models.AdditionUpdate):
