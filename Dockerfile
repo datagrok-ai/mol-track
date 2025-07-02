@@ -1,4 +1,4 @@
-FROM mcs07/postgres-rdkit
+FROM informaticsmatters/rdkit-cartridge-debian:Release_2024_03_6
 
 ENV POSTGRES_USER=postgres
 ENV POSTGRES_PASSWORD=postgres
