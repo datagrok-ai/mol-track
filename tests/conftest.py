@@ -210,7 +210,7 @@ def preload_schema(client):
 @pytest.fixture
 def preload_additions(client):
     file_path = DATA_DIR / "additions.csv"
-    files = {"file": (str(file_path), read_csv(file_path), "text/csv")}
+    files = {"csv_file": (str(file_path), read_csv(file_path), "text/csv")}
     client.post("/v1/additions/", files=files)
 
 
