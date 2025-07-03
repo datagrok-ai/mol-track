@@ -18,33 +18,12 @@ CREATE TABLE moltrack.users (
   updated_by uuid NOT NULL REFERENCES moltrack.users (id) DEFERRABLE INITIALLY DEFERRED
 );
 
-BEGIN;
-
-INSERT INTO moltrack.users (
-  id, email, first_name, last_name,
-  has_password, is_active, is_service_account,
-  created_by, updated_by
-) VALUES (
-  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d',
-  'admin@datagrok.ai', 'Admin', 'Admin',
-  true, true, true,
-  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d',
-  '3f5b8c3e-1a72-4c09-9aeb-2f12a7a81e8d'
-);
-
-COMMIT;
-
 -- Explains the meaning of a scalar property.
 CREATE TABLE moltrack.semantic_types (
   id serial PRIMARY KEY,
   name text NOT NULL UNIQUE, -- e.g., Synonym, Molecule, Cell, Tissue, Organism, Treatment, Drug, Image...
   description text
 );
-
--- Create a semantic type for synonyms
-INSERT INTO moltrack.semantic_types (name, description) 
-VALUES ('Synonym', 'A semantic type representing a synonym or alternative identifier')
-ON CONFLICT (name) DO NOTHING;
 
 -- Properties table - for declared, calculated, predicted and measured properties
 CREATE TABLE moltrack.properties (
@@ -70,30 +49,6 @@ CREATE TABLE moltrack.properties (
   UNIQUE(name, scope) -- Ensure unique property names within each scope
 );
 
-with ADMIN AS (
-  SELECT id FROM moltrack.users WHERE email = 'admin@datagrok.ai'
-),
-STYPE AS (
-  SELECT id FROM moltrack.semantic_types WHERE name = 'Synonym'
-)
-INSERT INTO moltrack.properties (created_by, updated_by, name, description, value_type, semantic_type_id, property_class, scope, pattern)
-VALUES (
-  (SELECT id FROM ADMIN),
-  (SELECT id FROM ADMIN),
-  'corporate_compound_id', 'Official institution synonym for compounds',
-  'string', 
-  (SELECT id FROM STYPE), 
-  'DECLARED', 'COMPOUND', 'DG-{:06d}'
-), (
-  (SELECT id FROM ADMIN),
-  (SELECT id FROM ADMIN),
-  'corporate_batch_id', 'Official institution synonym for batches',
-  'string', 
-  (SELECT id FROM STYPE), 
-  'DECLARED', 'BATCH',
-  'DGB-{:06d}'
-);
-
 -- System settings like compound standardization rules, compound uniqueness rules, compound identification rules and synonym generation rules.
 CREATE TABLE moltrack.settings (
   id serial PRIMARY KEY,
@@ -101,11 +56,6 @@ CREATE TABLE moltrack.settings (
   value text NOT NULL,
   description text NOT NULL
 );
-
-INSERT INTO moltrack.settings (name, value, description)
-VALUES ('Compound Matching Rule',
-        'ALL_LAYERS',
-        'Defines the rule for matching compounds. Possible values: ALL_LAYERS (default), STEREO_INSENSITIVE_LAYERS, TAUTOMER_INSENSITIVE_LAYERS');
 
 -- Sequence for compound registration numbers
 CREATE SEQUENCE moltrack.molregno_seq

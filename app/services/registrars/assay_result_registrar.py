@@ -46,6 +46,8 @@ class AssayResultsRegistrar(BaseRegistrar):
 
         property_values = []
         for prop_name, value in details.items():
+            if value in (None, "", []):
+                continue  # Skip this property if value is empty (we are not inserting empty values)
             prop_info = self.property_service.get_property_info(prop_name, scope)
 
             property_values.append(

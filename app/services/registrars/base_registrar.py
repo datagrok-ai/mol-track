@@ -25,6 +25,7 @@ class BaseRegistrar(ABC):
         self.db = db
         self.error_handling = error_handling
         self.property_records_map = self._load_reference_map(models.Property, "name")
+        self.addition_records_map = self._load_reference_map(models.Addition, "name")
         self.property_service = property_service.PropertyService(self.property_records_map)
 
         self.user_mapping = self._load_mapping(mapping)
@@ -56,19 +57,19 @@ class BaseRegistrar(ABC):
         return rows
 
     def _assign_column(self, col: str) -> str:
-        prop = self.property_records_map.get(col)
-        if prop is None:
-            return col
+        if col in self.property_records_map:
+            scope = getattr(self.property_records_map[col], "scope", None)
+            prefix = {
+                enums.ScopeClass.COMPOUND: "compound_details",
+                enums.ScopeClass.BATCH: "batch_details",
+                enums.ScopeClass.ASSAY_RUN: "assay_run_details",
+                enums.ScopeClass.ASSAY_RESULT: "assay_results",
+            }.get(scope)
+            return f"{prefix}.{col}" if prefix else col
 
-        scope_to_prefix = {
-            enums.ScopeClass.COMPOUND: "compound_details",
-            enums.ScopeClass.BATCH: "batch_details",
-            enums.ScopeClass.ASSAY_RUN: "assay_run_details",
-            enums.ScopeClass.ASSAY_RESULT: "assay_results",
-        }
-
-        prefix = scope_to_prefix.get(getattr(prop, "scope"))
-        return f"{prefix}.{col}" if prefix else col
+        if col in self.addition_records_map:
+            return f"batch_additions.{col}"
+        return col
 
     def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
         grouped = {}
@@ -80,7 +81,6 @@ class BaseRegistrar(ABC):
                 else (entity_name if entity_name else "compound", mapped_key)
             )
             grouped.setdefault(table, {})[field] = value
-            
         return grouped
 
     # === Reference loading methods ===

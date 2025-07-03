@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import csv
 import io
-from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile, Query
+from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
@@ -86,15 +86,17 @@ def get_or_raise_exception(get_func, db, id, not_found_msg):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#schema---wip
 @router.post("/schema/")
 def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
-    created_synonyms = crud.create_properties(db, payload.synonym_types)
-    created_properties = crud.create_properties(db, payload.properties)
-    return {
-        "status": "success",
-        "created": {
+    try:
+        created_synonyms = crud.create_properties(db, payload.synonym_types)
+        created_properties = crud.create_properties(db, payload.properties)
+        return {
+            "status": "success",
             "synonym_types": created_synonyms,
             "property_types": created_properties,
-        },
-    }
+        }
+    except Exception as e:
+        db.rollback()
+        return {"status": "failed", "error": str(e)}
 
 
 @router.get("/schema/compounds", response_model=List[models.PropertyBase])
@@ -197,28 +199,29 @@ def clean_empty_values(d: dict) -> dict:
 # === Additions endpoints ===
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#additions
 @router.post("/additions/")
-def create_additions(file: Optional[UploadFile] = File(None), db: Session = Depends(get_db)):
-    if not file:
+def create_additions(csv_file: Optional[UploadFile] = File(None), db: Session = Depends(get_db)):
+    if not csv_file:
         raise HTTPException(status_code=400, detail="CSV file is required.")
 
-    if file.content_type != "text/csv":
+    if csv_file.content_type != "text/csv":
         raise HTTPException(status_code=400, detail="Only CSV files are accepted.")
 
     try:
-        content = file.file.read().decode("utf-8")
+        content = csv_file.file.read().decode("utf-8")
         reader = csv.DictReader(io.StringIO(content))
         input_additions = [models.AdditionBase.model_validate(clean_empty_values(row)) for row in reader]
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error parsing CSV: {str(e)}")
 
-    created_additions = crud.create_additions(db=db, additions=input_additions)
-
-    return {
-        "status": "success",
-        "created": {
+    try:
+        created_additions = crud.create_additions(db=db, additions=input_additions)
+        return {
+            "status": "success",
             "additions": created_additions,
-        },
-    }
+        }
+    except Exception as e:
+        db.rollback()
+        return {"status": "failed", "error": str(e)}
 
 
 @router.get("/additions/", response_model=List[models.Addition])
@@ -248,6 +251,9 @@ def update_addition_v1(addition_id: int, addition_update: models.AdditionUpdate,
 
 @router.delete("/additions/{addition_id}", response_model=models.Addition)
 def delete_addition(addition_id: int, db: Session = Depends(get_db)):
+    dependent_batch_addition = crud.get_batch_addition_for_addition(db, addition_id)
+    if dependent_batch_addition is not None:
+        raise HTTPException(status_code=400, detail="Addition has dependent batches")
     return crud.delete_addition_by_id(db, addition_id=addition_id)
 
 
@@ -291,6 +297,14 @@ def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
 def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
     batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
     return batch.batch_additions
+
+
+@router.delete("/batches/{batch_id}", response_model=models.Batch)
+def delete_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
+    assay_results = crud.get_all_assay_results_for_batch(db, batch_id)
+    if assay_results:
+        raise HTTPException(status_code=400, detail="Batch has dependent assay results")
+    return crud.delete_batch(db, batch_id)
 
 
 # === Assay data endpoints ===
@@ -392,47 +406,42 @@ def create_assay_results(
 
 @router.patch("/admin/compound-matching-rule")
 def update_compound_matching_rule(
-    rule: enums.CompoundMatchingRule = Form(enums.CompoundMatchingRule.ALL_LAYERS),
-    db: Session = Depends(get_db)
+    rule: enums.CompoundMatchingRule = Form(enums.CompoundMatchingRule.ALL_LAYERS), db: Session = Depends(get_db)
 ):
     """
     Update the compound matching rule.
     """
     try:
-        old_value_query = db.execute(
-            text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'")
-        )
+        old_value_query = db.execute(text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'"))
         old_value = old_value_query.scalar()
-        
+
         if old_value == rule.value:
-            return {
-                "status": "success", 
-                "message": f"Compound matching rule is already set to {rule.value}"
-            }
-        
-        db.execute(text("UPDATE moltrack.settings SET value = :rule WHERE name = 'Compound Matching Rule'"), {"rule": rule.value})
+            return {"status": "success", "message": f"Compound matching rule is already set to {rule.value}"}
+
+        db.execute(
+            text("UPDATE moltrack.settings SET value = :rule WHERE name = 'Compound Matching Rule'"),
+            {"rule": rule.value},
+        )
         db.commit()
-        return {
-            "status": "success", 
-            "message": f"Compound matching rule updated from {old_value} to {rule.value}"
-        }
+        return {"status": "success", "message": f"Compound matching rule updated from {old_value} to {rule.value}"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
-    
+
 
 @router.patch("/admin/institution-id-pattern")
 def update_institution_id_pattern(
     scope: enums.ScopeClassReduced = Form(enums.ScopeClassReduced.BATCH),
-    pattern: str = Form(default="DG-{:05d}"), 
-    db: Session = Depends(get_db)
+    pattern: str = Form(default="DG-{:05d}"),
+    db: Session = Depends(get_db),
 ):
     """
     Update the pattern for generating corporate IDs for compounds or batches.
     """
-    
+
     EXPECTED_PATTERN = r"^.{0,10}\{\:0?[1-9]d\}.{0,10}$"
     import re
+
     if not pattern or not re.match(EXPECTED_PATTERN, pattern):
         raise HTTPException(
             status_code=400,
@@ -440,15 +449,16 @@ def update_institution_id_pattern(
                     The pattern must contain '{:d}'.
                     You can also use '{:0Nd}' for zero-padded numbers (numbers will be padded with zeros to N digits).,
                     Pattern can also have prefix and postfix, meant for identification of institution.
-                    Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc."""
+                    Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc.""",
         )
 
-    
     setting_name = "corporate_batch_id" if scope == "BATCH" else "corporate_compound_id"
 
     try:
-        db.execute(text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :setting"), 
-                        {"setting": setting_name, "pattern": pattern})
+        db.execute(
+            text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :setting"),
+            {"setting": setting_name, "pattern": pattern},
+        )
         db.commit()
         return {
             "status": "success",
@@ -457,7 +467,7 @@ def update_institution_id_pattern(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating corporate ID pattern: {str(e)}")
-    
+
 
 @router.patch("/admin/molregno-sequence-start")
 def set_molregno_sequence_start(start_value: int = Form(...), db: Session = Depends(get_db)):

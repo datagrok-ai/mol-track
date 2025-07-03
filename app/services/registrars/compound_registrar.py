@@ -20,7 +20,8 @@ class CompoundRegistrar(BaseRegistrar):
         super().__init__(db, mapping, error_handling)
         self.compound_records_map = self._load_reference_map(models.Compound, "hash_mol")
         self.compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
-        self.compounds_to_insert = []
+        self.compounds_to_insert: Dict[str, Dict[str, Any]] = {}
+
         self.output_records: List[Dict[str, Any]] = []
         self.matching_setting = self._load_matching_setting()
 
@@ -52,9 +53,17 @@ class CompoundRegistrar(BaseRegistrar):
         standarized_mol = chemistry_utils.standardize_mol(mol)
         mol_layers = chemistry_utils.generate_hash_layers(standarized_mol)
         hash_mol = GetMolHash(mol_layers, self.matching_setting)
+
         existing_compound = self.compound_records_map.get(hash_mol)
+        db = True
+
+        if existing_compound is None:
+            existing_compound = self.compounds_to_insert.get(hash_mol)
+            db = False
         # TODO: Implement proper uniqueness rules to ensure data integrity
         if existing_compound is not None:
+            if not db:
+                return existing_compound
             compound_dict = self.model_to_dict(existing_compound)
             compound_dict.pop("id", None)
             return compound_dict
@@ -118,7 +127,7 @@ class CompoundRegistrar(BaseRegistrar):
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
         global_idx = 0
         for batch in sql_utils.chunked(rows, batch_size):
-            self.compounds_to_insert = []
+            self.compounds_to_insert = {}
             details_to_insert, details_to_update = [], []
 
             for idx, row in enumerate(batch):
@@ -126,7 +135,7 @@ class CompoundRegistrar(BaseRegistrar):
                     grouped = self._group_data(row)
                     compound_data = grouped.get("compound", {})
                     compound = self._build_compound_record(compound_data)
-                    self.compounds_to_insert.append(compound)
+                    self.compounds_to_insert[compound["hash_mol"]] = compound
 
                     inserted, updated = self.property_service.build_details_records(
                         models.CompoundDetail,
@@ -147,7 +156,8 @@ class CompoundRegistrar(BaseRegistrar):
                 global_idx += 1
 
             extra_sql = self.get_additional_cte()
-            batch_sql = self.generate_sql(self.compounds_to_insert, details_to_insert, details_to_update, extra_sql)
+            all_compounds_list = list(self.compounds_to_insert.values())
+            batch_sql = self.generate_sql(all_compounds_list, details_to_insert, details_to_update, extra_sql)
             self.sql_statements.append(batch_sql)
 
     def generate_sql(self, compounds, details_to_insert, details_to_update, extra_sql) -> str:

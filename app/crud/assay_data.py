@@ -1,3 +1,4 @@
+from typing import List
 from sqlalchemy.orm import Session
 from app import models
 
@@ -76,9 +77,13 @@ def get_assay_results(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.AssayResult).offset(skip).limit(limit).all()
 
 
+def get_all_assay_results_for_batch(db: Session, batch_id: int) -> List[models.AssayResult]:
+    return db.query(models.AssayResult).filter(models.AssayResult.batch_id == batch_id).all()
+
+
 def get_batch_assay_results(db: Session, batch_id: int):
     """Get all assay results for a specific batch"""
-    results = db.query(models.AssayResult).filter(models.AssayResult.batch_id == batch_id).all()
+    results = get_all_assay_results_for_batch(db, batch_id)
 
     # Group results by assay_run_id
     grouped_results = {}

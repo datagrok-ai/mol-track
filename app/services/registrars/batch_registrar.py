@@ -35,6 +35,9 @@ class BatchRegistrar(CompoundRegistrar):
     def _build_batch_addition_record(self, batch_additions: Dict[str, Any], batch_regno: int) -> List[Dict[str, Any]]:
         records = []
         for name, value in batch_additions.items():
+            if value in ("", "none", None):
+                continue
+
             addition = self.additions_map.get(name)
             if addition is None:
                 raise HTTPException(status_code=400, detail=f"Unknown addition: {name}")
@@ -42,7 +45,7 @@ class BatchRegistrar(CompoundRegistrar):
                 {
                     "batch_regno": batch_regno,
                     "addition_id": getattr(addition, "id"),
-                    "addition_equivalent": float(value) if value not in (None, "") else 1,
+                    "addition_equivalent": float(value),
                     "created_by": main.admin_user_id,
                     "updated_by": main.admin_user_id,
                 }
@@ -120,7 +123,7 @@ class BatchRegistrar(CompoundRegistrar):
             **{f"batch_property_{k}": v for k, v in grouped.get("batch_details", {}).items()},
             **{f"batch_addition_{k}": v for k, v in grouped.get("batch_additions", {}).items()},
         }
-    
+
     def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
         grouped = super()._group_data(row, entity_name)
         value = self.property_service.institution_synonym_dict["batch_details"]

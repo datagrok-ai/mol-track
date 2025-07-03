@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from typing import List
+from typing import List, Optional
 from app.crud.properties import bulk_create_if_not_exists
 from app import models
 
@@ -51,6 +51,10 @@ def get_addition_by_id(db: Session, addition_id: int) -> models.Addition:
     return db_addition
 
 
+def get_batch_addition_for_addition(db: Session, addition_id: int) -> Optional[models.BatchAddition]:
+    return db.query(models.BatchAddition).filter(models.BatchAddition.addition_id == addition_id).first()
+
+
 def update_addition_by_id(db: Session, addition_id: int, addition_update: models.AdditionUpdate):
     db_addition = get_addition_by_id(db, addition_id=addition_id)
     update_data = addition_update.dict(exclude_unset=True)
@@ -66,8 +70,6 @@ def update_addition_by_id(db: Session, addition_id: int, addition_update: models
 
 def delete_addition_by_id(db: Session, addition_id: int):
     db_addition = get_addition_by_id(db, addition_id=addition_id)
-    db_addition.deleted_at = datetime.now()
-    db_addition.is_active = False
+    db.delete(db_addition)
     db.commit()
-    db.refresh(db_addition)
     return db_addition

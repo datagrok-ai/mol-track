@@ -45,7 +45,7 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 DATA_DIR = Path(__file__).parent.parent / "data"
 BLACK_DIR = DATA_DIR / "black"
 SIMPLE_DIR = DATA_DIR / "simple"
-EXCLUDE_TABLES = ["users", "semantic_types"]
+EXCLUDE_TABLES = ["users", "settings", "semantic_types", "properties"]
 SCHEMA_FILES = [
     "batches_schema.json",
     "compounds_schema.json",
@@ -114,6 +114,7 @@ def setup_test_db():
     schema_paths = [
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "schema.sql"),
         os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "schema_rdkit.sql"),  # new file
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "db", "setup.sql"),
     ]
 
     # Apply the schemas to the test database
@@ -209,7 +210,7 @@ def preload_schema(client):
 @pytest.fixture
 def preload_additions(client):
     file_path = DATA_DIR / "additions.csv"
-    files = {"file": (str(file_path), read_csv(file_path), "text/csv")}
+    files = {"csv_file": (str(file_path), read_csv(file_path), "text/csv")}
     client.post("/v1/additions/", files=files)
 
 

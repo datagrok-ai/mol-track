@@ -3,7 +3,6 @@ from fastapi import HTTPException
 from rdkit import Chem
 from sqlalchemy import text
 from sqlalchemy.orm import selectinload
-from datetime import datetime
 from app.crud.properties import enrich_properties
 from app import models
 
@@ -47,10 +46,13 @@ def delete_compound(db: Session, compound_id: int):
     db_compound = db.get(models.Compound, compound_id)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
-    db_compound.deleted_at = datetime.now()
 
+    db.query(models.CompoundDetail).filter(models.CompoundDetail.compound_id == compound_id).delete(
+        synchronize_session=False
+    )
+
+    db.delete(db_compound)
     db.commit()
-    db.refresh(db_compound)
     return db_compound
 
 
