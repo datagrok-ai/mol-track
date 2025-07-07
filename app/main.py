@@ -13,6 +13,7 @@ from app import models
 from app import crud
 from app.utils import enums
 from app.services.property_service import PropertyService
+from app.services.search.engine import SearchEngine
 
 from typing import Any
 from sqlalchemy.sql import text
@@ -491,6 +492,78 @@ def seq_start_update(start_value: int, seq_name, db: Session):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error setting {seq_name}: {str(e)}")
+
+
+# === Search endpoints ===
+#TODO: Maybe we should move this to a separate module?
+def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)):
+    """
+    Advanced multi-level search endpoint supporting compounds, batches, and assay_results.
+    """
+    try:
+        engine = SearchEngine(db)
+        return engine.search(request)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/search/compounds", response_model=models.SearchResponse) 
+def search_compounds_advanced(
+    output: List[str],
+    filter: Optional[models.Filter] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint for compound-level searches.
+    
+    Automatically sets level to 'compounds' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(
+        level="compounds",
+        output=output,
+        filter=filter
+    )
+    
+    return advanced_search(request, db)
+
+
+@app.post("/search/batches", response_model=models.SearchResponse)
+def search_batches_advanced(
+    output: List[str], 
+    filter: Optional[models.Filter] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint for batch-level searches.
+    
+    Automatically sets level to 'batches' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(
+        level="batches",
+        output=output,
+        filter=filter
+    )
+    
+    return advanced_search(request, db)
+
+
+@app.post("/search/assay-results", response_model=models.SearchResponse)
+def search_assay_results_advanced(
+    output: List[str],
+    filter: Optional[models.Filter] = None, 
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint for assay result-level searches.
+    
+    Automatically sets level to 'assay_results' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(
+        level="assay_results", 
+        output=output,
+        filter=filter
+    )
+    return advanced_search(request, db)
 
 
 # === Search endpoints ===

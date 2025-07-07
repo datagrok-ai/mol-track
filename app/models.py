@@ -9,6 +9,7 @@ from datetime import datetime
 import uuid
 from rdkit.Chem.RegistrationHash import GetMolHash
 from app.utils.logging_utils import logger
+from enum import Enum as PyEnum
 # import crud
 # # Handle both package imports and direct execution
 # try:
@@ -642,3 +643,119 @@ class AssayCreateBase(AssayBase):
 class UpdateCheckResult(NamedTuple):
     action: str
     update_data: Optional[Dict[str, Any]] = None
+
+
+# Advanced Search Models - New Recursive Structure
+class LogicOp(str, PyEnum):
+    """Logical operators for combining conditions"""
+    AND = "AND"
+    OR = "OR"
+
+
+class CompareOp(str, PyEnum):
+    """Comparison operators for atomic conditions"""
+    # String operators
+    EQUALS = "="
+    NOT_EQUALS = "!="
+    IN = "IN"
+    STARTS_WITH = "STARTS WITH"
+    ENDS_WITH = "ENDS WITH"
+    LIKE = "LIKE"
+    CONTAINS = "CONTAINS"
+    
+    # Numeric operators
+    LESS_THAN = "<"
+    GREATER_THAN = ">"
+    LESS_THAN_OR_EQUAL = "<="
+    GREATER_THAN_OR_EQUAL = ">="
+    RANGE = "RANGE"
+    
+    # Datetime operators
+    BEFORE = "BEFORE"
+    AFTER = "AFTER"
+    ON = "ON"
+    
+    # Molecular operators (RDKit)
+    IS_SIMILAR = "IS SIMILAR"
+    IS_CONTAINED = "IS CONTAINED"
+    CONTAINS_SUBSTRUCTURE = "CONTAINS"
+
+
+class AtomicCondition(SQLModel):
+    """Individual atomic search condition with field, operator, and value"""
+    field: str  # e.g., "compounds.canonical_smiles", "compounds.details.chembl"
+    operator: CompareOp
+    value: Any
+    threshold: Optional[float] = None  # For similarity searches (e.g., molecular similarity)
+
+    @field_validator("field")
+    def validate_field(cls, v):
+        # Basic field format validation
+        if not v or not isinstance(v, str):
+            raise ValueError("Field must be a non-empty string")
+        
+        # Check for valid field format (table.field or table.details.property)
+        parts = v.split(".")
+        if len(parts) < 2:
+            raise ValueError("Field must be in format 'table.field' or 'table.details.property'")
+        
+        valid_tables = ["compounds", "batches", "assay_results"]
+        if parts[0] not in valid_tables:
+            raise ValueError(f"Invalid table: {parts[0]}. Must be one of {valid_tables}")
+            
+        return v
+
+    @model_validator(mode="before")
+    def validate_threshold(cls, values):
+        # Validate threshold is provided for operators that require it
+        if isinstance(values, AtomicCondition):
+            operator = values.get("operator")
+            v = values.get("threshold")
+            if operator == CompareOp.IS_SIMILAR and v is None:
+                raise ValueError("IS SIMILAR operator requires a threshold value")
+            if operator != CompareOp.IS_SIMILAR and v is not None:
+                raise ValueError(f"Threshold not supported for operator: {operator}")
+        return values
+
+
+class LogicalNode(SQLModel):
+    """Logical node combining multiple filters with AND/OR operator"""
+    operator: LogicOp
+    conditions: List["Filter"]
+
+    @field_validator("conditions")
+    def validate_conditions(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError("LogicalNode must have at least one condition")
+        if len(v) == 1:
+            raise ValueError("LogicalNode with single condition is redundant, use AtomicCondition directly")
+        return v
+
+
+# Filter is a union type - can be either AtomicCondition or LogicalNode
+Filter = Union[AtomicCondition, LogicalNode]
+
+
+class SearchRequest(SQLModel):
+    """Main search request model with recursive filter structure"""
+    level: Literal["compounds", "batches", "assay_results"]
+    output: List[str]  # Columns to return
+    filter: Optional[Filter] = None
+
+    @field_validator("output")
+    def validate_output(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError("Output must specify at least one column")
+        return v
+
+
+class SearchResponse(SQLModel):
+    """Search response model"""
+    status: str
+    data: List[Dict[str, Any]]
+    total_count: int
+    level: str
+    columns: List[str]  
+
+# Update forward references for recursive types
+LogicalNode.model_rebuild()

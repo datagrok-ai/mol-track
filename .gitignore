@@ -8,4 +8,4 @@ mol_venv/
 launch.json
 .moltrack-env
 setup_db.sh
-.gitignore
+tests/__pycache__/
