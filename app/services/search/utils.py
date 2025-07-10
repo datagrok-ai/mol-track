@@ -49,13 +49,18 @@ class JoinOrderingTool:
 
         return joins
 
-    def getJoinSQL(self) -> str:
+    def getJoinSQL(self, reversed: bool = False) -> str:
         joins = []
-        joins.extend(list(self.joins_dict.get("compounds", set())))
-        joins.extend(list(self.joins_dict.get("batches", set())))
+        if not reversed:
+            joins.extend(list(self.joins_dict.get("compounds", set())))
+            joins.extend(list(self.joins_dict.get("batches", set())))
+            joins.extend(list(self.joins_dict.get("assay_results", set())))
+        else:
+            joins.extend(list(self.joins_dict.get("assay_results", set())))
+            joins.extend(list(self.joins_dict.get("batches", set())))
+            joins.extend(list(self.joins_dict.get("compounds", set())))
         joins.extend(list(self.joins_dict.get("compound_details", set())))
         joins.extend(list(self.joins_dict.get("batch_details", set())))
-        joins.extend(list(self.joins_dict.get("assay_results", set())))
         joins.extend(list(self.joins_dict.get("properties", set())))
 
         return " ".join(joins) if joins else ""

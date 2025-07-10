@@ -4,6 +4,7 @@ Search operators and their SQL translations
 
 from typing import Dict, Any, Tuple
 from enum import Enum
+from datetime import datetime
 
 
 class OperatorType(Enum):
@@ -127,6 +128,22 @@ class SearchOperators:
                 raise ValueError(f"Operator '{operator}' requires a list/tuple with exactly 2 values")
             if value[0] >= value[1]:
                 raise ValueError("RANGE operator requires first value to be less than second value")
+
+        if operator in ["ON", "BEFORE", "AFTER"]:
+
+            def check_date(date_str: str):
+                formats = ["%Y-%m-%d", "%Y-%m-%d %H:%M"]  # Supported formats: date-only and date-time
+                for fmt in formats:
+                    try:
+                        # Try to parse the date string using the YYYY-MM-DD format
+                        datetime.strptime(date_str, fmt)
+                        return True
+                    except ValueError:
+                        continue
+                return False
+
+            if not check_date(value):
+                raise ValueError("DATE value must be in format YYYY-MM-DD or YYYY-MM-DD hh:mm")
 
         return True
 

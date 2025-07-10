@@ -48,64 +48,39 @@ class QueryBuilder:
         group_by = output_info["group_by"]
 
         if group_by != [] and f"{table_config['alias']}" not in group_by:
-            group_by = [f"{table_config['alias']}.id"] + group_by
+            group_by = [f"{table_config['alias']}{table_config['alias']}.id"] + group_by
 
         group_by_sql = f"GROUP BY {' ,'.join(group_by)} " if group_by else " "
 
         # Build FROM clause with primary table
-        base_from_clause = f"{schema}.{table_config['table']} {table_config['alias']}"
-
-        # Collect all joins
-        filter_query_joins = JoinOrderingTool()
+        base_from_clause = f"{schema}.{table_config['table']} {table_config['alias']}{table_config['alias']}"
 
         query_params = {}
         filter_sql = ""
 
         # Build sub query from filters
         if request.filter:
-            sql_components = self.build_filter_sql_parts(request.filter, level, filter_query_joins)
+            sql_components = self.build_filter_sql_parts(request.filter, level)
 
             # Create query from the returned sql parts
-            if sql_components["where"] or sql_components["having"]:
-                from_clause = f"{schema}.{table_config['table']} {table_config['alias']}{table_config['alias']} "
-                where_clause = f"WHERE {sql_components['where']}"
-                having_clause = f"HAVING {sql_components['having']}" if sql_components["having"] else ""
-
-                group_by_clause = f"GROUP BY {table_config['alias']}.id" if sql_components["having"] else ""
-
+            if sql_components["sql"]:
+                filter_sql = f"WHERE {sql_components['sql']}"
                 query_params.update(sql_components["params"])
-                filter_joins = filter_query_joins.getJoinSQL()
-                filter_sql = (
-                    "WHERE EXISTS ("
-                    f"SELECT {table_config['alias']}.id "
-                    f"FROM {from_clause} "
-                    f"{filter_joins} "
-                    f"{where_clause} "
-                    "{connect} "
-                    f"{group_by_clause} "
-                    f"{having_clause}) "
-                )
-                # The inner query needs to have a different alias compared to the outter query
-                filter_sql = filter_sql.replace(
-                    f"{table_config['alias']}.", f"{table_config['alias']}{table_config['alias']}."
-                )
-                # This condition connects inner and outer table
-                connect = f"{table_config['alias']}{table_config['alias']}.id={table_config['alias']}.id"
-                connect = f" AND {connect}" if sql_components["where"] else f" {connect}"
-                filter_sql = filter_sql.format(connect=connect)
 
         # Convert joins to list and remove duplicates
         base_joins = base_query_joins.getJoinSQL()
+        # The main query needs to have a different alias compared to the subqueries
+        base_joins = base_joins.replace(f"{table_config['alias']}.", f"{table_config['alias']}{table_config['alias']}.")
 
         # Build main query
-        complete_sql = f"""
-        SELECT {base_select_clause}
-        FROM {base_from_clause}
-        {base_joins}
-        {filter_sql}
-        {group_by_sql}
-        ORDER BY {table_config["alias"]}.id
-        """
+        complete_sql = (
+            f"SELECT {base_select_clause} "
+            f"FROM {base_from_clause} "
+            f"{base_joins} "
+            f"{filter_sql} "
+            f"{group_by_sql} "
+            f"ORDER BY {table_config['alias']}{table_config['alias']}.id "
+        )
 
         return {"sql": complete_sql.strip(), "params": query_params}
 
@@ -151,77 +126,65 @@ class QueryBuilder:
 
         return {"select_clause": ", ".join(select_fields), "conditions": combined_sql, "group_by": group_by}
 
-    def build_filter_sql_parts(
-        self, filter_obj: models.Filter, level: str, all_joins: JoinOrderingTool
-    ) -> Dict[str, Any]:
+    def build_filter_sql_parts(self, filter_obj: models.Filter, level: str) -> Dict[str, Any]:
         """
-        Builds SQL parts for nested filters recursively
+        Builds SQL WHERE clause from filter
 
         Returns:
-            Dict with: {'where': str, 'having': str, 'params': Dict[str, Any]}
+            Dict with: {'sql': str, 'params': Dict[str, Any]}
         """
         if isinstance(filter_obj, models.AtomicCondition):
             # Handle single atomic condition
-            cond_info = self.build_condition(filter_obj, level, all_joins)
+            cond_info = self.build_condition(filter_obj, level)
             return {
-                "where": cond_info["where"] if cond_info["where"] else "",
-                "having": cond_info["having"] if cond_info["having"] else "",
+                "sql": cond_info["sql"],
                 "params": cond_info["params"],
             }
 
         elif isinstance(filter_obj, models.LogicalNode):
             # Handle logical node with multiple conditions
-            where = []
-            having = []
+            conditions = []
             all_params = {}
 
             for condition in filter_obj.conditions:
                 if isinstance(condition, models.AtomicCondition):
-                    cond_info = self.build_condition(condition, level, all_joins)
+                    cond_info = self.build_condition(condition, level)
                     # Rename parameters to avoid conflicts
-                    replaced_params = cond_info["where"] if cond_info["where"] else cond_info["having"]
+                    renamed_sql = cond_info["sql"]
                     renamed_params = {}
                     for old_name, value in cond_info["params"].items():
                         new_name = f"{old_name}_{self.parameter_counter}"
-                        replaced_params = replaced_params.replace(f":{old_name}", f":{new_name}")
+                        renamed_sql = renamed_sql.replace(f":{old_name}", f":{new_name}")
                         renamed_params[new_name] = value
 
-                    if cond_info["where"]:
-                        where.append(replaced_params)
-                    else:
-                        having.append(replaced_params)
-
+                    conditions.append(renamed_sql)
                     all_params.update(renamed_params)
                     self.parameter_counter += 1
 
                 elif isinstance(condition, models.LogicalNode):
                     # Recursive filter handling
-                    nested_info = self.build_filter_sql_parts(condition, level, all_joins)
-                    if nested_info["where"]:
-                        where.append(f"({nested_info['where']})")
-                    if nested_info["having"]:
-                        having.append(f"({nested_info['having']})")
+                    nested_info = self.build_filter_sql_parts(condition, level)
+
+                    conditions.append(f"({nested_info['sql']})")
                     all_params.update(nested_info["params"])
 
             # Combine conditions with operator
             operator = f" {filter_obj.operator.value} "
-            combined_where = operator.join(where)
-            combined_having = operator.join(having)
+            combined_conditions = operator.join(conditions)
 
-            return {"where": combined_where, "having": combined_having, "params": all_params}
+            return {"sql": combined_conditions, "params": all_params}
 
-    def build_condition(
-        self, condition: models.AtomicCondition, level: str, all_joins: JoinOrderingTool
-    ) -> Dict[str, Any]:
+    def build_condition(self, condition: models.AtomicCondition, level: str) -> Dict[str, Any]:
         """
         Builds SQL parts for a single condition
 
         Returns:
-            Dict with: {'where': str, 'having': str, 'params': Dict[str, Any]}
+            Dict with: {'sql': str, 'params': Dict[str, Any]}
         """
         try:
+            joins = JoinOrderingTool()
             # Resolve field to SQL components
-            field_info = self.field_resolver.resolve_field(condition.field, level, all_joins)
+            field_info = self.field_resolver.resolve_field(condition.field, level, joins, True)
 
             # Validate operator and value
             self.operators.validate_operator_value(condition.operator, condition.value, condition.threshold)
@@ -250,13 +213,26 @@ class QueryBuilder:
             condition.operator, field_sql, condition.value, condition.threshold
         )
 
-        return {"where": sql_expr, "having": [], "params": params}
+        sql = sql_expr
+        if field_info["subquery"]["sql"] != "":
+            if field_info["search_level"]["alias"] != field_info["subquery"]["alias"]:
+                key = field_info["search_level"]["foreign_key"]
+            else:
+                key = "id"
+            sql = (
+                f"EXISTS ( "
+                f"{field_info['subquery']['sql']} "
+                f"WHERE {field_info['subquery']['alias']}.{key}={field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
+                f"AND {sql_expr})  "
+            )
+
+        return {"sql": sql, "params": params}
 
     def _build_dynamic_condition(self, field_info: Dict[str, Any], condition: models.AtomicCondition) -> Dict[str, Any]:
         """Build condition for dynamic property access"""
         # For dynamic properties, we need to filter by property name AND value
         # Handle numeric operators specially to avoid type mismatches
-        value_column = field_info["sql_expression"]
+        value_column = field_info["sql_field"]
         if condition.operator in ["<", ">", "<=", ">=", "RANGE"]:
             # Cast the value column to numeric for comparison
             value_column = f"CAST({value_column} AS NUMERIC)"
@@ -265,6 +241,16 @@ class QueryBuilder:
             condition.operator, value_column, condition.value, condition.threshold
         )
 
-        having = f"{value_sql_expr} "
+        if field_info["search_level"]["alias"] != field_info["subquery"]["alias"]:
+            key = field_info["search_level"]["foreign_key"]
+        else:
+            key = "id"
 
-        return {"where": [], "having": having, "params": value_params}
+        where = (
+            f"EXISTS ( "
+            f"{field_info['subquery']['sql']} "
+            f"WHERE {field_info['subquery']['alias']}.{key}={field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
+            f"AND {field_info['property_filter']}"
+            f"AND {value_sql_expr})  "
+        )
+        return {"sql": where, "params": value_params}

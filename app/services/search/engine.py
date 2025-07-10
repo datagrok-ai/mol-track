@@ -40,8 +40,6 @@ class SearchEngine:
             # Build the SQL query
             query_info = self.query_builder.build_query(request)
 
-            print(f"\n\n\n\n\n\n\n\n\n\nSQL:    {query_info['sql']}\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
-
             # Execute main query
             results = self._execute_main_query(query_info["sql"], query_info["params"])
 

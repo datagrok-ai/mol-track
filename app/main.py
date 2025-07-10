@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import csv
 import io
-from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile, Query
+from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
@@ -393,47 +393,42 @@ def create_assay_results(
 
 @router.patch("/admin/compound-matching-rule")
 def update_compound_matching_rule(
-    rule: enums.CompoundMatchingRule = Form(enums.CompoundMatchingRule.ALL_LAYERS),
-    db: Session = Depends(get_db)
+    rule: enums.CompoundMatchingRule = Form(enums.CompoundMatchingRule.ALL_LAYERS), db: Session = Depends(get_db)
 ):
     """
     Update the compound matching rule.
     """
     try:
-        old_value_query = db.execute(
-            text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'")
-        )
+        old_value_query = db.execute(text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'"))
         old_value = old_value_query.scalar()
-        
+
         if old_value == rule.value:
-            return {
-                "status": "success", 
-                "message": f"Compound matching rule is already set to {rule.value}"
-            }
-        
-        db.execute(text("UPDATE moltrack.settings SET value = :rule WHERE name = 'Compound Matching Rule'"), {"rule": rule.value})
+            return {"status": "success", "message": f"Compound matching rule is already set to {rule.value}"}
+
+        db.execute(
+            text("UPDATE moltrack.settings SET value = :rule WHERE name = 'Compound Matching Rule'"),
+            {"rule": rule.value},
+        )
         db.commit()
-        return {
-            "status": "success", 
-            "message": f"Compound matching rule updated from {old_value} to {rule.value}"
-        }
+        return {"status": "success", "message": f"Compound matching rule updated from {old_value} to {rule.value}"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
-    
+
 
 @router.patch("/admin/institution-id-pattern")
 def update_institution_id_pattern(
     scope: enums.ScopeClassReduced = Form(enums.ScopeClassReduced.BATCH),
-    pattern: str = Form(default="DG-{:05d}"), 
-    db: Session = Depends(get_db)
+    pattern: str = Form(default="DG-{:05d}"),
+    db: Session = Depends(get_db),
 ):
     """
     Update the pattern for generating corporate IDs for compounds or batches.
     """
-    
+
     EXPECTED_PATTERN = r"^.{0,10}\{\:0?[1-9]d\}.{0,10}$"
     import re
+
     if not pattern or not re.match(EXPECTED_PATTERN, pattern):
         raise HTTPException(
             status_code=400,
@@ -441,15 +436,16 @@ def update_institution_id_pattern(
                     The pattern must contain '{:d}'.
                     You can also use '{:0Nd}' for zero-padded numbers (numbers will be padded with zeros to N digits).,
                     Pattern can also have prefix and postfix, meant for identification of institution.
-                    Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc."""
+                    Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc.""",
         )
 
-    
     setting_name = "corporate_batch_id" if scope == "BATCH" else "corporate_compound_id"
 
     try:
-        db.execute(text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :setting"), 
-                        {"setting": setting_name, "pattern": pattern})
+        db.execute(
+            text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :setting"),
+            {"setting": setting_name, "pattern": pattern},
+        )
         db.commit()
         return {
             "status": "success",
@@ -458,7 +454,7 @@ def update_institution_id_pattern(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating corporate ID pattern: {str(e)}")
-    
+
 
 @router.patch("/admin/molregno-sequence-start")
 def set_molregno_sequence_start(start_value: int = Form(...), db: Session = Depends(get_db)):
@@ -495,7 +491,7 @@ def seq_start_update(start_value: int, seq_name, db: Session):
 
 
 # === Search endpoints ===
-#TODO: Maybe we should move this to a separate module?
+# TODO: Maybe we should move this to a separate module?
 def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)):
     """
     Advanced multi-level search endpoint supporting compounds, batches, and assay_results.
@@ -507,62 +503,40 @@ def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/search/compounds", response_model=models.SearchResponse) 
-def search_compounds_advanced(
-    output: List[str],
-    filter: Optional[models.Filter] = None,
-    db: Session = Depends(get_db)
-):
+@app.post("/search/compounds", response_model=models.SearchResponse)
+def search_compounds_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
     """
     Endpoint for compound-level searches.
-    
+
     Automatically sets level to 'compounds' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(
-        level="compounds",
-        output=output,
-        filter=filter
-    )
-    
+    request = models.SearchRequest(level="compounds", output=output, filter=filter)
+
     return advanced_search(request, db)
 
 
 @app.post("/search/batches", response_model=models.SearchResponse)
-def search_batches_advanced(
-    output: List[str], 
-    filter: Optional[models.Filter] = None,
-    db: Session = Depends(get_db)
-):
+def search_batches_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
     """
     Endpoint for batch-level searches.
-    
+
     Automatically sets level to 'batches' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(
-        level="batches",
-        output=output,
-        filter=filter
-    )
-    
+    request = models.SearchRequest(level="batches", output=output, filter=filter)
+
     return advanced_search(request, db)
 
 
 @app.post("/search/assay-results", response_model=models.SearchResponse)
 def search_assay_results_advanced(
-    output: List[str],
-    filter: Optional[models.Filter] = None, 
-    db: Session = Depends(get_db)
+    output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)
 ):
     """
     Endpoint for assay result-level searches.
-    
+
     Automatically sets level to 'assay_results' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(
-        level="assay_results", 
-        output=output,
-        filter=filter
-    )
+    request = models.SearchRequest(level="assay_results", output=output, filter=filter)
     return advanced_search(request, db)
 
 
