@@ -1,4 +1,4 @@
-corporate_batch_id,Chemical,CAS #,Species,Concentration (µM),Reported CLint (µL/min/ 106 cells),Mean HTC recovery (%; n=2),SD HTC recovery (%; n=2),Cell Lot,Cell conc. (106/mL),assay_date,assayer,assay_name
+epa_batch_id,Chemical,CAS #,Species,Concentration (µM),Reported CLint (µL/min/ 106 cells),Mean HTC recovery (%; n=2),SD HTC recovery (%; n=2),Cell Lot,Cell conc. (106/mL),assay_date,assayer,assay_name
 EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Human,0.1,none,59.51,84.16,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Human,1.0,none,69.57,1.97,H2,0.50,2/2/2024,Jane Doe,Hepatocyte Stability
 EPA-001-001,"1,3-Benzenedicarboxylic acid ",121-91-5,Rat,1.0,1.44,86.48,2.70,R2,0.50,2/9/2024,Ricky Rodent,Hepatocyte Stability
