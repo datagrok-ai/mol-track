@@ -679,8 +679,8 @@ class CompareOp(str, PyEnum):
 
     # Molecular operators (RDKit)
     IS_SIMILAR = "IS SIMILAR"
-    IS_CONTAINED = "IS CONTAINED"
-    CONTAINS_SUBSTRUCTURE = "CONTAINS"
+    IS_SUBSTRUCTURE_OF = "IS SUBSTRUCTURE OF"
+    HAS_SUBSTRUCTURE = "HAS SUBSTRUCTURE"
 
 
 class AtomicCondition(SQLModel):

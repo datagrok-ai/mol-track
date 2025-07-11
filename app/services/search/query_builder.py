@@ -188,6 +188,7 @@ class QueryBuilder:
 
             # Validate operator and value
             self.operators.validate_operator_value(condition.operator, condition.value, condition.threshold)
+            self.operators.validate_operands(condition.operator, condition.field)
 
             # Handle dynamic properties with property name filtering
             if field_info["is_dynamic"]:
@@ -204,11 +205,6 @@ class QueryBuilder:
         """Build condition for direct field access"""
         field_sql = field_info["sql_expression"]
 
-        # Handle molecular searches (special case for structure field)
-        if condition.field.endswith(".structure") and condition.operator in ["IS SIMILAR", "CONTAINS", "IS CONTAINED"]:
-            return self._build_molecular_condition(field_sql, condition)
-
-        # Standard condition building
         sql_expr, params = self.operators.get_sql_expression(
             condition.operator, field_sql, condition.value, condition.threshold
         )

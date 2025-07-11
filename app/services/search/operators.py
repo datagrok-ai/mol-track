@@ -54,7 +54,7 @@ class SearchOperators:
             "value_transform": lambda x: f"%{x}",
         },
         "IN": {
-            "sql": "IN :param",
+            "sql": "{field} IN {params}",
             "type": OperatorType.STRING,
             "params": 1,
             "description": "Match any value in list",
@@ -66,7 +66,7 @@ class SearchOperators:
         "<=": {"sql": "<= :param", "type": OperatorType.NUMERIC, "params": 1, "description": "Less than or equal"},
         ">=": {"sql": ">= :param", "type": OperatorType.NUMERIC, "params": 1, "description": "Greater than or equal"},
         "RANGE": {
-            "sql": "BETWEEN :param1 AND :param2",
+            "sql": "{field} BETWEEN :param1 AND :param2",
             "type": OperatorType.NUMERIC,
             "params": 2,
             "description": "Between two values (inclusive)",
@@ -76,31 +76,31 @@ class SearchOperators:
         "BEFORE": {"sql": "< :param", "type": OperatorType.DATETIME, "params": 1, "description": "Before date/time"},
         "AFTER": {"sql": "> :param", "type": OperatorType.DATETIME, "params": 1, "description": "After date/time"},
         "ON": {
-            "sql": "DATE(:param) = DATE(:param)",
+            "sql": "DATE({field}) = DATE(:param)",
             "type": OperatorType.DATETIME,
             "params": 1,
             "description": "On specific date",
         },
-        # # Molecular operators (RDKit)
-        # "IS SIMILAR": {
-        #     "sql": "mol_from_smiles(:param) %% mol_from_smiles(:param)",
-        #     "type": OperatorType.MOLECULAR,
-        #     "params": 1,
-        #     "description": "Molecular similarity using RDKit",
-        #     "requires_threshold": True,
-        # },
-        # "CONTAINS": {
-        #     "sql": "mol_from_smiles(:param) @> mol_from_smiles(:param)",
-        #     "type": OperatorType.MOLECULAR,
-        #     "params": 1,
-        #     "description": "Molecular substructure search",
-        # },
-        # "IS CONTAINED": {
-        #     "sql": "mol_from_smiles(:param) <@ mol_from_smiles(:param)",
-        #     "type": OperatorType.MOLECULAR,
-        #     "params": 1,
-        #     "description": "Molecular superstructure search",
-        # },
+        # Molecular operators (RDKit)
+        "IS SIMILAR": {
+            "sql": "public.tanimoto_sml(public.morganbv_fp(public.mol_from_smiles({field}::cstring)), public.morganbv_fp(public.mol_from_smiles(:param2))) >= :param3",
+            "type": OperatorType.MOLECULAR,
+            "params": 1,
+            "description": "Molecular similarity using RDKit",
+            "requires_threshold": True,
+        },
+        "HAS SUBSTRUCTURE": {
+            "sql": "public.mol_from_smiles({field}::cstring) OPERATOR(public.@>) public.mol_from_smiles(:param)",
+            "type": OperatorType.MOLECULAR,
+            "params": 1,
+            "description": "Molecular substructure search",
+        },
+        "IS SUBSTRUCTURE OF": {
+            "sql": "public.mol_from_smiles(:param) OPERATOR(public.@>) public.mol_from_smiles({field}::cstring)",
+            "type": OperatorType.MOLECULAR,
+            "params": 1,
+            "description": "Molecular superstructure search",
+        },
     }
 
     @classmethod
@@ -148,6 +148,13 @@ class SearchOperators:
         return True
 
     @classmethod
+    def validate_operands(cls, operator: str, field: str):
+        """Validate that operand is appropriate for operation"""
+        if operator in ["IS SIMILAR", "SUBSTRUCTURE", "IS CONTAINED"]:
+            if not field.endswith(".structure"):
+                raise ValueError("Molecular operators can only be applied to compounds.structure")
+
+    @classmethod
     def get_sql_expression(
         cls, operator: str, field: str, value: Any, threshold: float = None
     ) -> Tuple[str, Dict[str, Any]]:
@@ -157,32 +164,35 @@ class SearchOperators:
         Returns:
             Tuple of (sql_expression, parameters_dict)
         """
-        # TODO: Make it use the dict defined at the top.....
         op_def = cls.get_operator(operator)
 
         # Transform value if needed
         if "value_transform" in op_def:
             value = op_def["value_transform"](value)
 
-        # Handle molecular similarity with threshold
-        if operator == "IS SIMILAR" and threshold is not None:
-            sql_expr = f"mol_from_smiles({field}) %% mol_from_smiles(:param1) AND tanimoto_sml(mol_from_smiles({field}), mol_from_smiles(:param2)) >= :param3"
-            return sql_expr, {"param1": value, "param2": value, "param3": threshold}
-
         # Handle special cases
         if operator == "ON":
-            sql_expr = f"DATE({field}) = DATE(:param)"
+            sql_expr = op_def["sql"].format(field=field)
             return sql_expr, {"param": value}
         elif operator == "IN":
             # For IN clauses, we need to create multiple parameters
             param_names = [f"param{i + 1}" for i in range(len(value))]
             placeholders = "(" + ",".join([f":{name}" for name in param_names]) + ")"
-            sql_expr = f"{field} IN {placeholders}"
+            sql_expr = op_def["sql"].format(field=field, params=placeholders)
             params = {name: val for name, val in zip(param_names, value)}
             return sql_expr, params
         elif operator == "RANGE":
-            sql_expr = f"{field} BETWEEN :param1 AND :param2"
+            sql_expr = op_def["sql"].format(field=field)
             return sql_expr, {"param1": value[0], "param2": value[1]}
+        elif operator == "IS SIMILAR" and threshold is not None:
+            sql_expr = op_def["sql"].format(field=field)
+            return sql_expr, {"param1": value, "param2": value, "param3": threshold}
+        elif operator == "IS SUBSTRUCTURE OF":
+            sql_expr = op_def["sql"].format(field=field)
+            return sql_expr, {"param": value}
+        elif operator == "HAS SUBSTRUCTURE":
+            sql_expr = op_def["sql"].format(field=field)
+            return sql_expr, {"param": value}
         else:
             # Standard operator
             sql_expr = f"{field} {op_def['sql']}"
