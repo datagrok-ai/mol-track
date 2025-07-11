@@ -1,0 +1,6 @@
+{
+   "smiles": "smiles",
+   "chembl": "compounds_synonyms.ChEMBL ID",
+   "xyz_id": "compounds_synonyms.xyz_id",
+   "MolLogP": "compound_details.MolLogP"
+}

@@ -6,13 +6,6 @@
             "property_class": "calculated",
             "value_type": "double",
             "unit": ""
-        },
-        {
-            "name": "project",
-            "scope": "compound",
-            "property_class": "declared",
-            "value_type": "string",
-            "unit": ""
         }
     ],
     "synonym_types": [

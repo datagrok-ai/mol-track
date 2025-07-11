@@ -1,0 +1,10 @@
+{
+   "Experiment ID": "assay_run_details.Experiment ID",
+   "Assay Date": "assay_run_details.Assay Run Date",
+   "Assay Name": "assay.name",
+   "Protein Batch": "assay_run_details.Protein Batch",
+   "Protocol ID": "assay_run_details.Protocol ID",
+   "Target": "assay_run_details.Target",
+   "Therapeutic Area": "assay_run_details.Therapeutic Area",
+   "Cell Line": "assay_run_details.Cell Line"
+}

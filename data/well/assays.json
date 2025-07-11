@@ -1,0 +1,34 @@
+[
+    {
+        "name": "A1",
+	    "assay format": "in-vitro",
+        "assay type": "Biochemical",
+        "assay_result_properties": [
+            {"name": "Avg High Control Measurement", "required": true},
+            {"name": "Avg Low Control Measurement", "required": true},
+            {"name": "Concentration", "required": true},
+            {"name": "Percent Inhibition", "required": true},
+            {"name": "Percent of Control", "required": true},
+            {"name": "Plate Barcode", "required": true},
+            {"name": "Raw Measurement", "required": true},
+            {"name": "StdDev High Control Measurement", "required": true},
+            {"name": "StdDev Low Control Measurement", "required": true}
+        ]
+    },
+    {
+        "name": "A2",
+        "assay format": "in cellulo",
+	    "assay type": "Cell-based",
+        "assay_result_properties": [
+            {"name": "Avg High Control Measurement", "required": true},
+            {"name": "Avg Low Control Measurement", "required": true},
+            {"name": "Concentration", "required": true},
+            {"name": "Percent Inhibition", "required": true},
+            {"name": "Percent of Control", "required": true},
+            {"name": "Plate Barcode", "required": true},
+            {"name": "Raw Measurement", "required": true},
+            {"name": "StdDev High Control Measurement", "required": true},
+            {"name": "StdDev Low Control Measurement", "required": true}
+        ]
+    }
+]

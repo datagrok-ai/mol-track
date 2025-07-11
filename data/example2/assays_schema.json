@@ -1,0 +1,17 @@
+{
+    "properties": [
+       {
+          "name": "assay type",
+          "scope": "assay",
+          "property_class": "declared",
+          "value_type": "string"
+       },
+       {
+          "name": "assay format",
+          "scope": "assay",
+          "property_class": "declared",
+          "value_type": "string"
+       }
+	
+    ]
+} 
