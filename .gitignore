@@ -7,5 +7,3 @@ __pycache__/
 mol_venv/
 launch.json
 .moltrack-env
-setup_db.sh
-tests/__pycache__/
