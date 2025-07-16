@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal
+from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal, Tuple
 from pydantic import field_validator, model_validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
@@ -766,3 +766,6 @@ class SearchResponse(SQLModel):
 
 # Update forward references for recursive types
 LogicalNode.model_rebuild()
+
+
+Token = Tuple[str, Union[str, float, bool, None]]

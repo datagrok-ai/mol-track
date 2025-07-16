@@ -47,7 +47,7 @@ class QueryBuilder:
         base_select_clause = output_info["select_clause"]
         group_by = output_info["group_by"]
 
-        if group_by != [] and f"{table_config['alias']}" not in group_by:
+        if group_by != [] and f"{table_config['table']}.id" not in request.output:
             group_by = [f"{table_config['alias']}{table_config['alias']}.id"] + group_by
 
         group_by_sql = f"GROUP BY {' ,'.join(group_by)} " if group_by else " "
@@ -70,7 +70,9 @@ class QueryBuilder:
         # Convert joins to list and remove duplicates
         base_joins = base_query_joins.getJoinSQL()
         # The main query needs to have a different alias compared to the subqueries
-        base_joins = base_joins.replace(f"{table_config['alias']}.", f"{table_config['alias']}{table_config['alias']}.")
+        base_joins = base_joins.replace(
+            f" {table_config['alias']}.", f" {table_config['alias']}{table_config['alias']}."
+        )
 
         # Build main query
         complete_sql = (

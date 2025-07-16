@@ -315,6 +315,10 @@ class FieldResolver:
             f"{details_parts}"
             f"END"
         )
+
+        if not subquery and is_assay_results:
+            sql_expression = sql_expression.replace(f" {alias}.", f" {alias}{alias}.")
+
         sql_agg_expression = f"MAX({sql_expression}) FILTER (WHERE {property_alias}.name = '{property_name}')"
 
         return {
