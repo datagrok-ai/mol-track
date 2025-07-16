@@ -7,8 +7,6 @@ from app.utils import enums
 import os
 from datetime import datetime
 import uuid
-from rdkit.Chem.RegistrationHash import GetMolHash
-from app.utils.logging_utils import logger
 from enum import Enum as PyEnum
 # import crud
 # # Handle both package imports and direct execution
@@ -555,60 +553,6 @@ class SchemaBatchResponse(SQLModel):
     properties: Optional[List["PropertyBase"]] = Field(default_factory=list)
     synonym_types: Optional[List["SynonymTypeBase"]] = Field(default_factory=list)
     additions: List["AdditionBase"] = Field(default_factory=list)
-
-
-class ExactSearchModel(SQLModel):
-    query_smiles: str  # SMILES string for the molecule
-    standardization_steps: Optional[List[str]] = None
-    # hash_mol: Optional[str] = None
-
-    # Optional standardization steps
-    hash_mol: Optional[str] = None  # UUID hash generated from the standardized SMILES
-
-    @field_validator("hash_mol", mode="before")
-    def validate_or_generate_hash(cls, v, values):
-        """
-        Validate or generate a UUID hash from the standardized SMILES.
-        """
-        from app import crud
-
-        query_smiles = values.data.get("query_smiles")
-        layers = crud.get_standardized_mol_and_layers(query_smiles)
-
-        # Generate the hash if not provided - this is a placeholder
-        # this would be GetMolHash
-        if v is None:
-            logger.debug(GetMolHash(layers))
-            return GetMolHash(layers)
-        return v
-
-
-class SearchCompoundStructure(SQLModel):
-    search_type: Literal["substructure", "tautomer", "stereo", "similarity", "connectivity"]  # Type of structure search
-    query_smiles: str  # SMILES string for the structure search
-    search_parameters: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Additional parameters for the search (e.g., similarity threshold, tautomer options)",
-    )
-
-
-class QueryCondition(SQLModel):
-    table: Literal["batch", "compounds", "assays"]  # Specify the tables to query
-    field: Literal["hash_tautomer", "hash_no_stereo_smiles"]  # Field/column to filter on
-    operator: Literal["=", "!=", ">", "<", ">=", "<=", "LIKE", "IN"]  # expand for supported by rdkit cartridge like @>?
-    value: Optional[Any] = None  #
-    query_smiles: Optional[str] = None
-    columns: Optional[list[str]] = None  # List of columns to return for table
-
-
-class ComplexQueryRequest(SQLModel):
-    conditions: list[QueryCondition]
-    logic: Literal["AND", "OR"] = "AND"
-
-
-class ExactSearchParameters(SQLModel):
-    field: str
-    value: Optional[str] = None
 
 
 class AssayTypeCreateBase(SQLModel):
