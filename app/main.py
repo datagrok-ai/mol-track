@@ -13,16 +13,11 @@ from app import models
 from app import crud
 from app.utils import enums
 from app.services.property_service import PropertyService
+from app.services.search.engine import SearchEngine
+from app.services.search.search_filter_builder import SearchFilterBuilder
 
-from typing import Any
 from sqlalchemy.sql import text
-from rdkit import Chem
 
-from app.utils.chemistry_utils import (
-    calculate_no_stereo_smiles_hash,
-    calculate_tautomer_hash,
-    standardize_mol,
-)
 from app.utils.logging_utils import logger
 
 
@@ -504,131 +499,64 @@ def seq_start_update(start_value: int, seq_name, db: Session):
 
 
 # === Search endpoints ===
-# https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#search---wip
-@router.post("/search/compounds/exact", response_model=list[models.Compound])
-def search_compounds_exact(request: models.ExactSearchModel, db: Session = Depends(get_db)):
+# TODO: Maybe we should move this to a separate module?
+def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)):
     """
-    Endpoint for exact compound search.
-    """
-    try:
-        # Validate and generate hash_mol using the Pydantic model
-        exact_params = models.ExactSearchModel(**request.model_dump())
-
-        # Use the generated hash_mol to query the database
-        return crud.get_compound_by_hash(db=db, hash_mol=exact_params.hash_mol)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-# Less precise search
-@router.post("/search/compounds/structure", response_model=list[models.Compound])
-def search_compound_structure(request: models.SearchCompoundStructure, db: Session = Depends(get_db)):
-    """
-    Perform a dynamic structure-based search for compounds.
-
-    - **search_type**: Type of structure search (e.g., "substructure", "tautomer", "stereo", "similarity", "connectivity").
-    - **query_smiles**: SMILES string for the structure search.
-    - **search_parameters**: Additional parameters for the search.
+    Advanced multi-level search endpoint supporting compounds, batches, and assay_results.
     """
     try:
-        query_smiles = request.query_smiles
-
-        search_functions = {
-            "substructure": crud.search_compounds_substructure,
-            "tautomer": crud.search_compounds_tautomer,
-            "stereo": crud.search_compounds_stereo,
-            "connectivity": crud.search_compounds_connectivity,
-            "similarity": crud.search_compounds_similarity,
-        }
-
-        search_func = search_functions.get(request.search_type)
-        if not search_func:
-            raise HTTPException(status_code=400, detail="Invalid search type")
-
-        return search_func(db=db, query_smiles=query_smiles, search_parameters=request.search_parameters)
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.post("/search/complex", response_model=list[dict[str, Any]])
-def search_complex_query(request: models.ComplexQueryRequest, db: Session = Depends(get_db)):
-    """
-    Perform a complex query across multiple tables (e.g., compounds, batch, assays).
-    """
-    try:
-        # Validate and build the query
-        query_parts = []
-        query_params = {}  # Dictionary to hold query parameters
-        selected_columns = {}  # Dictionary to track selected columns for each table
-
-        for idx, condition in enumerate(request.conditions):
-            table = condition.table
-            field = condition.field
-            operator = condition.operator
-            value = condition.value
-            if table not in ["compounds", "batch", "assays"]:
-                raise HTTPException(status_code=400, detail=f"Invalid table name: {table}")
-
-            # Handle SMILES-based queries substructure, tautomer, similarity etc
-            if condition.query_smiles:
-                mol = Chem.MolFromSmiles(condition.query_smiles)
-                if mol is None:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Invalid SMILES string: {condition.query_smiles}",
-                    )
-                standardized_mol = standardize_mol(mol)
-
-                # Calculate the appropriate hash based on the field
-                if field == "hash_tautomer":
-                    value = calculate_tautomer_hash(standardized_mol)
-                elif field == "hash_no_stereo_smiles":
-                    value = calculate_no_stereo_smiles_hash(standardized_mol)
-                else:
-                    raise HTTPException(status_code=400, detail=f"Unsupported hash field: {field}")
-
-            # If the field is a UUID field, inline the UUID value directly into the query
-            if field in ["hash_tautomer", "hash_no_stereo_smiles"]:
-                query_parts.append(f"{table}.{field} {operator} '{value}'")
-            else:
-                # For non-UUID fields, use parameterized queries
-                param_name = f"param_{idx}"  # Unique parameter name
-                query_parts.append(f"{table}.{field} {operator} :{param_name}")
-                query_params[param_name] = value  # Store the parameter value
-
-            if condition.columns:
-                selected_columns[table] = condition.columns
-            elif table == "compounds":
-                # Default columns to return for the compounds table
-                selected_columns[table] = ["id", "canonical_smiles"]
-
-        # Combine conditions with the specified logic
-        combined_conditions = f" {request.logic} ".join(query_parts)
-
-        select_clauses = []
-        for table, columns in selected_columns.items():
-            for column in columns:
-                select_clauses.append(f"{table}.{column}")
-        select_clause = ", ".join(select_clauses)
-
-        # Build the final SQL query
-        sql_query = f"""
-            SELECT {select_clause}
-            FROM {", ".join(set([cond.table for cond in request.conditions]))}
-            WHERE {combined_conditions}
-        """
-
-        # Execute the query
-        result = db.execute(text(sql_query), query_params)
-        column_names = [col[0] for col in result.cursor.description]
-
-        # Convert the result into a list of dictionaries
-        json_result = [dict(zip(column_names, row)) for row in result]
-        return json_result
-
+        engine = SearchEngine(db)
+        return engine.search(request)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error building or executing query: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/search/compounds", response_model=models.SearchResponse)
+def search_compounds_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
+    """
+    Endpoint for compound-level searches.
+
+    Automatically sets level to 'compounds' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(level="compounds", output=output, filter=filter)
+
+    return advanced_search(request, db)
+
+
+@router.post("/search/batches", response_model=models.SearchResponse)
+def search_batches_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
+    """
+    Endpoint for batch-level searches.
+
+    Automatically sets level to 'batches' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(level="batches", output=output, filter=filter)
+
+    return advanced_search(request, db)
+
+
+@router.post("/search/assay-results", response_model=models.SearchResponse)
+def search_assay_results_advanced(
+    output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)
+):
+    """
+    Endpoint for assay result-level searches.
+
+    Automatically sets level to 'assay_results' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(level="assay_results", output=output, filter=filter)
+    return advanced_search(request, db)
+
+
+@router.post("/search/generate-filter")
+def generate_search_filter(expression: str, db: Session = Depends(get_db)):
+    try:
+        builder = SearchFilterBuilder(db)
+        filter = builder.build_filter(expression)
+
+        return filter
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 app.include_router(router)

@@ -21,12 +21,3 @@ from .additions import (
 )
 
 from .assay_data import get_assays, get_assay, get_assay_runs, get_assay_run, get_all_assay_results_for_batch
-
-from .search import (
-    search_compounds_substructure,
-    search_compounds_tautomer,
-    search_compounds_stereo,
-    search_compounds_connectivity,
-    search_compounds_similarity,
-    get_standardized_mol_and_layers,
-)

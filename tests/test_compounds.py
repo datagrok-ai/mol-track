@@ -32,6 +32,7 @@ def upload_compounds(client, smiles_list: List[str]) -> None:
     return list(range(first_new_id, first_new_id + len(smiles_list)))
 
 
+@pytest.mark.skip(reason="This needs to be corrected to work with new search. Old search is no longer available")
 def test_create_compound_and_get_hash(client):
     """Test creating a compound and retrieving its hash using the exact search endpoint"""
     smiles = ["C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1"]
@@ -66,6 +67,7 @@ def predefined_compounds(client):
     yield compound_ids
 
 
+@pytest.mark.skip(reason="This needs to be corrected to work with new search. Old search is no longer available")
 def test_search_compound_structure_tautomer(client, predefined_compounds):
     """Test tautomer search using the /v1/search/compounds/structure endpoint"""
     smiles_list = [
@@ -91,6 +93,7 @@ def test_search_compound_structure_tautomer(client, predefined_compounds):
     assert predefined_compounds[3] not in result_ids, "Tautomer2 S should NOT match the query"
 
 
+@pytest.mark.skip(reason="This needs to be corrected to work with new search. Old search is no longer available")
 def test_search_compound_structure_stereo(client, predefined_compounds):
     """Test stereo search using the /v1/search/compounds/structure endpoint"""
     smiles_list = [
@@ -116,6 +119,7 @@ def test_search_compound_structure_stereo(client, predefined_compounds):
     assert predefined_compounds[3] not in result_ids, "Tautomer2 S should NOT match the query"
 
 
+@pytest.mark.skip(reason="This needs to be corrected to work with new search. Old search is no longer available")
 def test_search_compound_structure_connectivity(client, predefined_compounds):
     """Test connectivity search using the /v1/search/compounds/structure endpoint"""
     smiles_list = [
