@@ -23,14 +23,18 @@ try:
 except ImportError:
     # Fallback for when models is not in the path
     # from app.models import SchemaPayload
-    print("..app.models import failed")
+    try:
+        from models import SchemaPayload
+    except ImportError:
+        print("app.models and models import failed")
+        # raise ImportError("Failed to import SchemaPayload")
 
 
 try:
     from app.setup.database import engine, DB_SCHEMA
 except ImportError:
     try:
-        from app.database import engine, DB_SCHEMA
+        from database import engine, DB_SCHEMA
     except ImportError:
         # Set to None for when running standalone
         engine = None
