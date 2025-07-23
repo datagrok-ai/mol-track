@@ -1,0 +1,26 @@
+[
+    {
+        "name": "Hepatocyte Stability",
+        "assay format": "in cellulo",
+        "biological system": "hepatocyte",
+        "assay_result_properties": [
+            {
+                "name": "Reported CLint",
+                "required": true
+            },
+            {
+                "name": "Mean HTC recovery",
+                "required": false
+            },
+            {
+                "name": "SD HTC recovery",
+                "required": false
+            },
+            {
+                "name": "Dosed Concentration",
+                "required": true
+            }
+            
+        ]
+    }
+]

@@ -1,7 +1,0 @@
-{
-   "assay name": "assays.name",
-   "cell species": "assay_run_details.Cell Species",
-   "cell lot": "assay_run_details.Cell Lot",
-   "assay date": "assay_run_details.Assay Date",
-   "assayer": "assay_run_details.Assayer"
-}

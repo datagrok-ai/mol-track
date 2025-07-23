@@ -1,0 +1,18 @@
+{
+    "Compound Batch ID": "batch_details.batch_corporate_id",
+    "Assay Name": "assay.name",
+    "Assay Date": "assay_run_details.Assay Run Date",
+    "Cell Line": "assay_run_details.Cell Line",
+    "Therapeutic Area": "assay_run_details.Therapeutic Area",
+    "Target": "assay_run_details.Target",
+    "Protein Batch": "assay_run_details.Protein Batch",
+    "Avg High Control Measurement": "assay_results.Avg High Control Measurement",
+    "Avg Low Control Measurement": "assay_results.Avg Low Control Measurement",
+    "Concentration": "assay_results.Concentration",
+    "Percent Inhibition": "assay_results.Percent Inhibition",
+    "Percent of Control": "assay_results.Percent of Control",
+    "Plate Barcode": "assay_results.Plate Barcode",
+    "Raw Measurement": "assay_results.Raw Measurement",
+    "StdDev High Control Measurement": "assay_results.StdDev High Control Measurement",
+    "StdDev Low Control Measurement": "assay_results.StdDev Low Control Measurement"
+}

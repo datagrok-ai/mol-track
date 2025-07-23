@@ -1,0 +1,18 @@
+{
+    "properties": [
+        {
+            "name": "acquired date",
+            "scope": "batch",
+            "property_class": "measured",
+            "value_type": "datetime",
+            "unit": ""
+        }
+    ],
+    "synonym_types": [
+        {
+            "name": "epa batch id",
+            "scope": "batch",
+            "pattern": ""
+        }
+    ]
+}

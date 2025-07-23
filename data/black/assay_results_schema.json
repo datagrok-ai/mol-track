@@ -1,0 +1,36 @@
+{
+    "properties": [
+       {
+          "name": "Reported CLint",
+          "value_type": "double",
+          "unit": "uL/min/10^6 cells",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Mean HTC recovery",
+          "unit": "%",
+          "required": false,
+          "value_type": "double",
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "SD HTC recovery",
+          "unit": "%",
+          "required": false,
+          "value_type": "double",
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Dosed Concentration",
+          "unit": "uM",
+          "required": true,
+          "value_type": "double",
+          "property_class": "measured",
+          "scope": "assay_result"
+       }
+    ]
+} 

@@ -1,0 +1,23 @@
+epa batch id,species,concentration,clearance,lot,Assay Run Date,name
+EPA-001-001,human,0.1,none,h2,2/2/2024,hepatocyte stability
+EPA-001-001,human,1.0,none,h2,2/2/2024,hepatocyte stability
+EPA-001-001,rat,1.0,1.44,r2,2/3/2024,hepatocyte stability
+EPA-001-001,rat,0.1,none,r2,2/3/2024,hepatocyte stability
+EPA-002-001,rat,0.1,165.02,r1,2/3/2024,hepatocyte stability
+EPA-002-001,rat,1.0,193.91,r1,2/3/2024,hepatocyte stability
+EPA-002-001,trout,0.1,>81.12,t2,2/5/2024,hepatocyte stability
+EPA-002-001,trout,1.0,37.09,t2,2/5/2024,hepatocyte stability
+EPA-003-001,rat,0.1,none,r2,2/3/2024,hepatocyte stability
+EPA-003-001,human,1.0,8.91,h2,2/2/2024,hepatocyte stability
+EPA-003-001,human,0.1,2.75,h2,2/2/2024,hepatocyte stability
+EPA-003-001,rat,1.0,none,r2,2/3/2024,hepatocyte stability
+EPA-004-001,human,0.1,>127.73,h1,2/1/2024,hepatocyte stability
+EPA-004-001,human,1.0,178.16,h1,2/1/2024,hepatocyte stability
+EPA-004-001,trout,0.1,62.03,t2,2/5/2024,hepatocyte stability
+EPA-004-001,trout,1.0,29.45,t2,2/5/2024,hepatocyte stability
+EPA-005-001,human,0.1,3.22,h1,2/1/2024,hepatocyte stability
+EPA-005-001,human,1.0,5.84,h1,2/1/2024,hepatocyte stability
+EPA-005-001,trout,1.0,22.30,t2,2/5/2024,hepatocyte stability
+EPA-005-001,trout,0.1,25.26,t2,2/5/2024,hepatocyte stability
+EPA-005-001,rat,0.1,15.21,r1,2/3/2024,hepatocyte stability
+EPA-005-001,rat,1.0,23.02,r1,2/3/2024,hepatocyte stability

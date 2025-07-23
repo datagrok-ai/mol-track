@@ -1,0 +1,8 @@
+{
+   "Assay Date": "assay_run_details.Assay Run Date",
+   "Assay Name": "assay.name",
+   "Cell Line": "assay_run_details.Cell Line",
+   "Therapeutic Area": "assay_run_details.Therapeutic Area",
+   "Target": "assay_run_details.Target",
+   "Protein Batch": "assay_run_details.Protein Batch"
+}

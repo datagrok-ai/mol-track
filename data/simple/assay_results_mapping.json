@@ -1,0 +1,9 @@
+{
+    "epa batch id": "batch_details.epa batch id",
+    "species": "assay_run_details.species",
+    "concentration": "assay_results.concentration",
+    "clearance": "assay_results.clearance",
+    "name": "assay.name",
+    "lot": "assay_run_details.lot",
+    "Assay Run Date": "assay_run_details.Assay Run Date"
+}
