@@ -1,8 +1,20 @@
 #!/bin/bash
 set -e
 
+RUN_SERVER=false
+
+for arg in "$@"; do
+    case $arg in
+        --run_server)
+            RUN_SERVER=true
+            shift
+            ;;
+    esac
+done
+
 IMAGE_NAME="moltrack"
 ENV_DIR=".moltrack-env"
+ENV_FILE=".env"
 
 echo "Building Docker image: $IMAGE_NAME from Dockerfile"
 docker build -t $IMAGE_NAME .
@@ -23,6 +35,18 @@ echo "Found free host port: $HOST_PORT"
 
 export DB_PORT=$HOST_PORT
 echo "Set DB_PORT environment variable to $DB_PORT"
+
+if [ -f "$ENV_FILE" ]; then
+    if grep -q '^DB_PORT=' "$ENV_FILE"; then
+        sed -i.bak "s/^DB_PORT=.*/DB_PORT=$DB_PORT/" "$ENV_FILE"
+    else
+        echo "DB_PORT=$DB_PORT" >> "$ENV_FILE"
+    fi
+else
+    echo "DB_PORT=$DB_PORT" > "$ENV_FILE"
+fi
+
+echo "Updated $ENV_FILE with DB_PORT=$DB_PORT"
 
 if [ "$(docker ps -aq -f name=$IMAGE_NAME)" ]; then
     echo "Stopping and removing existing container: $IMAGE_NAME"
@@ -50,5 +74,9 @@ uv venv || true
 echo "Syncing dependencies with uv..."
 uv sync
 
-echo "Running Uvicorn app..."
-uv run uvicorn main:app --reload
+if [ "$RUN_SERVER" = true ]; then
+    echo "Running Uvicorn app..."
+    uv run --active uvicorn app.main:app --reload
+else
+    echo "Skipping server run (use --run_server to start it)"
+fi

@@ -1,0 +1,116 @@
+{
+    "properties": [
+       {
+          "name": "All results",
+          "value_type": "string",
+          "unit": "",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Avg IC50",
+          "value_type": "double",
+          "unit": "nM",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Endpoint Unit",
+          "value_type": "string",
+          "unit": "",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "IC50 Absolute",
+          "value_type": "double",
+          "unit": "nM",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Inflection",
+          "value_type": "double",
+          "unit": "nM",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Min",
+          "value_type": "double",
+          "unit": "nM",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Signal to Background",
+          "value_type": "double",
+          "unit": "",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "StdDev",
+          "value_type": "double",
+          "unit": "",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Z Prime",
+          "value_type": "double",
+          "unit": "",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "rSquared",
+          "value_type": "double",
+          "unit": "",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Hill",
+          "value_type": "double",
+          "unit": "",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Max",
+          "value_type": "double",
+          "unit": "nM",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Qualified Reported IC50",
+          "value_type": "double",
+          "unit": "nM",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       },
+       {
+          "name": "Number results",
+          "value_type": "int",
+          "unit": "",
+          "required": true,
+          "property_class": "measured",
+          "scope": "assay_result"
+       }
+    ]
+} 

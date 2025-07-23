@@ -1,0 +1,30 @@
+{
+    "properties": [
+        {
+            "name": "MolLogP",
+            "scope": "compound",
+            "property_class": "calculated",
+            "value_type": "double",
+            "unit": ""
+        },
+        {
+            "name": "project",
+            "scope": "compound",
+            "property_class": "declared",
+            "value_type": "string",
+            "unit": ""
+        }
+    ],
+    "synonym_types": [
+        {
+            "name": "xyz_id",
+            "scope": "compound",
+            "pattern": ""
+        },
+        {
+            "name": "ChEMBL ID",
+            "scope": "compound",
+            "pattern": "CHEMBL[0-9]+"
+        }
+    ]
+}

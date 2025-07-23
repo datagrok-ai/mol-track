@@ -1,0 +1,13 @@
+{
+    "properties": [
+        {"name": "Avg High Control Measurement", "value_type": "double", "unit": "", "required": true, "property_class": "measured", "scope": "assay_result"},
+        {"name": "Avg Low Control Measurement", "value_type": "double", "unit": "", "required": true, "property_class": "measured", "scope": "assay_result"},
+        {"name": "Concentration", "value_type": "double", "unit": "M", "required": true, "property_class": "measured", "scope": "assay_result"},
+        {"name": "Percent Inhibition", "value_type": "int", "unit": "", "required": true, "property_class": "measured", "scope": "assay_result"},
+        {"name": "Percent of Control", "value_type": "double", "unit": "", "required": true, "property_class": "measured", "scope": "assay_result"},
+        {"name": "Plate Barcode", "value_type": "string", "unit": "", "required": true, "property_class": "measured", "scope": "assay_result"},
+        {"name": "Raw Measurement", "value_type": "double", "unit": "", "required": true, "property_class": "measured", "scope": "assay_result"},
+        {"name": "StdDev High Control Measurement", "value_type": "double", "unit": "", "required": true, "property_class": "measured", "scope": "assay_result"},
+        {"name": "StdDev Low Control Measurement", "value_type": "double", "unit": "", "required": true, "property_class": "measured", "scope": "assay_result"}
+    ]
+} 

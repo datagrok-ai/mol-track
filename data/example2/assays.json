@@ -1,0 +1,129 @@
+[
+    {
+        "name": "A1",
+	    "assay format": "in-vitro",
+        "assay type": "Biochemical",
+        "assay_result_properties": [
+            {
+                "name": "Endpoint Unit",
+                "required": true
+            },
+            {
+                "name": "IC50 Absolute",
+                "required": true
+            },
+            {
+                "name": "Qualified Reported IC50",
+                "required": true
+            },
+            {
+                "name": "Avg IC50",
+                "required": true
+            },
+            {
+                "name": "Min",
+                "required": true
+            },
+            {
+                "name": "Max",
+                "required": true
+            },
+            {
+                "name": "Inflection",
+                "required": true
+            },
+            {
+                "name": "Hill",
+                "required": true
+            },
+            {
+                "name": "rSquared",
+                "required": true
+            },
+            {
+                "name": "Signal to Background",
+                "required": true
+            },
+            {
+                "name": "Z Prime",
+                "required": true
+            },
+            {
+                "name": "StdDev",
+                "required": true
+            },
+            {
+                "name": "Number results",
+                "required": true
+            },
+            {
+                "name": "All results",
+                "required": true
+            }
+        ]
+    },
+    {
+        "name": "A2",
+        "assay format": "in cellulo",
+	    "assay type": "Cell-based",
+        "assay_result_properties": [
+            {
+                "name": "Endpoint Unit",
+                "required": true
+            },
+            {
+                "name": "IC50 Absolute",
+                "required": true
+            },
+            {
+                "name": "Qualified Reported IC50",
+                "required": true
+            },
+            {
+                "name": "Avg IC50",
+                "required": true
+            },
+            {
+                "name": "Min",
+                "required": true
+            },
+            {
+                "name": "Max",
+                "required": true
+            },
+            {
+                "name": "Inflection",
+                "required": true
+            },
+            {
+                "name": "Hill",
+                "required": true
+            },
+            {
+                "name": "rSquared",
+                "required": true
+            },
+            {
+                "name": "Signal to Background",
+                "required": true
+            },
+            {
+                "name": "Z Prime",
+                "required": true
+            },
+            {
+                "name": "StdDev",
+                "required": false
+            },
+            {
+                "name": "Number results",
+                "required": true
+            },
+            {
+                "name": "All results",
+                "required": true
+            }
+        ]
+    }
+
+]

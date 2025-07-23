@@ -1,0 +1,7 @@
+{
+   "smiles": "smiles",
+   "chembl": "compounds_details.ChEMBL ID",
+   "xyz_id": "compounds_details.xyz_id",
+   "MolLogP": "compound_details.MolLogP",
+   "project": "compounds_details.project"
+}

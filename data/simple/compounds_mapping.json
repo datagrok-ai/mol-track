@@ -1,0 +1,7 @@
+{
+   "smiles": "smiles",
+   "common name": "compound_details.common name",
+   "cas": "compound_details.cas",
+   "epa compound id": "compound_details.epa compound id",
+   "molLogp": "compound_details.molLogp"
+}

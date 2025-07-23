@@ -1,0 +1,25 @@
+{
+    "properties": [
+       {
+          "name": "species",
+          "value_type": "string",
+          "required": true,
+          "scope": "assay_run",
+          "property_class": "declared"
+       },
+       {
+          "name": "lot",
+          "value_type": "string",
+          "required": true,
+          "scope": "assay_run",
+          "property_class": "measured"
+       },
+       {
+          "name": "Assay Run Date",
+          "value_type": "datetime",
+          "required": true,
+          "scope": "assay_run",
+          "property_class": "measured"
+       }
+    ]
+} 

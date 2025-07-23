@@ -2,7 +2,7 @@ import pytest
 import yaml
 from rdkit import Chem
 
-from chemistry_utils import apply_standardizer_operation, standardize_mol
+from app.utils.chemistry_utils import apply_standardizer_operation, standardize_mol
 
 # Some test molecules where taken from https://github.com/greglandrum/RSC_OpenScience_Standardization_202104/blob/main/MolStandardize%20pieces.ipynb
 
