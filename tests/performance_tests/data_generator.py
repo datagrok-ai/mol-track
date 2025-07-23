@@ -21,6 +21,8 @@ class DataGenerator:
         self.chunk_size = chunk_size
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        schema_directory = self.output_dir / "schemas"
+        schema_directory.mkdir(parents=True, exist_ok=True)
         self.property_config = property_config or {}
         self.total_compounds = self._get_compound_count()
         self.num_records: Dict[str, int] = {}
