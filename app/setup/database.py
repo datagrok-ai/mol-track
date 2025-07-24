@@ -15,7 +15,7 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Create the engine with the appropriate URL
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"options": f"-csearch_path={DB_SCHEMA}"})
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"options": f"-csearch_path={DB_SCHEMA},public"})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
