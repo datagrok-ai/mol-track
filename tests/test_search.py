@@ -28,7 +28,7 @@ valid_output_batches = ["batches.batch_regno", "batches.details.corporate_batch_
 
 @pytest.mark.usefixtures("preload_simple_data")
 def test_valid_json_compounds(client):
-    response = client.post("/search/compounds", json={"output": valid_output_compounds, "filter": valid_filter})
+    response = client.post("v1/search/compounds", json={"output": valid_output_compounds, "filter": valid_filter})
     assert response.status_code == 200
 
     content = response.content.decode("utf-8")
@@ -54,7 +54,7 @@ def test_valid_json_compounds(client):
 
 @pytest.mark.usefixtures("preload_simple_data")
 def test_valid_json_batches(client):
-    response = client.post("/search/batches", json={"output": valid_output_batches, "filter": valid_filter})
+    response = client.post("v1/search/batches", json={"output": valid_output_batches, "filter": valid_filter})
     assert response.status_code == 200
 
     content = response.content.decode("utf-8")
@@ -91,7 +91,7 @@ valid_filter_assay_results = {"field": "assay_results.id", "operator": "<", "val
 @pytest.mark.usefixtures("preload_simple_data")
 def test_valid_json_assay_results(client):
     response = client.post(
-        "/search/assay-results", json={"output": valid_output_assay_results, "filter": valid_filter_assay_results}
+        "v1/search/assay-results", json={"output": valid_output_assay_results, "filter": valid_filter_assay_results}
     )
     assert response.status_code == 200
 
@@ -106,7 +106,7 @@ def test_valid_json_assay_results(client):
 
 
 def test_missing_output_field(client):
-    response = client.post("/search/compounds", json={"filter": valid_filter})
+    response = client.post("v1/search/compounds", json={"filter": valid_filter})
     assert response.status_code == 422
 
 
@@ -121,21 +121,21 @@ invalid_filter = {
 
 def test_invalid_operator_in_filter(client):
     response = client.post(
-        "/search/compounds", json={"output": ["compounds.canonical_smiles"], "filter": invalid_filter}
+        "v1/search/compounds", json={"output": ["compounds.canonical_smiles"], "filter": invalid_filter}
     )
     assert response.status_code in [400, 422]
 
 
 def test_empty_filter_conditions(client):
     response = client.post(
-        "/search/compounds",
+        "v1/search/compounds",
         json={"output": ["compounds.canonical_smiles"], "filter": {"operator": "AND", "conditions": []}},
     )
     assert response.status_code == 200 or 400  # Depends on your API design
 
 
 def test_unknown_output_field(client):
-    response = client.post("/search/compounds", json={"output": ["compounds.nonexistent_field"]})
+    response = client.post("v1/search/compounds", json={"output": ["compounds.nonexistent_field"]})
     assert response.status_code == 400 or 422
 
 
@@ -145,7 +145,7 @@ def test_sql_injection_attempt(client, test_db):
     filter["conditions"][0]["conditions"][0]["value"] = "'; DROP TABLE moltrack.compounds;--"
     compounds_before = test_db.execute(text("select * from moltrack.compounds")).fetchall()
 
-    response = client.post("/search/compounds", json={"output": valid_output_compounds, "filter": filter})
+    response = client.post("v1/search/compounds", json={"output": valid_output_compounds, "filter": filter})
     assert response.status_code == 200  # should not error
 
     compounds_after = test_db.execute(text("select * from moltrack.compounds")).fetchall()

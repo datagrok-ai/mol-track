@@ -8,9 +8,9 @@ User Story - As an academic lab researcher, I want to improve the way I manage m
     - [x] deploy postgres database with RDkit
     - [ ] configure business rules
         - [x] compound standardization rules
-        - [o] compound uniqueness rules
-        - [o] compound identification rules and synonym
-        - [o] batch identification rules and synonym
+        - [x] compound uniqueness rules
+        - [x] compound identification rules and synonym
+        - [x] batch identification rules and synonym
     - [ ] configure
         - [ ] required compound properties
         - [x] optional compound properties
@@ -61,4 +61,4 @@ User Story - As an academic lab researcher, I want to improve the way I manage m
 
 8. UX
     - [x] Swagger based API calling
-    - [o] python command line client
+    - [x] python command line client
