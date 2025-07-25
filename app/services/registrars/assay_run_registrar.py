@@ -39,7 +39,6 @@ class AssayRunRegistrar(BaseRegistrar):
             for idx, row in enumerate(batch):
                 try:
                     grouped = self._group_data(row, "assay")
-                    row_number = global_idx + 1
                     assay_data = grouped.get("assay", {})
                     assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
                     self.assay_runs_to_insert.append(assay_run)
@@ -47,7 +46,7 @@ class AssayRunRegistrar(BaseRegistrar):
                     inserted, updated = self.property_service.build_details_records(
                         models.AssayRunDetail,
                         grouped.get("assay_run_details", {}),
-                        {"rn": row_number},
+                        {"rn": idx + 1},
                         enums.ScopeClass.ASSAY_RUN,
                         False,
                     )

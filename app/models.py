@@ -358,6 +358,22 @@ class AssayRun(AssayRunResponseBase, table=True):
     )
 
 
+class AssayResultDetail(SQLModel, table=True):
+    __tablename__ = "assay_result_details"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    assay_result_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_results.id", primary_key=True)
+    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
+
+    value_qualifier: Optional[int] = Field(default=0, nullable=False)  # 0 for "=", 1 for "<", 2 for ">"
+    value_num: Optional[float] = Field(default=None)
+    value_string: Optional[str] = Field(default=None)
+    value_bool: Optional[bool] = Field(default=None)
+
+    assay_result: "AssayResult" = Relationship(back_populates="assay_result_details")
+    property: Optional["Property"] = Relationship()
+
+
 class Property(PropertyResponse, table=True):
     __tablename__ = "properties"
     __table_args__ = (
@@ -379,13 +395,15 @@ class Property(PropertyResponse, table=True):
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
-    assay_results: List["AssayResult"] = Relationship(back_populates="property")
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
 
     assays: List["Assay"] = Relationship(link_model=AssayProperty, sa_relationship_kwargs={"viewonly": True})
     assay_runs: List["AssayRun"] = Relationship(
         back_populates="properties", link_model=AssayRunDetail, sa_relationship_kwargs={"viewonly": True}
+    )
+    assay_results: List["AssayResult"] = Relationship(
+        back_populates="properties", link_model=AssayResultDetail, sa_relationship_kwargs={"viewonly": True}
     )
     compounds: List["Compound"] = Relationship(
         back_populates="properties", link_model=CompoundDetail, sa_relationship_kwargs={"viewonly": True}
@@ -398,12 +416,9 @@ class Property(PropertyResponse, table=True):
 class AssayResultBase(SQLModel):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
     assay_run_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_runs.id", nullable=False)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
-
-    value_qualifier: Optional[int] = Field(default=0, nullable=False)  # 0 for "=", 1 for "<", 2 for ">"
-    value_num: Optional[float] = Field(default=None)
-    value_string: Optional[str] = Field(default=None)
-    value_bool: Optional[bool] = Field(default=None)
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
 
 class AssayResultResponseBase(AssayResultBase):
@@ -433,7 +448,13 @@ class AssayResult(AssayResultResponseBase, table=True):
 
     batch: "Batch" = Relationship(back_populates="assay_results")
     assay_run: "AssayRun" = Relationship(back_populates="assay_results")
-    property: "Property" = Relationship(back_populates="assay_results")
+    assay_result_details: List["AssayResultDetail"] = Relationship(back_populates="assay_result")
+
+    properties: List["Property"] = Relationship(
+        back_populates="assay_results",
+        link_model=AssayResultDetail,
+        sa_relationship_kwargs={"lazy": "joined", "viewonly": True},
+    )
 
 
 class AssayDetail(SQLModel, table=True):
