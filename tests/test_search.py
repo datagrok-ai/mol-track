@@ -78,12 +78,7 @@ def test_valid_json_batches(client):
     assert batchregno[1] in details[1]
 
 
-valid_output_assay_results = [
-    "assay_results.id",
-    "assay_results.assay_run_id",
-    "assay_results.property_id",
-    "assay_results.value_num",
-]
+valid_output_assay_results = ["assay_results.id", "assay_results.assay_run_id", "assay_results.created_at"]
 
 valid_filter_assay_results = {"field": "assay_results.id", "operator": "<", "value": "6"}
 
