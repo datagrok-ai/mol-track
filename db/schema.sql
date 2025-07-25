@@ -245,15 +245,22 @@ CREATE TABLE moltrack.assay_results (
   id serial PRIMARY KEY,
   batch_id int NOT NULL REFERENCES moltrack.batches (id),
   assay_run_id int NOT NULL REFERENCES moltrack.assay_runs (id),
-  property_id int NOT NULL REFERENCES moltrack.properties (id), -- should appear in assay_properties
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id)
+);
 
+CREATE TABLE moltrack.assay_result_details (
+  assay_result_id int NOT NULL REFERENCES moltrack.assay_results (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id),
+  
   -- For performance reasons, only numbers, strings, and booleans are supported for assay results (no datetime or uuid).
   value_qualifier smallint NOT NULL DEFAULT 0 check (value_qualifier in (0, 1, 2)), -- 0 for =, 1 for <, 2 for >
   value_num float,
   value_string text,
   value_bool boolean
 );
-
 
 GRANT ALL PRIVILEGES ON SCHEMA moltrack TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA moltrack TO CURRENT_USER;

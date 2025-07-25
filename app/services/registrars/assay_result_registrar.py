@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 
-from app import models
+from app import models, main
 from app.utils import enums, sql_utils
 from app.services.registrars.base_registrar import BaseRegistrar
 
@@ -112,11 +112,20 @@ class AssayResultsRegistrar(BaseRegistrar):
         )
         return self._check_single_result(assay_runs, "assay runs")
 
+    def _build_assay_result_record(self, batch_id: int, assay_run_id: int) -> Dict[str, Any]:
+        return {
+            "batch_id": batch_id,
+            "assay_run_id": assay_run_id,
+            "created_by": main.admin_user_id,
+            "updated_by": main.admin_user_id,
+        }
+
     # TODO: Identify the specific data row(s) in assay_results.csv causing failures
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 10):
-        global_idx = 0
         for batch in sql_utils.chunked(rows, batch_size):
+            global_idx = 0
             self.assay_results_to_insert = []
+            details = []
 
             for idx, row in enumerate(batch):
                 try:
@@ -126,26 +135,46 @@ class AssayResultsRegistrar(BaseRegistrar):
                         grouped.get("assay"), grouped.get("assay_run_details")
                     )
 
+                    batch_id = getattr(batch_record, "id")
+                    assay_run_id = getattr(assay_run_record, "id")
+                    assay_result = self._build_assay_result_record(batch_id, assay_run_id)
+                    self.assay_results_to_insert.append(assay_result)
+
                     inserted, updated = self.property_service.build_details_records(
                         models.AssayResult,
                         grouped.get("assay_results", {}),
-                        {"batch_id": getattr(batch_record, "id"), "assay_run_id": getattr(assay_run_record, "id")},
+                        {"rn": idx + 1},
                         enums.ScopeClass.ASSAY_RESULT,
                         False,
                     )
-                    self.assay_results_to_insert.extend(inserted)
+                    details.extend(inserted)
                     self._add_output_row(row, grouped, "success")
                 except Exception as e:
                     self.handle_row_error(row, e, global_idx, rows)
                 global_idx += 1
 
             if self.assay_results_to_insert:
-                batch_sql = self.generate_sql(self.assay_results_to_insert)
+                batch_sql = self.generate_sql(self.assay_results_to_insert, details)
                 self.sql_statements.append(batch_sql)
 
-    def generate_sql(self, assay_results) -> str:
-        details_sql = self._generate_details_sql(assay_results)
-        return sql_utils.generate_sql(details_sql, terminate_with_select=False)
+    def generate_sql(self, assay_results, details) -> str:
+        assay_results_sql = self._generate_assay_result_sql(assay_results)
+        details_sql = self._generate_details_sql(details)
+        return sql_utils.generate_sql(assay_results_sql, details_sql)
+
+    def _generate_assay_result_sql(self, assay_results) -> str:
+        cols = list(assay_results[0].keys())
+        values_sql = sql_utils.values_sql(assay_results, cols)
+        return f"""
+            WITH inserted_assay_results AS (
+                INSERT INTO moltrack.assay_results ({", ".join(cols)})
+                VALUES {values_sql}
+                RETURNING id
+            ),
+            numbered_assay_results AS (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS rn
+                FROM inserted_assay_results
+            )"""
 
     def _generate_details_sql(self, details) -> str:
         if not details:
@@ -153,6 +182,9 @@ class AssayResultsRegistrar(BaseRegistrar):
 
         cols_without_key, values_sql = sql_utils.prepare_sql_parts(details)
         return f"""
-            INSERT INTO moltrack.assay_results (batch_id, {", ".join(cols_without_key)})
-            VALUES {values_sql}
-        """
+            inserted_assay_result_details AS (
+                INSERT INTO moltrack.assay_result_details (assay_result_id, {", ".join(cols_without_key)})
+                SELECT nr.id, {", ".join([f"d.{col}" for col in cols_without_key])}
+                FROM (VALUES {values_sql}) AS d(rn, {", ".join(cols_without_key)})
+                JOIN numbered_assay_results nr ON d.rn = nr.rn
+            )"""
