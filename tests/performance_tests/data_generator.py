@@ -112,8 +112,8 @@ class DataGenerator:
             writer.write_csv_chunk(f"{scope}.csv", chunk)
 
         self.num_records[scope] = total_generated + total_generated * (
-            len(self._get_non_identity_properties(scope)) + 1
-        )  # +1 for batch_compound_id
+            len(self._get_non_identity_properties(scope)) + 2
+        )  # +2 for batch_compound_id and EPA Batch ID
         return batch_ids
 
     def _generate_assays(self) -> str:
@@ -197,7 +197,7 @@ class DataGenerator:
                         chunk.append(row)
             writer.write_csv_chunk(f"{scope}.csv", chunk)
 
-        self.num_records[scope] = total_generated * len(self._get_non_identity_properties(scope))
+        self.num_records[scope] = total_generated + total_generated * len(self._get_non_identity_properties(scope))
 
     # ==================== Utility Functions ==================== #
     def _get_writer(self, scope: str) -> FileWriter:
