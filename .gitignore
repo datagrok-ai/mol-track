@@ -7,3 +7,5 @@ __pycache__/
 mol_venv/
 launch.json
 .moltrack-env
+tests/performance_tests/data/*
+tests/__pycache__/*
