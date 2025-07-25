@@ -1,6 +1,7 @@
 from typing import List, Union
 from pydantic import ValidationError
-from app.models import AtomicCondition, LogicalNode, CompareOp, LogicOp, Token, Filter
+from app.models import AtomicCondition, LogicalNode, Token, Filter
+from app.utils.enums import CompareOp, LogicOp
 
 
 class ParseError(Exception):
@@ -28,7 +29,7 @@ class Parser:
 
     def expect(self, expected_type: str) -> Token:
         tok = self.peek()
-        if not tok or tok[0] != expected_type:
+        if not tok or tok.type != expected_type:
             raise ParseError(
                 f"Expected token of type '{expected_type}', but got {tok}. Possible values: {self.ops[expected_type]}"
             )
@@ -43,9 +44,9 @@ class Parser:
     def parse_expression(self) -> Filter:
         left = self.parse_term()
 
-        while self.peek() and self.peek()[0] == "LOGICAL_OP":
+        while self.peek() and self.peek().type == "LOGICAL_OP":
             op_token = self.advance()
-            logic_op_str = op_token[1]
+            logic_op_str = op_token.value
 
             try:
                 logic_op = LogicOp(logic_op_str)
@@ -64,10 +65,10 @@ class Parser:
     def parse_term(self) -> Filter:
         tok = self.peek()
 
-        if tok and tok[0] == "LPAREN":
+        if tok and tok.type == "LPAREN":
             self.advance()
             node = self.parse_expression()
-            if not self.peek() or self.peek()[0] != "RPAREN":
+            if not self.peek() or self.peek().type != "RPAREN":
                 raise ParseError("Expected closing parenthesis ')'")
             self.advance()
             return node
@@ -79,7 +80,7 @@ class Parser:
         operator_token = self.expect("COMPARE_OP")
         value_token = self.advance()
 
-        if not value_token or value_token[0] not in {
+        if not value_token or value_token.type not in {
             "STRING_LITERAL",
             "NUMBER_LITERAL",
             "BOOLEAN_LITERAL",
@@ -87,22 +88,22 @@ class Parser:
         }:
             raise ParseError(f"Expected a value literal, got {value_token}")
 
-        field = field_token[1]
-        operator_str = operator_token[1]
+        field = field_token.value
+        operator_str = operator_token.value
 
         try:
             operator = CompareOp(operator_str)
         except ValueError:
             raise ParseError(f"Unsupported comparison operator: {operator_str}")
 
-        value = value_token[1]
+        value = value_token.value
         threshold = None
 
         # Optional threshold for IS SIMILAR
         if operator == CompareOp.IS_SIMILAR:
-            if self.peek() and self.peek()[0] == "NUMBER_LITERAL":
+            if self.peek() and self.peek().type == "NUMBER_LITERAL":
                 threshold_token = self.advance()
-                threshold = float(threshold_token[1])
+                threshold = float(threshold_token.value)
             else:
                 raise ParseError("IS SIMILAR operator requires a numeric threshold after the value")
 

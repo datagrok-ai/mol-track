@@ -3,8 +3,10 @@ Field resolver for advanced search functionality
 Handles resolution of field paths like 'compounds.details.chembl' to SQL components
 """
 
-from typing import Any, Dict, List
-from app.services.search.utils import JoinOrderingTool
+from typing import Any, Dict, List, get_args
+from sqlalchemy.orm import Session
+from app.services.search.utils import JoinOrderingTool, create_alias, singularize, get_table_columns
+from app.models import Level
 
 
 class FieldResolutionError(Exception):
@@ -16,66 +18,26 @@ class FieldResolutionError(Exception):
 class FieldResolver:
     """Resolves field paths to SQL expressions and joins"""
 
-    def __init__(self, db_schema: str):
+    def __init__(self, db_schema: str, db: Session):
         self.db_schema = db_schema
-        self.table_configs = {
-            "compounds": {
-                "table": "compounds",
-                "alias": "c",
-                "details_table": "compound_details",
-                "details_alias": "cd",
-                "details_fk": "compound_id",
-                "direct_fields": {
-                    "id": "c.id",
-                    "canonical_smiles": "c.canonical_smiles",
-                    "inchi": "c.inchi",
-                    "inchikey": "c.inchikey",
-                    "formula": "c.formula",
-                    "molregno": "c.molregno",
-                    "hash_mol": "c.hash_mol",
-                    "hash_tautomer": "c.hash_tautomer",
-                    "hash_canonical_smiles": "c.hash_canonical_smiles",
-                    "hash_no_stereo_smiles": "c.hash_no_stereo_smiles",
-                    "hash_no_stereo_tautomer": "c.hash_no_stereo_tautomer",
-                    "created_at": "c.created_at",
-                    "updated_at": "c.updated_at",
-                    "is_archived": "c.is_archived",
-                    "structure": "c.canonical_smiles",  # Alias for molecular searches
-                },
-            },
-            "batches": {
-                "table": "batches",
-                "alias": "b",
-                "details_table": "batch_details",
-                "details_alias": "bd",
-                "details_fk": "batch_id",
-                "direct_fields": {
-                    "id": "b.id",
-                    "compound_id": "b.compound_id",
-                    "batch_regno": "b.batch_regno",
-                    "notes": "b.notes",
-                    "created_at": "b.created_at",
-                    "updated_at": "b.updated_at",
-                },
-            },
-            "assay_results": {
-                "table": "assay_results",
-                "alias": "ar",
-                "details_table": None,  # assay_results stores values directly
-                "details_alias": None,
-                "details_fk": None,
-                "direct_fields": {
-                    "id": "ar.id",
-                    "batch_id": "ar.batch_id",
-                    "assay_run_id": "ar.assay_run_id",
-                    "property_id": "ar.property_id",
-                    "value_qualifier": "ar.value_qualifier",
-                    "value_num": "ar.value_num",
-                    "value_string": "ar.value_string",
-                    "value_bool": "ar.value_bool",
-                },
-            },
-        }
+        tables = get_args(Level)
+        self.table_configs = {}
+        for table in tables:
+            alias = create_alias(table)
+            singular_name = singularize(table)
+            self.table_configs[table] = {
+                "table": table,
+                "alias": alias,
+                "details_table": f"{singular_name}_details"
+                if table != "assay_results"
+                else None,  # Only untill we add new table
+                "details_alias": f"{alias}d" if table != "assay_results" else None,
+                "details_fk": f"{singular_name}_id" if table != "assay_results" else None,
+                "direct_fields": {column: f"{alias}.{column}" for column in get_table_columns(table, db)},
+            }
+        self.table_configs["compounds"]["direct_fields"]["structure"] = (
+            "c.canonical_smiles"  # Alias for molecular searches
+        )
 
         # Cross-level relationship definitions
         self.relationships = {
@@ -136,15 +98,12 @@ class FieldResolver:
             },
         }
 
-    def validate_field_path(self, field_path: str, level: str = None) -> bool:
+    def validate_field_path(self, field_path: str, level: Level = None) -> bool:
         """
         Validate that a field path is properly formatted
         Argument level is passed only when the output validation is being done
         """
         parts = field_path.split(".")
-
-        if len(parts) < 2:
-            return False
 
         table_name = parts[0]
         if table_name not in self.table_configs or (level is not None and table_name != level):
@@ -153,11 +112,7 @@ class FieldResolver:
         if len(parts) == 2:
             # Direct field access
             field_name = parts[1]
-            return (
-                field_name in self.table_configs[table_name]["direct_fields"]
-                or field_name == "details"
-                or table_name == "assay_results"
-            )
+            return field_name in self.table_configs[table_name]["direct_fields"]
         elif len(parts) == 3:
             # Dynamic property access
             return parts[1] == "details"
@@ -165,15 +120,15 @@ class FieldResolver:
         return False
 
     def resolve_field(
-        self, field_path: str, search_level: str, all_joins: JoinOrderingTool, subquery: bool = False
+        self, field_path: str, search_level: Level, all_joins: JoinOrderingTool, subquery: bool = False
     ) -> Dict[str, Any]:
         """
         Resolves a field path like 'compounds.details.chembl' to SQL components
 
         Args:
             field_path: Field path in format 'table.field' or 'table.details.property'
-            search_level: The primary search level (compounds, batches, assay_results)
-            allJoins: Join organization object
+            search_level: Level  # The primary search level (compounds, batches, assay_results)
+            all_joins: Join organization object
             subquery: True if the field is from filter. Indicates that EXISTS subquery needs to be created
 
         Returns:
@@ -182,13 +137,13 @@ class FieldResolver:
                 'is_dynamic': bool,        # Whether this is a dynamic property
                 'property_info': Dict,     # Property metadata if dynamic
                 'table_alias': str,        # Table alias used
-                'value_column': str        # Column containing the value,
+                'value_column': str        # Column containing the value
                 'subquery' : {
                     'sql': str,            # SQL for subquery
                     'alias': str           # Alias
                 }
                 'search_level': {           # Search level information
-                        'foreign_key': str  # Foreign key
+                        'foreign_key': str,  # Foreign key
                         'alias' : str       # Alias
                     }
             }
@@ -200,9 +155,6 @@ class FieldResolver:
             }
         }
         parts = field_path.split(".")
-        if len(parts) < 2:
-            raise FieldResolutionError(f"Invalid field path: {field_path}")
-
         table_name = parts[0]
         field_or_details = parts[1]
 
@@ -230,22 +182,7 @@ class FieldResolver:
             else:
                 raise FieldResolutionError(f"Unknown direct field: {field_path}")
 
-        # Handle dynamic property access (table.details.property_name)
-        if len(parts) != 3:
-            raise FieldResolutionError(f"Dynamic property path must be 'table.details.property': {field_path}")
-
         property_name = parts[2]
-
-        # Handle assay_results special case (no details table)
-        if table_name == "assay_results":
-            return (
-                self._resolve_dynamic_property(table_config, property_name, all_joins, subquery, cross_from)
-                | search_level_info
-            )
-
-        # Handle regular details table lookup
-        if not table_config["details_table"]:
-            raise FieldResolutionError(f"Table {table_name} does not support dynamic properties")
 
         return (
             self._resolve_dynamic_property(table_config, property_name, all_joins, subquery, cross_from)
@@ -320,7 +257,6 @@ class FieldResolver:
             sql_expression = sql_expression.replace(f" {alias}.", f" {alias}{alias}.")
 
         sql_agg_expression = f"MAX({sql_expression}) FILTER (WHERE {property_alias}.name = '{property_name}')"
-
         return {
             "sql_expression": sql_agg_expression,
             "sql_field": sql_expression,

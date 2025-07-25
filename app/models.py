@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal
 from pydantic import field_validator, model_validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
@@ -7,7 +7,6 @@ from app.utils import enums
 import os
 from datetime import datetime
 import uuid
-from enum import Enum as PyEnum
 # import crud
 # # Handle both package imports and direct execution
 # try:
@@ -590,48 +589,11 @@ class UpdateCheckResult(NamedTuple):
 
 
 # Advanced Search Models - New Recursive Structure
-class LogicOp(str, PyEnum):
-    """Logical operators for combining conditions"""
-
-    AND = "AND"
-    OR = "OR"
-
-
-class CompareOp(str, PyEnum):
-    """Comparison operators for atomic conditions"""
-
-    # String operators
-    EQUALS = "="
-    NOT_EQUALS = "!="
-    IN = "IN"
-    STARTS_WITH = "STARTS WITH"
-    ENDS_WITH = "ENDS WITH"
-    LIKE = "LIKE"
-    CONTAINS = "CONTAINS"
-
-    # Numeric operators
-    LESS_THAN = "<"
-    GREATER_THAN = ">"
-    LESS_THAN_OR_EQUAL = "<="
-    GREATER_THAN_OR_EQUAL = ">="
-    RANGE = "RANGE"
-
-    # Datetime operators
-    BEFORE = "BEFORE"
-    AFTER = "AFTER"
-    ON = "ON"
-
-    # Molecular operators (RDKit)
-    IS_SIMILAR = "IS SIMILAR"
-    IS_SUBSTRUCTURE_OF = "IS SUBSTRUCTURE OF"
-    HAS_SUBSTRUCTURE = "HAS SUBSTRUCTURE"
-
-
 class AtomicCondition(SQLModel):
     """Individual atomic search condition with field, operator, and value"""
 
     field: str  # e.g., "compounds.canonical_smiles", "compounds.details.chembl"
-    operator: CompareOp
+    operator: enums.CompareOp
     value: Any
     threshold: Optional[float] = None  # For similarity searches (e.g., molecular similarity)
 
@@ -643,12 +605,13 @@ class AtomicCondition(SQLModel):
 
         # Check for valid field format (table.field or table.details.property)
         parts = v.split(".")
-        if len(parts) < 2:
+        if len(parts) < 2 or len(parts) > 3:
             raise ValueError("Field must be in format 'table.field' or 'table.details.property'")
 
         valid_tables = ["compounds", "batches", "assay_results"]
         if parts[0] not in valid_tables:
-            raise ValueError(f"Invalid table: {parts[0]}. Must be one of {valid_tables}")
+            allowed = ", ".join(valid_tables)
+            raise ValueError(f"Invalid table: {parts[0]}. Must be one of {allowed}")
 
         return v
 
@@ -657,10 +620,11 @@ class AtomicCondition(SQLModel):
         # Validate threshold is provided for operators that require it
         if isinstance(values, AtomicCondition):
             operator = values.get("operator")
-            v = values.get("threshold")
-            if operator == CompareOp.IS_SIMILAR and v is None:
-                raise ValueError("IS SIMILAR operator requires a threshold value")
-            if operator != CompareOp.IS_SIMILAR and v is not None:
+            threshold = values.get("threshold")
+            if operator == enums.CompareOp.IS_SIMILAR:
+                if threshold is None:
+                    raise ValueError(f"Operator {operator.value} requires a threshold value")
+            elif threshold is not None:
                 raise ValueError(f"Threshold not supported for operator: {operator}")
         return values
 
@@ -668,7 +632,7 @@ class AtomicCondition(SQLModel):
 class LogicalNode(SQLModel):
     """Logical node combining multiple filters with AND/OR operator"""
 
-    operator: LogicOp
+    operator: enums.LogicOp
     conditions: List["Filter"]
 
     @field_validator("conditions")
@@ -684,16 +648,19 @@ class LogicalNode(SQLModel):
 Filter = Union[AtomicCondition, LogicalNode]
 
 
+Level = Literal["compounds", "batches", "assay_results"]
+
+
 class SearchRequest(SQLModel):
     """Main search request model with recursive filter structure"""
 
-    level: Literal["compounds", "batches", "assay_results"]
+    level: Level
     output: List[str]  # Columns to return
     filter: Optional[Filter] = None
 
     @field_validator("output")
     def validate_output(cls, v):
-        if not v or len(v) == 0:
+        if not v:
             raise ValueError("Output must specify at least one column")
         return v
 
@@ -712,4 +679,6 @@ class SearchResponse(SQLModel):
 LogicalNode.model_rebuild()
 
 
-Token = Tuple[str, Union[str, float, bool, None]]
+class Token(NamedTuple):
+    type: str
+    value: Union[str, float, bool, None]

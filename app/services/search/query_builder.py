@@ -46,14 +46,17 @@ class QueryBuilder:
 
         base_select_clause = output_info["select_clause"]
         group_by = output_info["group_by"]
+        table = table_config["table"]
+        alias = table_config["alias"]
+        has_dynamic = output_info["has_dynamic"]
 
-        if group_by != [] and f"{table_config['table']}.id" not in request.output:
-            group_by = [f"{table_config['alias']}{table_config['alias']}.id"] + group_by
+        if (group_by and f"{table}.id" not in request.output) or (not group_by and has_dynamic):
+            group_by = [f"{alias}{alias}.id"] + group_by
 
-        group_by_sql = f"GROUP BY {' ,'.join(group_by)} " if group_by else " "
+        group_by_sql = f"GROUP BY {' ,'.join(group_by)} " if group_by else ""
 
         # Build FROM clause with primary table
-        base_from_clause = f"{schema}.{table_config['table']} {table_config['alias']}{table_config['alias']}"
+        base_from_clause = f"{schema}.{table} {alias}{alias}"
 
         query_params = {}
         filter_sql = ""
@@ -95,12 +98,9 @@ class QueryBuilder:
         Returns:
             Dict with SQL components: select clause, where clause, group by
         """
-        select_fields = []
-        group_by = []
+        select_fields, list_of_aliases, conditions, group_by = [], [], [], []
         # has_dynamic is True if any of the output fields are dynamic
         has_dynamic = False
-        list_of_aliases = []
-        conditions = []
 
         for field_path in output_list:
             resolved = self.field_resolver.resolve_field(field_path, search_level, all_joins)
@@ -125,8 +125,12 @@ class QueryBuilder:
 
         if has_dynamic:
             group_by = list_of_aliases
-
-        return {"select_clause": ", ".join(select_fields), "conditions": combined_sql, "group_by": group_by}
+        return {
+            "select_clause": ", ".join(select_fields),
+            "conditions": combined_sql,
+            "group_by": group_by,
+            "has_dynamic": has_dynamic,
+        }
 
     def build_filter_sql_parts(self, filter_obj: models.Filter, level: str) -> Dict[str, Any]:
         """

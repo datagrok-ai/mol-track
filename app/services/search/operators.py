@@ -3,18 +3,8 @@ Search operators and their SQL translations
 """
 
 from typing import Dict, Any, Tuple
-from enum import Enum
 from datetime import datetime
-
-
-class OperatorType(Enum):
-    """Types of operators for different data types"""
-
-    STRING = "string"
-    NUMERIC = "numeric"
-    DATETIME = "datetime"
-    BOOLEAN = "boolean"
-    MOLECULAR = "molecular"
+from app.utils.enums import OperatorType
 
 
 class SearchOperators:
@@ -83,7 +73,8 @@ class SearchOperators:
         },
         # Molecular operators (RDKit)
         "IS SIMILAR": {
-            "sql": "public.tanimoto_sml(public.morganbv_fp(public.mol_from_smiles({field}::cstring)), public.morganbv_fp(public.mol_from_smiles(:param2))) >= :param3",
+            "sql": "public.tanimoto_sml(public.morganbv_fp(public.mol_from_smiles({field}::cstring)), "
+            "public.morganbv_fp(public.mol_from_smiles(:param2))) >= :param3",
             "type": OperatorType.MOLECULAR,
             "params": 1,
             "description": "Molecular similarity using RDKit",
@@ -120,7 +111,7 @@ class SearchOperators:
             raise ValueError(f"Operator '{operator}' requires a threshold value")
 
         # Check value type based on operator
-        if operator in ["IN"] and not isinstance(value, (list, tuple)):
+        if operator == "IN" and not isinstance(value, (list, tuple)):
             raise ValueError(f"Operator '{operator}' requires a list or tuple value")
 
         if operator == "RANGE":
@@ -144,7 +135,6 @@ class SearchOperators:
 
             if not check_date(value):
                 raise ValueError("DATE value must be in format YYYY-MM-DD or YYYY-MM-DD hh:mm")
-
         return True
 
     @classmethod
@@ -171,29 +161,24 @@ class SearchOperators:
             value = op_def["value_transform"](value)
 
         # Handle special cases
-        if operator == "ON":
-            sql_expr = op_def["sql"].format(field=field)
-            return sql_expr, {"param": value}
-        elif operator == "IN":
-            # For IN clauses, we need to create multiple parameters
-            param_names = [f"param{i + 1}" for i in range(len(value))]
-            placeholders = "(" + ",".join([f":{name}" for name in param_names]) + ")"
-            sql_expr = op_def["sql"].format(field=field, params=placeholders)
-            params = {name: val for name, val in zip(param_names, value)}
-            return sql_expr, params
-        elif operator == "RANGE":
-            sql_expr = op_def["sql"].format(field=field)
-            return sql_expr, {"param1": value[0], "param2": value[1]}
-        elif operator == "IS SIMILAR" and threshold is not None:
-            sql_expr = op_def["sql"].format(field=field)
-            return sql_expr, {"param1": value, "param2": value, "param3": threshold}
-        elif operator == "IS SUBSTRUCTURE OF":
-            sql_expr = op_def["sql"].format(field=field)
-            return sql_expr, {"param": value}
-        elif operator == "HAS SUBSTRUCTURE":
-            sql_expr = op_def["sql"].format(field=field)
-            return sql_expr, {"param": value}
-        else:
-            # Standard operator
-            sql_expr = f"{field} {op_def['sql']}"
-            return sql_expr, {"param": value}
+        match operator:
+            case "IN":
+                # For IN clauses, we need to create multiple parameters
+                param_names = [f"param{i + 1}" for i in range(len(value))]
+                placeholders = "(" + ",".join([f":{name}" for name in param_names]) + ")"
+                sql_expr = op_def["sql"].format(field=field, params=placeholders)
+                params = {name: val for name, val in zip(param_names, value)}
+                return sql_expr, params
+            case "RANGE":
+                sql_expr = op_def["sql"].format(field=field)
+                return sql_expr, {"param1": value[0], "param2": value[1]}
+            case "IS SIMILAR":
+                sql_expr = op_def["sql"].format(field=field)
+                return sql_expr, {"param1": value, "param2": value, "param3": threshold}
+            case "IS SUBSTRUCTURE OF" | "HAS SUBSTRUCTURE" | "ON":
+                sql_expr = op_def["sql"].format(field=field)
+                return sql_expr, {"param": value}
+            case _:
+                # Standard operator
+                sql_expr = f"{field} {op_def['sql']}"
+                return sql_expr, {"param": value}
