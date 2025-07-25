@@ -28,17 +28,12 @@ class FieldResolver:
             self.table_configs[table] = {
                 "table": table,
                 "alias": alias,
-                "details_table": f"{singular_name}_details"
-                if table != "assay_results"
-                else None,  # Only untill we add new table
-                "details_alias": f"{alias}d" if table != "assay_results" else None,
-                "details_fk": f"{singular_name}_id" if table != "assay_results" else None,
+                "details_table": f"{singular_name}_details",
+                "details_alias": f"{alias}d",
+                "details_fk": f"{singular_name}_id",
                 "direct_fields": {column: f"{alias}.{column}" for column in get_table_columns(table, db)},
             }
-        self.table_configs["compounds"]["direct_fields"]["structure"] = (
-            "c.canonical_smiles"  # Alias for molecular searches
-        )
-
+        self.table_configs["compounds"]["direct_fields"]["structure"] = "c.canonical_smiles"
         # Cross-level relationship definitions
         self.relationships = {
             ("compounds", "batches"): {
@@ -206,21 +201,19 @@ class FieldResolver:
     def _resolve_dynamic_property(
         self, table_config: Dict, property_name: str, joins: JoinOrderingTool, subquery: bool, cross_from: str
     ) -> Dict[str, Any]:
-        is_assay_results = table_config["details_table"] is None
-        alias = table_config["alias"] if is_assay_results else table_config["details_alias"]
-        table = table_config["table"] if is_assay_results else table_config["details_table"]
+        alias = table_config["details_alias"]
+        table = table_config["details_table"]
 
         if subquery and cross_from == "":
             cross_from = table
 
-        if not is_assay_results:
-            if table != cross_from:
-                # Add details table join
-                details_join = (
-                    f"LEFT JOIN {self.db_schema}.{table} {alias} "
-                    f"ON {alias}.{table_config['details_fk']} = {table_config['alias']}.id"
-                )
-                joins.add([details_join], [table])
+        if table != cross_from:
+            # Add details table join
+            details_join = (
+                f"LEFT JOIN {self.db_schema}.{table} {alias} "
+                f"ON {alias}.{table_config['details_fk']} = {table_config['alias']}.id"
+            )
+            joins.add([details_join], [table])
 
         # Add property join
         property_alias = f"p_{alias}"
@@ -236,26 +229,7 @@ class FieldResolver:
             subquery_alias = self.table_configs[cross_from]["alias"] if table != cross_from else alias
             subquery_sql = f"SELECT 1 FROM {self.db_schema}.{cross_from} {subquery_alias} {joins_sql} "
 
-        assay_parts = f"WHEN 'bool' THEN {alias}.value_bool::text " if is_assay_results else ""
-        details_parts = (
-            (f"WHEN 'datetime' THEN {alias}.value_datetime::text WHEN 'uuid' THEN {alias}.value_uuid::text ")
-            if not is_assay_results
-            else ""
-        )
-
-        sql_expression = (
-            f"CASE {property_alias}.value_type "
-            f"WHEN 'int' THEN {alias}.value_num::text "
-            f"WHEN 'double' THEN {alias}.value_num::text "
-            f"WHEN 'string' THEN {alias}.value_string "
-            f"{assay_parts}"
-            f"{details_parts}"
-            f"END"
-        )
-
-        if not subquery and is_assay_results:
-            sql_expression = sql_expression.replace(f" {alias}.", f" {alias}{alias}.")
-
+        sql_expression = self.get_details_sql(table_config["table"], property_alias, alias)
         sql_agg_expression = f"MAX({sql_expression}) FILTER (WHERE {property_alias}.name = '{property_name}')"
         return {
             "sql_expression": sql_agg_expression,
@@ -285,7 +259,8 @@ class FieldResolver:
             joins_sql = joins.getJoinSQL() if cross_from != "assay_results" else joins.getJoinSQL(reversed=True)
             subquery_sql = (
                 "SELECT 1 "
-                f"FROM {self.db_schema}.{self.table_configs[cross_from]['table']} {self.table_configs[cross_from]['alias']} "
+                f"FROM {self.db_schema}.{self.table_configs[cross_from]['table']} "
+                f"{self.table_configs[cross_from]['alias']} "
                 f"{joins_sql} "
             )
 
@@ -305,3 +280,25 @@ class FieldResolver:
                 "alias": self.table_configs[cross_from]["alias"] if subquery and cross_from != "" else "",
             },
         }
+
+    def get_details_sql(self, table: str, property_alias, alias) -> str:
+        """
+        Get SQL for details table based on the main table
+        """
+
+        assay_parts = f"WHEN 'bool' THEN {alias}.value_bool::text " if table == "assay_results" else ""
+        details_parts = (
+            (f"WHEN 'datetime' THEN {alias}.value_datetime::text WHEN 'uuid' THEN {alias}.value_uuid::text ")
+            if not table == "assay_results"
+            else ""
+        )
+        sql_expression = (
+            f"CASE {property_alias}.value_type "
+            f"WHEN 'int' THEN {alias}.value_num::text "
+            f"WHEN 'double' THEN {alias}.value_num::text "
+            f"WHEN 'string' THEN {alias}.value_string "
+            f"{assay_parts}"
+            f"{details_parts}"
+            f"END"
+        )
+        return sql_expression

@@ -60,9 +60,10 @@ class JoinOrderingTool:
         self.joins_dict = {
             "compounds": set(),
             "batches": set(),
+            "assay_results": set(),
             "compound_details": set(),
             "batch_details": set(),
-            "assay_results": set(),
+            "assay_result_details": set(),
             "properties": set(),
         }
 
@@ -71,7 +72,15 @@ class JoinOrderingTool:
             self.joins_dict[keys[i]].add(join)
 
     def getListOfJoins(self) -> List[str]:
-        keys = ["compounds", "batches", "compound_details", "batch_details", "assay_results", "properties"]
+        keys = [
+            "compounds",
+            "batches",
+            "compound_details",
+            "batch_details",
+            "assay_results",
+            "assay_result_details",
+            "properties",
+        ]
         joins = [join for key in keys for join in self.joins_dict.get(key, set())]
         return " ".join(joins) if joins else ""
 
@@ -80,6 +89,6 @@ class JoinOrderingTool:
             keys = ["compounds", "batches", "assay_results"]
         else:
             keys = ["assay_results", "batches", "compounds"]
-        keys.extend(["compound_details", "batch_details", "properties"])
+        keys.extend(["compound_details", "batch_details", "assay_result_details", "properties"])
         joins = [join for key in keys for join in self.joins_dict.get(key, set())]
         return " ".join(joins) if joins else ""

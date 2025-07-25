@@ -224,7 +224,8 @@ class QueryBuilder:
             sql = (
                 f"EXISTS ( "
                 f"{field_info['subquery']['sql']} "
-                f"WHERE {field_info['subquery']['alias']}.{key}={field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
+                f"WHERE {field_info['subquery']['alias']}.{key}="
+                f"{field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
                 f"AND {sql_expr})  "
             )
 
@@ -251,7 +252,8 @@ class QueryBuilder:
         where = (
             f"EXISTS ( "
             f"{field_info['subquery']['sql']} "
-            f"WHERE {field_info['subquery']['alias']}.{key}={field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
+            f"WHERE {field_info['subquery']['alias']}.{key}="
+            f"{field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
             f"AND {field_info['property_filter']}"
             f"AND {value_sql_expr})  "
         )
