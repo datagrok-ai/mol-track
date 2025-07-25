@@ -17,6 +17,7 @@ class DataGenerator:
         Initialize DataGenerator with size, chunk_size, output_dir, and property_config.
         If a seed is provided, sets the random seed for reproducibility.
         """
+
         self.size = size
         self.chunk_size = chunk_size
         self.output_dir = Path(output_dir)
@@ -38,6 +39,7 @@ class DataGenerator:
         Returns:
             Dict[str, int]: A dictionary of record counts per scope.
         """
+
         sb = SchemaBuilder(self.output_dir, self.value_types)
         self.schemas = sb.generate_schema_and_mapping()
         smiles_list = self._generate_compounds()
@@ -56,10 +58,11 @@ class DataGenerator:
         Returns:
             List[str]: A list of generated SMILES strings.
         """
+
         scope = "compound"
         smiles_list = []
         total_generated = 0
-        sg = SmilesGenerator(size=self.total_compounds)
+        sg = SmilesGenerator(data_path=self.output_dir)
         writer = self._get_writer(scope)
 
         while total_generated < self.total_compounds:
@@ -88,6 +91,7 @@ class DataGenerator:
         Returns:
             List[str]: A list of generated EPA Batch IDs.
         """
+
         scope = "batch"
         writer = self._get_writer(scope)
         batch_ids = []
@@ -119,6 +123,7 @@ class DataGenerator:
         Returns:
             str: Name of the generated assay.
         """
+
         scope = "assay"
         properties = self.schemas[scope]["properties"]
         ar_properties = self.schemas["assay_result"]["properties"]
@@ -141,6 +146,7 @@ class DataGenerator:
         Returns:
             List[str]: A list of unique assay run dates.
         """
+
         scope = "assay_run"
         assay_runs = []
         unique_dates = set()
@@ -173,6 +179,7 @@ class DataGenerator:
             assay_runs (List[str]): List of unique assay run dates.
             batch_ids (List[str]): List of unique EPA Batch IDs.
         """
+
         scope = "assay_result"
         writer = self._get_writer(scope)
         total_generated = 0
@@ -195,6 +202,7 @@ class DataGenerator:
     # ==================== Utility Functions ==================== #
     def _get_writer(self, scope: str) -> FileWriter:
         """Returns a writer for the given scope."""
+
         return FileWriter(self.output_dir, self._get_headers(scope))
 
     def _get_headers(self, scope: str) -> List[str]:
@@ -209,6 +217,7 @@ class DataGenerator:
         Returns:
             List[str]: A list of column headers for the CSV row.
         """
+
         schema = self.schemas[scope]
         identity = schema["identity"]
         properties = schema["properties"]
@@ -216,6 +225,7 @@ class DataGenerator:
 
     def _get_non_identity_properties(self, scope: str) -> List[Dict[str, Any]]:
         """Return and cache non-identity properties for a given scope."""
+
         if scope in self._non_identity_cache:
             return self._non_identity_cache[scope]
         schema = self.schemas[scope]
@@ -234,12 +244,14 @@ class DataGenerator:
         Returns:
             Dict[str, Any]: A dictionary mapping property names to values.
         """
+
         return {
             prop["name"]: self._generate_value(prop["value_type"]) for prop in self._get_non_identity_properties(scope)
         }
 
     def _generate_value(self, value_type) -> Any:
         """Generate a mock value for the given type."""
+
         if value_type in ["float", "double"]:
             return round(random.uniform(0.1, 1000.0), 2)
         elif value_type in ["int", "integer"]:
@@ -263,10 +275,12 @@ class DataGenerator:
 
     def _get_compound_count(self) -> int:
         """Get total number of compounds to generate based on size label."""
+
         return {"xsmall": 5, "small": 1000, "large": 1_000_000, "xlarge": 100_000_000}[self.size]
 
     def _get_record_count(self, scope: str) -> int:
         """Get the number of records to generate for a scope, using weighted probabilities."""
+
         distributions = {
             "batch": {"choices": [1, 2, 3, 4, 5], "weights": [80, 5, 5, 5, 5]},
             "assay_result": {"choices": [2, 3, 4, 5], "weights": [79, 7, 7, 7]},
