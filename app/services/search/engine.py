@@ -4,6 +4,7 @@ import app.models as models
 from app.services.search.field_resolver import FieldResolver, FieldResolutionError
 from app.services.search.query_builder import QueryBuilder, QueryBuildError
 from sqlalchemy import text
+from app.setup.database import DB_SCHEMA
 
 
 class SearchEngineError(Exception):
@@ -15,10 +16,10 @@ class SearchEngineError(Exception):
 class SearchEngine:
     """Search orchestration engine"""
 
-    def __init__(self, db: Session, db_schema: str = None):
+    def __init__(self, db: Session):
         self.db = db
-        self.db_schema = db_schema or models.DB_SCHEMA
-        self.field_resolver = FieldResolver(self.db_schema)
+        self.db_schema = DB_SCHEMA
+        self.field_resolver = FieldResolver(self.db_schema, db)
         self.query_builder = QueryBuilder(self.field_resolver)
 
     def search(self, request: models.SearchRequest) -> models.SearchResponse:

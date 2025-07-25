@@ -519,7 +519,6 @@ def search_compounds_advanced(output: List[str], filter: Optional[models.Filter]
     Automatically sets level to 'compounds' and accepts filter parameters directly.
     """
     request = models.SearchRequest(level="compounds", output=output, filter=filter)
-
     return advanced_search(request, db)
 
 
@@ -531,7 +530,6 @@ def search_batches_advanced(output: List[str], filter: Optional[models.Filter] =
     Automatically sets level to 'batches' and accepts filter parameters directly.
     """
     request = models.SearchRequest(level="batches", output=output, filter=filter)
-
     return advanced_search(request, db)
 
 
