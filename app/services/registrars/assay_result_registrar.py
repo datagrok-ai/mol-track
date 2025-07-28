@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, select
 
 from app import models, main
 from app.utils import enums, sql_utils
@@ -86,7 +86,7 @@ class AssayResultsRegistrar(BaseRegistrar):
     def _lookup_batch_by_details(self, batch_details: Dict[str, Any]) -> models.Batch:
         subq = self._lookup_by_details(batch_details, models.BatchDetail, "batch_id", enums.ScopeClass.BATCH, None)
 
-        batch_matches = self.db.query(models.Batch).filter(models.Batch.id.in_(subq)).all()
+        batch_matches = self.db.query(models.Batch).filter(models.Batch.id.in_(select(subq))).all()
         return self._check_single_result(batch_matches, "batches")
 
     def _lookup_assay_run_by_details(
@@ -107,7 +107,7 @@ class AssayResultsRegistrar(BaseRegistrar):
         assay_runs = (
             self.db.query(models.AssayRun)
             .filter(models.AssayRun.assay_id == assay.id)
-            .filter(models.AssayRun.id.in_(subq))
+            .filter(models.AssayRun.id.in_(select(subq)))
             .all()
         )
         return self._check_single_result(assay_runs, "assay runs")

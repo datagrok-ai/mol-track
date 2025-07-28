@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal
-from pydantic import field_validator, model_validator
+from pydantic import ConfigDict, field_validator, model_validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
@@ -222,8 +222,7 @@ class SynonymTypeBase(PropertyBase):
     unit: Optional[str] = Field(default="")
     semantic_type_id: Optional[int] = Field(default=1)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("value_type")
     def validate_value_type(cls, v):
@@ -500,8 +499,7 @@ class AdditionFields(SQLModel):
         schema_extra={"validation_alias": "molecular weight"},
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class AdditionBase(AdditionFields):

@@ -68,7 +68,7 @@ class CompoundRegistrar(BaseRegistrar):
             compound_dict.pop("id", None)
             return compound_dict
 
-        now = datetime.utcnow()
+        now = datetime.now()
 
         inchikey = Chem.InchiToInchiKey(Chem.MolToInchi(mol))
         if inchikey is None:
