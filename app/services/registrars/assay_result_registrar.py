@@ -141,7 +141,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                     self.assay_results_to_insert.append(assay_result)
 
                     inserted, updated = self.property_service.build_details_records(
-                        models.AssayResult,
+                        models.AssayResultDetail,
                         grouped.get("assay_results", {}),
                         {"rn": idx + 1},
                         enums.ScopeClass.ASSAY_RESULT,
