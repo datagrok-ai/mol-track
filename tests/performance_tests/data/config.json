@@ -1,5 +1,5 @@
 {
-    "dataset_size": "xsmall",
+    "dataset_size": "small",
     "distributions": {
         "BATCH": {
             "choices": [1, 2, 3, 4, 5],
