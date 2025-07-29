@@ -9,8 +9,7 @@ from typing import Generator
 class SmilesGenerator:
     def __init__(self, data_path: Path):
         # Read rgroups_1000.smi as an array of strings into rgroups_1000
-        with open(data_path / "rgroups_1000.smi", "r") as f:
-            self.rgroups_1000 = [line.strip() for line in f if line.strip()]
+        self.load_rgroups(data_path)
         max_size = len(self.rgroups_1000) ** 3
         self.number_generated = 0
         self.core_smiles = "[*:1]n1c2cc([*:2])cc([*:3])c2cc1"  # Assymetric core
@@ -102,3 +101,7 @@ class SmilesGenerator:
             core_neighbor + core_fudge, rgroup_attach + rgroup_offset + rgroup_fudge, order=Chem.rdchem.BondType.SINGLE
         )
         return combo_edit.GetMol()
+
+    def load_rgroups(self, data_path: Path) -> None:
+        with open(data_path / "rgroups_1000.smi", "r") as f:
+            self.rgroups_1000 = [line.strip() for line in f if line.strip()]

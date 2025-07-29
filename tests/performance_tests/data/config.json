@@ -1,0 +1,25 @@
+{
+    "dataset_size": "xsmall",
+    "distributions": {
+        "BATCH": {
+            "choices": [1, 2, 3, 4, 5],
+            "weights": [80, 5, 5, 5, 5]
+        },
+        "ASSAY_RUN": {
+            "choices": [1, 5, 10],
+            "weights": [5, 5, 90]
+        },
+        "ASSAY_RESULT": {
+            "choices": [2, 3, 4, 5],
+            "weights": [79, 7, 7, 7]
+        }
+    },
+    "number_of_assays": 1,
+    "details_columns":{
+        "COMPOUND": 5,
+        "BATCH": 10,
+        "ASSAY": 2,
+        "ASSAY_RUN": 10,
+        "ASSAY_RESULT": 5
+    }
+}
