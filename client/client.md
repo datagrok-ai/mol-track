@@ -796,3 +796,84 @@ The client uses the following default configuration:
 - **Output Format**: json
 
 These can be overridden using command-line options.
+
+## Search Output Parameter Formats
+
+The search commands (`search compounds`, `search batches`, `search assay-results`) now support multiple formats for the `--output` parameter.
+
+### Supported Formats
+
+#### 1. Comma-separated string (original format)
+```bash
+mtcli.py search compounds --output "id,canonical_smiles,common_name"
+```
+
+#### 2. JSON file with object containing "output" key
+```json
+{
+  "output": [
+    "id",
+    "canonical_smiles", 
+    "common_name",
+    "created_at"
+  ]
+}
+```
+```bash
+mtcli.py search compounds --output output.json
+```
+
+#### 3. JSON file with simple list
+```json
+[
+  "id",
+  "batch_regno",
+  "compound_id", 
+  "notes"
+]
+```
+```bash
+mtcli.py search batches --output output_list.json
+```
+
+### Examples
+
+#### Compounds Search
+```bash
+# String format
+mtcli.py search compounds --output "id,canonical_smiles" --filter '{"field": "compounds.details.common_name", "operator": "=", "value": "Aspirin"}'
+
+# JSON file format
+mtcli.py search compounds --output example_output.json --filter filter.json --output-format table
+```
+
+#### Batches Search
+```bash
+# String format
+mtcli.py search batches --output "id,batch_regno,notes" --filter '{"field": "batches.compound_id", "operator": "=", "value": 1}'
+
+# JSON file format
+mtcli.py search batches --output example_output_list.json --filter batch_filter.json
+```
+
+#### Assay Results Search
+```bash
+# String format
+mtcli.py search assay-results --output "id,value_num,assay_id" --filter '{"field": "assay_results.value_num", "operator": ">", "value": 50}'
+
+# JSON file format
+mtcli.py search assay-results --output output.json --filter assay_filter.json --output-format table
+```
+
+### File Detection
+
+The system automatically detects whether the `--output` parameter is a file path or a string by checking if the path exists as a file. If the file exists, it's treated as a JSON file; otherwise, it's treated as a comma-separated string.
+
+### Error Handling
+
+- If a JSON file is specified but doesn't exist, an error is shown
+- If a JSON file exists but has invalid format, an error is shown
+- The JSON file must contain either:
+  - A list of column names
+  - An object with an "output" key containing a list
+  - An object with a "columns" key containing a list

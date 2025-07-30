@@ -2,6 +2,7 @@
 import sys
 import csv
 import json
+import re
 from pathlib import Path
 import typer
 import requests
@@ -19,26 +20,24 @@ sys.path.insert(0, str(parent_dir))
 try:
     # from app.models import SchemaPayload
     # from .database import engine, DB_SCHEMA
-    from app.models import SchemaPayload
+    from app.models import SchemaPayload, SearchRequest, SearchResponse, AtomicCondition, LogicalNode
 except ImportError:
     # Fallback for when models is not in the path
     # from app.models import SchemaPayload
-    try:
-        from models import SchemaPayload
-    except ImportError:
-        print("app.models and models import failed")
-        # raise ImportError("Failed to import SchemaPayload")
+    print("app.models import failed")
+    # raise ImportError("Failed to import SchemaPayload")
+    SchemaPayload = None
+    SearchRequest = None
+    SearchResponse = None
+    AtomicCondition = None
+    LogicalNode = None
 
 
 try:
     from app.setup.database import engine, DB_SCHEMA
 except ImportError:
-    try:
-        from database import engine, DB_SCHEMA
-    except ImportError:
-        # Set to None for when running standalone
-        engine = None
-        DB_SCHEMA = None
+    engine = None
+    DB_SCHEMA = None
 
 app = typer.Typer()
 schema_app = typer.Typer()
@@ -429,6 +428,7 @@ def display_data_table(
     row_extractor: callable,
     show_total: bool = False,
     total_label: str = "TOTAL",
+    max_rows: int = None,
 ) -> None:
     """
     Display data in a rich table format.
@@ -440,11 +440,16 @@ def display_data_table(
         row_extractor: Function that extracts row values from a data item
         show_total: Whether to show a total row
         total_label: Label for the total row
+        max_rows: Maximum number of rows to display (None = all)
     """
     console = Console()
     table = create_rich_table(title, columns)
 
     total_value = 0
+    total_rows = len(data)
+    if max_rows is not None:
+        data = data[:max_rows]
+    typer.echo(f"Rows: {len(data)} (total available: {total_rows})")
 
     for item in data:
         row_values = row_extractor(item)
@@ -509,15 +514,33 @@ def get_table_row_counts(specific_tables: list[str] | None = None) -> dict[str, 
 
 # Schema Commands
 @schema_app.command("list")
-def list_schema_group(url: str = DEFAULT_SERVER_URL):
+def list_schema_group(
+    url: str = DEFAULT_SERVER_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+):
     """
     List the schema.
     """
     print(f"Listing schema from {url}")
     response = requests.get(f"{url}/v1/schema/compounds")
-    typer.echo(f"Compounds schema:\n{json.dumps(response.json(), indent=2)}")
+    compounds_schema = response.json()
     response = requests.get(f"{url}/v1/schema/batches")
-    typer.echo(f"Batches schema:\n{json.dumps(response.json(), indent=2)}")
+    batches_schema = response.json()
+
+    if output_format == "json":
+        typer.echo(f"Compounds schema:\n{json.dumps(compounds_schema, indent=2)}")
+        typer.echo(f"Batches schema:\n{json.dumps(batches_schema, indent=2)}")
+    else:
+        # Combine compound and batch properties into a single table
+        compound_props = compounds_schema if isinstance(compounds_schema, list) else compounds_schema.get("properties", [])
+        if isinstance(batches_schema, dict) and "properties" in batches_schema:
+            batch_props = batches_schema["properties"]
+        else:
+            batch_props = batches_schema if isinstance(batches_schema, list) else []
+        all_props = compound_props + batch_props
+        typer.echo("Combined Compounds and Batches schema:")
+        display_properties_table(all_props, max_rows=max_rows)
 
 
 @schema_app.command("load")
@@ -906,6 +929,7 @@ def add_compounds_from_csv(
 def list_properties(
     url: str = DEFAULT_SERVER_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
 ):
     """
     List the properties.
@@ -919,7 +943,7 @@ def list_properties(
             print(json.dumps(properties_data, indent=2))
         else:
             # Default to table format
-            display_properties_table(properties_data)
+            display_properties_table(properties_data, max_rows=max_rows)
     else:
         print(f"Error: {response.status_code}")
         try:
@@ -929,7 +953,7 @@ def list_properties(
             print(f"Response: {response.text}")
 
 
-def display_properties_table(properties_data):
+def display_properties_table(properties_data, max_rows=None):
     """Display properties data in a rich table format."""
     columns = [
         ("Name", "cyan", {"no_wrap": True}),
@@ -948,7 +972,7 @@ def display_properties_table(properties_data):
             format_timestamp(prop.get("created_at", "")),
         ]
 
-    display_data_table(data=properties_data, title="Properties", columns=columns, row_extractor=extract_property_row)
+    display_data_table(data=properties_data, title="Properties", columns=columns, row_extractor=extract_property_row, max_rows=max_rows)
 
 
 # Batch Commands
@@ -1423,6 +1447,69 @@ def database_stats():
 
     except Exception as e:
         typer.echo(f"❌ Error connecting to database: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@database_app.command("list-properties")
+def database_list_properties(
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table, json, or csv"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display"),
+):
+    """
+    List all properties from the moltrack.properties table.
+    
+    Displays the following fields:
+    - name: Property name
+    - scope: Property scope (COMPOUND, BATCH, etc.)
+    - value_type: Data type (int, double, bool, datetime, string)
+    - semantic_type_id: Semantic type identifier
+    - created_at: Creation timestamp
+    """
+    try:
+        if engine is None or DB_SCHEMA is None:
+            raise ImportError("Database connection not available - engine or DB_SCHEMA is None")
+
+        # Query the properties table
+        query = text(f"""
+            SELECT name, scope, value_type, semantic_type_id, created_at
+            FROM {DB_SCHEMA}.properties
+            ORDER BY name
+        """)
+
+        with engine.connect() as connection:
+            result = connection.execute(query)
+            properties_data = []
+            
+            for row in result:
+                properties_data.append({
+                    "name": row[0],
+                    "scope": row[1],
+                    "value_type": row[2],
+                    "semantic_type_id": row[3],
+                    "created_at": row[4].isoformat() if row[4] else None
+                })
+
+        if output_format == "json":
+            typer.echo(json.dumps(properties_data, indent=2))
+        elif output_format == "csv":
+            # Write to CSV format
+            import sys
+            writer = csv.writer(sys.stdout)
+            writer.writerow(["name", "scope", "value_type", "semantic_type_id", "created_at"])
+            for prop in properties_data:
+                writer.writerow([
+                    prop["name"],
+                    prop["scope"],
+                    prop["value_type"],
+                    prop["semantic_type_id"],
+                    prop["created_at"]
+                ])
+        else:
+            # Default to table format
+            display_properties_table(properties_data, max_rows=max_rows)
+
+    except Exception as e:
+        typer.echo(f"❌ Error querying properties table: {e}", err=True)
         raise typer.Exit(1)
 
 
@@ -2121,6 +2208,300 @@ def set_batchregno_sequence_start(
     payload = {"start_value": start_value}
     response = requests.patch(f"{url}/v1/admin/batchregno-sequence-start", data=payload)
     print_response(response)
+
+
+def parse_arg(arg, arg_type="json", default_value=None, allow_comma_separated=False):
+    """
+    Parse an argument, which can be a JSON string, a path to a JSON file, or a comma-separated string.
+    
+    Args:
+        arg: The argument to parse
+        arg_type: Type of argument ("json" or "output")
+        default_value: Value to return if arg is None
+        allow_comma_separated: Whether to allow comma-separated string parsing as fallback
+    
+    Returns:
+        Parsed data (dict for JSON, list for output)
+    """
+    if arg is None:
+        return default_value
+    
+    # Try to load as a file if it exists
+    if isinstance(arg, str) and Path(arg).exists():
+        try:
+            with open(arg, "r") as f:
+                data = json.load(f)
+                
+                # For output type, handle different JSON formats
+                if arg_type == "output":
+                    if isinstance(data, list):
+                        return data
+                    elif isinstance(data, dict) and "output" in data:
+                        return data["output"]
+                    elif isinstance(data, dict) and "columns" in data:
+                        return data["columns"]
+                    else:
+                        typer.echo("Error: JSON file must contain a list of columns or an object with 'output' or 'columns' key", err=True)
+                        raise typer.Exit(1)
+                else:
+                    # For JSON type, return the data as-is
+                    return data
+                    
+        except Exception as e:
+            typer.echo(f"Error parsing {arg_type} file: {e}", err=True)
+            raise typer.Exit(1)
+    
+    # Try to parse as JSON string
+    try:
+        return json.loads(arg)
+    except Exception:
+        # If JSON parsing fails and comma-separated is allowed, try that
+        if allow_comma_separated:
+            return [col.strip() for col in arg.split(",") if col.strip()]
+        else:
+            typer.echo(f"Error parsing {arg_type}: Invalid JSON format", err=True)
+            raise typer.Exit(1)
+
+
+
+
+
+def validate_search_request(level, output, filter_obj):
+    """
+    Validate the search request using the SearchRequest model if available.
+    """
+    if SearchRequest is not None:
+        try:
+            req = SearchRequest(level=level, output=output, filter=filter_obj)
+            return req.model_dump()
+        except Exception as e:
+            typer.echo(f"❌ SearchRequest validation failed: {e}", err=True)
+            raise typer.Exit(1)
+    else:
+        return {"level": level, "output": output, "filter": filter_obj}
+
+
+def validate_search_response(data):
+    """
+    Validate the search response using the SearchResponse model if available.
+    """
+    if SearchResponse is not None:
+        try:
+            resp = SearchResponse(**data)
+            return resp
+        except Exception as e:
+            typer.echo(f"❌ SearchResponse validation failed: {e}", err=True)
+            raise typer.Exit(1)
+    else:
+        return data
+
+
+def create_column_mapping(output, level):
+    """
+    Create a mapping from output column names to actual field names in the response.
+    
+    The server returns field names like 'compounds_details_epa_compound_id' 
+    but the output might specify 'epa_compound_id' or 'compounds.details.epa_compound_id'.
+    """
+    col_map = {}
+    
+    # Derive prefixes directly from level
+    prefix = level
+    details_prefix = f"{level}_details"
+    
+    # Define direct fields for each level (fields that belong to the main table)
+    direct_fields = {
+        "compounds": ["id", "canonical_smiles", "inchi", "inchikey", "formula", "molregno", "hash_mol", "hash_tautomer", "hash_canonical_smiles", "hash_no_stereo_smiles", "hash_no_stereo_tautomer", "created_at", "updated_at", "is_archived", "structure"],
+        "batches": ["id", "compound_id", "batch_regno", "notes", "created_at", "updated_at"],
+        "assay_results": ["id", "batch_id", "assay_run_id", "created_at", "updated_at", "created_by", "updated_by"]
+    }
+    
+    level_direct_fields = direct_fields.get(level, [])
+    
+    for col in output:
+        # Handle different input formats
+        if '.' in col:
+            # Convert dot notation to underscore: 'compounds.details.epa compound id' -> 'compounds_details_epa_compound_id'
+            # First replace dots with underscores, then replace spaces with underscores
+            mapped_col = col.replace('.', '_').replace(' ', '_')
+        else:
+            # For simple column names, determine the appropriate prefix
+            if col.startswith(f"{prefix}_"):
+                # Already has the correct prefix
+                mapped_col = col
+            elif col in level_direct_fields:
+                # Direct field from the main table
+                mapped_col = f"{prefix}_{col}"
+            else:
+                # Assume it's a details field
+                mapped_col = f"{details_prefix}_{col.replace(' ', '_')}"
+        
+        col_map[col] = mapped_col
+    
+    return col_map
+
+
+def find_field_in_response(item, col_name, level):
+    """
+    Try to find a field in the response data using multiple possible field names.
+    This is a fallback method when the standard mapping doesn't work.
+    """
+    if not item:
+        return ""
+    
+    # Derive prefixes directly from level
+    prefix = level
+    details_prefix = f"{level}_details"
+    
+    # Compile regex pattern once for efficiency
+    normalize_pattern = re.compile(r'[.\s]+')
+    
+    # Create normalized version of column name
+    normalized_col = normalize_pattern.sub('_', col_name)
+    
+    # Create variations
+    variations = [
+        col_name,  # Exact match
+        normalized_col,  # Normalized version
+        f"{prefix}_{normalized_col}",  # With prefix
+        f"{details_prefix}_{normalized_col}"  # With details prefix
+    ]
+    
+    # Try each variation
+    for variation in variations:
+        if variation in item:
+            return str(item[variation])
+    
+    # If nothing found, return empty string
+    return ""
+
+
+def display_search_table(resp, output, max_rows=None):
+    """
+    Display search results in a table format using rich.
+    """
+    columns = [(col, "cyan", {"no_wrap": True}) for col in output]  # Keep original for headers
+
+    def extract_row(item):
+        return [find_field_in_response(item, col, resp.level) for col in output]
+
+    display_data_table(data=resp.data, title=f"Search Results ({resp.level})", columns=columns, row_extractor=extract_row, max_rows=max_rows)
+
+
+def display_search_csv(resp, output, max_rows=None):
+    """
+    Display search results in CSV format.
+    """
+    # Write CSV header
+    import sys
+    writer = csv.writer(sys.stdout)
+    writer.writerow(output)
+    
+    # Write data rows
+    data = resp.data
+    if max_rows is not None:
+        data = data[:max_rows]
+    
+    for item in data:
+        row = [find_field_in_response(item, col, resp.level) for col in output]
+        writer.writerow(row)
+
+
+def run_advanced_search(level, endpoint, output, filter, url, output_format, max_rows=None):
+    """
+    Shared logic for advanced search commands.
+    """
+    output_list = parse_arg(output, arg_type="output", default_value=[], allow_comma_separated=True)
+    filter_obj = parse_arg(filter, arg_type="json", default_value=None, allow_comma_separated=False)
+    payload = validate_search_request(level, output_list, filter_obj)
+    response = requests.post(f"{url}{endpoint}", json=payload)
+    if response.status_code == 200:
+        resp = validate_search_response(response.json())
+        if output_format == "json":
+            print(json.dumps(response.json(), indent=2))
+        elif output_format == "csv":
+            display_search_csv(resp, output_list, max_rows=max_rows)
+        else:
+            display_search_table(resp, output_list, max_rows=max_rows)
+    else:
+        typer.echo(f"Error: {response.status_code}")
+        try:
+            error_detail = response.json()
+            typer.echo(f"Details: {json.dumps(error_detail, indent=2)}")
+        except Exception:
+            typer.echo(f"Response: {response.text}")
+
+
+@search_app.command("compounds")
+def search_compounds(
+    output: str = typer.Option(..., help="Comma-separated list of columns to return or path to JSON file (e.g. 'id,canonical_smiles' or output.json)"),
+    filter: str = typer.Option(None, help="Filter as JSON string or path to JSON file (see docs for format)"),
+    url: str = DEFAULT_SERVER_URL,
+    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: table, json, or csv"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+):
+    """
+    Advanced search for compounds using /v1/search/compounds endpoint.
+
+    The --output parameter can be:
+    - A comma-separated string: "id,canonical_smiles,common_name"
+    - A JSON file path containing a list: ["id", "canonical_smiles", "common_name"]
+    - A JSON file path containing an object: {"output": ["id", "canonical_smiles"]}
+
+    Example usage:
+      mtcli.py search compounds --output "id,canonical_smiles" --filter '{"field": "compounds.details.common_name", "operator": "=", "value": "Aspirin"}'
+      mtcli.py search compounds --output output.json --filter filter.json --output-format table
+      mtcli.py search compounds --output "id,canonical_smiles" --output-format csv
+    """
+    run_advanced_search("compounds", "/v1/search/compounds", output, filter, url, output_format, max_rows=max_rows)
+
+
+@search_app.command("batches")
+def search_batches(
+    output: str = typer.Option(..., help="Comma-separated list of columns to return or path to JSON file (e.g. 'id,batch_regno' or output.json)"),
+    filter: str = typer.Option(None, help="Filter as JSON string or path to JSON file (see docs for format)"),
+    url: str = DEFAULT_SERVER_URL,
+    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: table, json, or csv"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+):
+    """
+    Advanced search for batches using /v1/search/batches endpoint.
+
+    The --output parameter can be:
+    - A comma-separated string: "id,batch_regno,notes"
+    - A JSON file path containing a list: ["id", "batch_regno", "notes"]
+    - A JSON file path containing an object: {"output": ["id", "batch_regno"]}
+
+    Example usage:
+      mtcli.py search batches --output "id,batch_regno" --filter '{"field": "batches.compound_id", "operator": "=", "value": 1}'
+      mtcli.py search batches --output output.json --filter batch_filter.json --output-format table
+      mtcli.py search batches --output "id,batch_regno" --output-format csv
+    """
+    run_advanced_search("batches", "/v1/search/batches", output, filter, url, output_format, max_rows=max_rows)
+
+
+@search_app.command("assay-results")
+def search_assay_results(
+    output: str = typer.Option(..., help="Comma-separated list of columns to return or path to JSON file (e.g. 'id,value_num' or output.json)"),
+    filter: str = typer.Option(None, help="Filter as JSON string or path to JSON file (see docs for format)"),
+    url: str = DEFAULT_SERVER_URL,
+    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: table, json, or csv"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+):
+    """
+    Advanced search for assay results using /v1/search/assay-results endpoint.
+
+    The --output parameter can be:
+    - A comma-separated string: "id,value_num,assay_id"
+    - A JSON file path containing a list: ["id", "value_num", "assay_id"]
+    - A JSON file path containing an object: {"output": ["id", "value_num"]}
+
+    Example usage:
+      mtcli.py search assay-results --output "id,value_num" --filter '{"field": "assay_results.value_num", "operator": ">", "value": 50}'
+      mtcli.py search assay-results --output output.json --filter assay_filter.json --output-format table
+      mtcli.py search assay-results --output "id,value_num" --output-format csv
+    """
+    run_advanced_search("assay_results", "/v1/search/assay-results", output, filter, url, output_format, max_rows=max_rows)
 
 
 if __name__ == "__main__":
