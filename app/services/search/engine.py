@@ -5,6 +5,8 @@ from app.services.search.field_resolver import FieldResolver, FieldResolutionErr
 from app.services.search.query_builder import QueryBuilder, QueryBuildError
 from sqlalchemy import text
 from app.setup.database import DB_SCHEMA
+from app.services.search.operators import SearchOperators
+from app.services.search.utils import sanitize_field_name
 
 
 class SearchEngineError(Exception):
@@ -38,14 +40,15 @@ class SearchEngine:
             if validation_errors:
                 raise SearchEngineError(f"Request validation failed: {'; '.join(validation_errors)}")
 
+            # Extract column names from output fields
+            columns = [field.lower() for field in request.output]
+            self.output_aliases = {sanitize_field_name(field): field for field in columns}
+
             # Build the SQL query
             query_info = self.query_builder.build_query(request)
 
             # Execute main query
             results = self._execute_main_query(query_info["sql"], query_info["params"])
-
-            # Extract column names from output fields
-            columns = [field.replace(".", "_") for field in request.output]
 
             return models.SearchResponse(
                 status="success", data=results, total_count=len(results), level=request.level, columns=columns
@@ -54,7 +57,7 @@ class SearchEngine:
         except (FieldResolutionError, QueryBuildError) as e:
             raise SearchEngineError(f"Search execution error: {str(e)}")
         except Exception as e:
-            raise SearchEngineError(f"Unexpected error during search: {str(e)}")
+            raise SearchEngineError(f"Error: {str(e)}")
 
     def validate_request(self, request: models.SearchRequest) -> List[str]:
         """
@@ -85,6 +88,8 @@ class SearchEngine:
             # Validate single atomic condition
             if not self.field_resolver.validate_field_path(filter_obj.field):
                 errors.append(f"Invalid field at {path}: {filter_obj.field}")
+            SearchOperators.validate_operands(filter_obj.operator, filter_obj.field)
+            SearchOperators.validate_operator_value(filter_obj.operator, filter_obj.value, filter_obj.threshold)
 
         elif isinstance(filter_obj, models.LogicalNode):
             # Validate logical node with multiple conditions
@@ -95,6 +100,8 @@ class SearchEngine:
                     # Validate field path
                     if not self.field_resolver.validate_field_path(condition.field):
                         errors.append(f"Invalid field at {condition_path}: {condition.field}")
+                    SearchOperators.validate_operands(condition.operator, condition.field)
+                    SearchOperators.validate_operator_value(condition.operator, condition.value, condition.threshold)
 
                 elif isinstance(condition, models.LogicalNode):
                     # Recursively validate nested filters
@@ -111,7 +118,7 @@ class SearchEngine:
 
             # Get column names from result
             if result.returns_rows:
-                columns = list(result.keys())
+                columns = [self.output_aliases[item] for item in list(result.keys())]
                 rows = result.fetchall()
 
                 # Convert rows to dictionaries

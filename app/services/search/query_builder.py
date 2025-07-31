@@ -192,10 +192,6 @@ class QueryBuilder:
             # Resolve field to SQL components
             field_info = self.field_resolver.resolve_field(condition.field, level, joins, True)
 
-            # Validate operator and value
-            self.operators.validate_operator_value(condition.operator, condition.value, condition.threshold)
-            self.operators.validate_operands(condition.operator, condition.field)
-
             # Handle dynamic properties with property name filtering
             if field_info["is_dynamic"]:
                 return self._build_dynamic_condition(field_info, condition)

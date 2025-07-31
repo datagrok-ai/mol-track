@@ -81,7 +81,7 @@ class SearchOperators:
             "requires_threshold": True,
         },
         "HAS SUBSTRUCTURE": {
-            "sql": "public.mol_from_smiles({field}::cstring) OPERATOR(public.@>) public.mol_from_smiles(:param)",
+            "sql": "public.mol_from_smiles({field}::cstring) OPERATOR(public.@>) :param\\:\\:public.qmol",
             "type": OperatorType.MOLECULAR,
             "params": 1,
             "description": "Molecular substructure search",
@@ -140,9 +140,12 @@ class SearchOperators:
     @classmethod
     def validate_operands(cls, operator: str, field: str):
         """Validate that operand is appropriate for operation"""
-        if operator in ["IS SIMILAR", "SUBSTRUCTURE", "IS CONTAINED"]:
+        if operator in ["IS SIMILAR", "HAS SUBSTRUCTURE", "IS SUBSTRUCTURE OF"]:
             if not field.endswith(".structure"):
                 raise ValueError("Molecular operators can only be applied to compounds.structure")
+        else:
+            if field.endswith(".structure"):
+                raise ValueError("Only molecular operators can be applied to compounds.structure")
 
     @classmethod
     def get_sql_expression(
