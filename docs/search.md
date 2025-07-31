@@ -59,8 +59,8 @@ The search functionality supports the following operators based on the data type
 * Datetime: `BEFORE`, `AFTER`, `ON`
 * Bool: `=`, `!=`
 * Molecule (uses RDKit cartridge operator)
-  * `CONTAINS (value: string)`
-  * `IS CONTAINED (value: string)` 
+  * `HAS SUBSTRUCTURE (value: string)`
+  * `IS SUBSTRUCTURE OF (value: string)` 
   * `IS SIMILAR (value: string, threshold: number)`
 
 **Note:** Molecule operations can be applied only to field ```compounds.structure```
@@ -93,53 +93,56 @@ Field descriptions:
 ### Example Expression
 ```json
 {
-  "level": "compounds",
-  "output": [
-    "compounds.canonical_smiles",
-  	"compounds.details.chembl",
-	  "compounds.details.polarSurface"
-  ],
-  "filter": {
-    "operator": "AND",
-    "conditions": [
-      {
-        "field": "compounds.structure",
-        "operator": "IS SIMILAR",
-        "value": "Cc1ccc",
-        "threshold": 0.95
-      },
-      {
-        "operator": "OR",
-        "conditions": [
-          {
-            "field": "compounds.details.chembl",
-            "operator": "IN",
-            "value": ["CHEMBL123", "CHEMBL123"]
-          },
-          {
-            "field": "compounds.details.project",
-            "operator": "=",
-            "value": "My project"
-          }
-        ]
-      },
-      {
-        "operator": "AND",
-        "conditions": [
-          {
-            "field": "assay_results.ic50",
-            "operator": ">",
-            "value": 0.42
-          },
-          {
-            "field": "assay_results.ec50",
-            "operator": "<",
-            "value": 100
-          }
-        ]
-      }
-    ]
-  }
+   "level":"compounds",
+   "output":[
+      "compounds.canonical_smiles",
+      "compounds.details.chembl",
+      "compounds.details.polarSurface"
+   ],
+   "filter":{
+      "operator":"AND",
+      "conditions":[
+         {
+            "field":"compounds.structure",
+            "operator":"IS SIMILAR",
+            "value":"Cc1ccc",
+            "threshold":0.95
+         },
+         {
+            "operator":"OR",
+            "conditions":[
+               {
+                  "field":"compounds.details.chembl",
+                  "operator":"IN",
+                  "value":[
+                     "CHEMBL123",
+                     "CHEMBL123"
+                  ]
+               },
+               {
+                  "field":"compounds.details.project",
+                  "operator":"=",
+                  "value":"My project"
+               }
+            ]
+         },
+         {
+            "operator":"AND",
+            "conditions":[
+               {
+                  "field":"assay_results.ic50",
+                  "operator":">",
+                  "value":0.42
+               },
+               {
+                  "field":"assay_results.ec50",
+                  "operator":"<",
+                  "value":100
+               }
+            ]
+         }
+      ]
+   }
 }
 ```
 ## Search query parser
