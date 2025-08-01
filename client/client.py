@@ -2,10 +2,12 @@
 import sys
 import csv
 import json
+import os
 import re
 from pathlib import Path
 import typer
 import requests
+import tempfile
 from rich.console import Console
 from rich.table import Table
 from datetime import datetime
@@ -279,8 +281,6 @@ def send_csv_upload_request(
     try:
         if csv_data is not None:
             # Create temporary CSV file with limited data
-            import tempfile
-
             with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8"
             ) as temp_file:
@@ -362,8 +362,6 @@ def send_csv_upload_request(
             # Clean up temporary file
             if temp_file_path and temp_file_path != str(csv_path):
                 try:
-                    import os
-
                     os.unlink(temp_file_path)
                 except Exception:
                     pass  # Ignore cleanup errors
@@ -1473,7 +1471,7 @@ def database_list_properties(
         query = text(f"""
             SELECT name, scope, value_type, semantic_type_id, created_at
             FROM {DB_SCHEMA}.properties
-            ORDER BY name
+            ORDER BY scope, name
         """)
 
         with engine.connect() as connection:
@@ -1493,13 +1491,12 @@ def database_list_properties(
             typer.echo(json.dumps(properties_data, indent=2))
         elif output_format == "csv":
             # Write to CSV format
-            import sys
             writer = csv.writer(sys.stdout)
             writer.writerow(["name", "scope", "value_type", "semantic_type_id", "created_at"])
             for prop in properties_data:
                 writer.writerow([
-                    prop["name"],
                     prop["scope"],
+                    prop["name"],
                     prop["value_type"],
                     prop["semantic_type_id"],
                     prop["created_at"]
@@ -2359,7 +2356,7 @@ def find_field_in_response(item, col_name, level):
     # Create normalized version of column name
     normalized_col = normalize_pattern.sub('_', col_name)
     
-    # Create variations
+    # Create variations with exact case first
     variations = [
         col_name,  # Exact match
         normalized_col,  # Normalized version
@@ -2367,10 +2364,21 @@ def find_field_in_response(item, col_name, level):
         f"{details_prefix}_{normalized_col}"  # With details prefix
     ]
     
-    # Try each variation
+    # Try each variation with exact case first
     for variation in variations:
         if variation in item:
             return str(item[variation])
+    
+    # If no exact match found, try case-insensitive matching
+    # Create a case-insensitive lookup dictionary
+    item_lower = {k.lower(): k for k in item.keys()}
+    
+    # Try case-insensitive variations
+    for variation in variations:
+        variation_lower = variation.lower()
+        if variation_lower in item_lower:
+            # Return the value using the original case key
+            return str(item[item_lower[variation_lower]])
     
     # If nothing found, return empty string
     return ""
@@ -2380,7 +2388,7 @@ def display_search_table(resp, output, max_rows=None):
     """
     Display search results in a table format using rich.
     """
-    columns = [(col, "cyan", {"no_wrap": True}) for col in output]  # Keep original for headers
+    columns = [(col.split(".")[-1], "cyan", {"no_wrap": True}) for col in output]  # Keep original for headers
 
     def extract_row(item):
         return [find_field_in_response(item, col, resp.level) for col in output]
@@ -2393,9 +2401,8 @@ def display_search_csv(resp, output, max_rows=None):
     Display search results in CSV format.
     """
     # Write CSV header
-    import sys
     writer = csv.writer(sys.stdout)
-    writer.writerow(output)
+    writer.writerow([col.split(".")[-1] for col in output])
     
     # Write data rows
     data = resp.data
