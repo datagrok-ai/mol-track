@@ -16,14 +16,27 @@ from sqlalchemy.sql import text
 
 
 class CompoundRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
-        super().__init__(db, mapping, error_handling)
-        self.compound_records_map = self._load_reference_map(models.Compound, "hash_mol")
-        self.compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
-        self.compounds_to_insert: Dict[str, Dict[str, Any]] = {}
+    def __init__(self, db: Session, mapping: Optional[str], error_handling: str, result_writer=None):
+        super().__init__(db, mapping, error_handling, result_writer)
+        # self.compound_records_map = self._load_reference_map(models.Compound, "hash_mol")
+        # self.compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
+        self._compound_records_map = None
+        self._compound_details_map = None
 
-        self.output_records: List[Dict[str, Any]] = []
+        self.compounds_to_insert: Dict[str, Dict[str, Any]] = {}
         self.matching_setting = self._load_matching_setting()
+
+    @property
+    def compound_records_map(self) -> Dict[str, models.Compound]:
+        if self._compound_records_map is None:
+            self._compound_records_map = self._load_reference_map(models.Compound, "hash_mol")
+        return self._compound_records_map
+
+    @property
+    def compound_details_map(self) -> Dict[int, models.CompoundDetail]:
+        if self._compound_details_map is None:
+            self._compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
+        return self._compound_details_map
 
     def _next_molregno(self) -> int:
         molregno = self.db.execute(text("SELECT nextval('moltrack.molregno_seq')")).scalar()
@@ -50,20 +63,16 @@ class CompoundRegistrar(BaseRegistrar):
         if mol is None:
             raise HTTPException(status_code=400, detail="Invalid SMILES string")
 
-        standarized_mol = chemistry_utils.standardize_mol(mol)
-        mol_layers = chemistry_utils.generate_hash_layers(standarized_mol)
+        standardized_mol = chemistry_utils.standardize_mol(mol)
+        mol_layers = chemistry_utils.generate_hash_layers(standardized_mol)
         hash_mol = GetMolHash(mol_layers, self.matching_setting)
 
         existing_compound = self.compound_records_map.get(hash_mol)
-        db = True
-
         if existing_compound is None:
             existing_compound = self.compounds_to_insert.get(hash_mol)
-            db = False
-        # TODO: Implement proper uniqueness rules to ensure data integrity
-        if existing_compound is not None:
-            if not db:
+            if existing_compound:
                 return existing_compound
+        else:
             compound_dict = self.model_to_dict(existing_compound)
             compound_dict.pop("id", None)
             return compound_dict
@@ -82,7 +91,7 @@ class CompoundRegistrar(BaseRegistrar):
             mol_layers[HashLayer.NO_STEREO_TAUTOMER_HASH]
         )
 
-        return {
+        compound = {
             "canonical_smiles": canonical_smiles,
             "inchi": Chem.MolToInchi(mol),
             "inchikey": inchikey,
@@ -100,6 +109,11 @@ class CompoundRegistrar(BaseRegistrar):
             "updated_by": main.admin_user_id,
             "is_archived": compound_data.get("is_archived", False),
         }
+
+        del mol
+        del standardized_mol
+
+        return compound
 
     def _compound_update_checker(self, entity_ids, detail, field_name, new_value: Any) -> models.UpdateCheckResult:
         id_field, entity_id = next(iter(entity_ids.items()))
@@ -124,41 +138,43 @@ class CompoundRegistrar(BaseRegistrar):
                     return models.UpdateCheckResult(action="skip")
         return models.UpdateCheckResult(action="insert")
 
-    def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
-        global_idx = 0
-        for batch in sql_utils.chunked(rows, batch_size):
-            self.compounds_to_insert = {}
-            details_to_insert, details_to_update = [], []
+    def build_sql(self, rows: List[Dict[str, Any]]):
+        self.compounds_to_insert = {}
+        details_to_insert, details_to_update = [], []
 
-            for idx, row in enumerate(batch):
-                try:
-                    grouped = self._group_data(row)
-                    compound_data = grouped.get("compound", {})
-                    compound = self._build_compound_record(compound_data)
-                    self.compounds_to_insert[compound["hash_mol"]] = compound
+        for idx, row in enumerate(rows):
+            try:
+                grouped = self._group_data(row)
+                compound_data = grouped.get("compound", {})
+                compound = self._build_compound_record(compound_data)
+                self.compounds_to_insert[compound["hash_mol"]] = compound
 
-                    inserted, updated = self.property_service.build_details_records(
-                        models.CompoundDetail,
-                        grouped.get("compound_details", {}),
-                        {"molregno": compound["molregno"]},
-                        enums.ScopeClass.COMPOUND,
-                        True,
-                        self._compound_update_checker,
-                    )
+                inserted, updated = self.property_service.build_details_records(
+                    models.CompoundDetail,
+                    grouped.get("compound_details", {}),
+                    {"molregno": compound["molregno"]},
+                    enums.ScopeClass.COMPOUND,
+                    True,
+                    self._compound_update_checker,
+                )
 
-                    details_to_insert.extend(inserted)
-                    details_to_update.extend(updated)
+                details_to_insert.extend(inserted)
+                details_to_update.extend(updated)
 
-                    self.get_additional_records(grouped, compound["molregno"])
-                    self._add_output_row(compound_data, grouped, "success")
-                except Exception as e:
-                    self.handle_row_error(row, e, global_idx, rows)
-                global_idx += 1
+                self.get_additional_records(grouped, compound["molregno"])
+                self._add_output_row(row, "success")
+            except Exception as e:
+                self.handle_row_error(row, e, idx, rows)
 
-            extra_sql = self.get_additional_cte()
-            all_compounds_list = list(self.compounds_to_insert.values())
-            batch_sql = self.generate_sql(all_compounds_list, details_to_insert, details_to_update, extra_sql)
-            self.sql_statements.append(batch_sql)
+        extra_sql = self.get_additional_cte()
+        all_compounds_list = list(self.compounds_to_insert.values())
+        batch_sql = self.generate_sql(all_compounds_list, details_to_insert, details_to_update, extra_sql)
+        self.sql_statements.append(batch_sql)
+
+        # Clear temporary data structures
+        self.compounds_to_insert.clear()
+        details_to_insert.clear()
+        details_to_update.clear()
 
     def generate_sql(self, compounds, details_to_insert, details_to_update, extra_sql) -> str:
         parts = []
@@ -250,6 +266,12 @@ class CompoundRegistrar(BaseRegistrar):
         value = self.property_service.institution_synonym_dict["compound_details"]
         grouped.setdefault("compound_details", {})[value] = None
         return grouped
+
+    def cleanup(self):
+        super().cleanup()
+        self.compounds_to_insert.clear()
+        self.compound_records_map.clear()
+        self.compound_details_map.clear()
 
     def get_additional_cte(self):
         pass
