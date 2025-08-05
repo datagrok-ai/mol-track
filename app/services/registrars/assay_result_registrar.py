@@ -144,7 +144,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                     False,
                 )
                 details.extend(inserted)
-                self._add_output_row(row, grouped, "success")
+                self._add_output_row(row, "success")
             except Exception as e:
                 self.handle_row_error(row, e, idx, rows)
 
