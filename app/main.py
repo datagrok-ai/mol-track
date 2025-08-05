@@ -382,13 +382,16 @@ def get_assay_by_id(assay_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_runs/")
 def create_assay_runs(
+    background_tasks: BackgroundTasks,
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(
+        AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db, background_tasks
+    )
 
 
 @router.get("/assay_runs/", response_model=list[models.AssayRunResponse])
@@ -407,13 +410,16 @@ def get_assay_run_by_id(assay_run_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_results/")
 def create_assay_results(
+    background_tasks: BackgroundTasks,
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(
+        AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db, background_tasks
+    )
 
 
 @router.patch("/admin/compound-matching-rule")

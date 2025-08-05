@@ -158,12 +158,15 @@ class BaseRegistrar(ABC):
         self.flush_output_rows()
         self.result_writer.close()
 
+        subclass_name = self.__class__.__name__
+        base_name = subclass_name.removesuffix("Registrar")
+
         media_type = "text/csv" if output_format.value == "csv" else "application/json"
 
         return FileResponse(
             path=self.result_writer.output_path,
             media_type=media_type,
-            filename=f"compounds_result.{output_format.value}",
+            filename=f"{base_name.lower()}_result.{output_format.value}",
             headers={"Content-Disposition": f"attachment; filename=compounds_result.{output_format.value}"},
         )
 
