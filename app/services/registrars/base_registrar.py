@@ -24,8 +24,6 @@ class BaseRegistrar(ABC):
         """
         self.db = db
         self.error_handling = error_handling
-        # self.property_records_map = self._load_reference_map(models.Property, "name")
-        # self.addition_records_map = self._load_reference_map(models.Addition, "name")
         self._property_records_map = None
         self._addition_records_map = None
 
@@ -132,7 +130,6 @@ class BaseRegistrar(ABC):
         pass
 
     def register_all(self, rows: List[Dict[str, Any]]):
-        self.sql_statements.clear()
         self.build_sql(rows)
 
         if self.sql_statements:
@@ -143,7 +140,6 @@ class BaseRegistrar(ABC):
                 except Exception as e:
                     logger.error(f"An exception occurred: {e}")
                     self.db.rollback()
-            self.sql_statements.clear()
 
         self.flush_output_rows()
 
@@ -157,7 +153,6 @@ class BaseRegistrar(ABC):
     def flush_output_rows(self):
         if self.result_writer and self.output_rows:
             self.result_writer.write_rows(self.output_rows)
-        self.output_rows.clear()
 
     def result(self, output_format: str = enums.OutputFormat.json):
         self.flush_output_rows()
@@ -173,16 +168,17 @@ class BaseRegistrar(ABC):
 
         return {"status": "Success"}
 
-    def cleanup(self):
-        self.output_rows.clear()
+    def cleanup_chunk(self):
         self.sql_statements.clear()
-        self.property_records_map.clear()
-        self.addition_records_map.clear()
+        self.output_rows.clear()
+
+    def cleanup(self):
+        self.cleanup_chunk()
         self.user_mapping.clear()
-        self.db.close()
-        if self.result_writer:
-            self.result_writer.close()
-            self.result_writer = None
+        self.normalized_mapping.clear()
+        self._property_records_map = None
+        self._addition_records_map = None
+        self.property_service = None
 
     # === Error handling methods ===
 

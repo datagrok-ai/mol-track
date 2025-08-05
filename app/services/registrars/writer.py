@@ -6,10 +6,15 @@ class ResultWriter:
     def __init__(self, output_path: str):
         if not output_path:
             raise ValueError("Output path must be specified")
+
         self.output_path = output_path
+
+        if os.path.exists(self.output_path):
+            os.remove(self.output_path)
+
         self._file = open(self.output_path, "a", newline="", encoding="utf-8")
         self._writer = None
-        self._header_written = os.path.exists(self.output_path) and os.path.getsize(self.output_path) > 0
+        self._header_written = False
 
     def write_rows(self, rows):
         if not rows:

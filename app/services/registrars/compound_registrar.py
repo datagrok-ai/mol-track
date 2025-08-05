@@ -18,8 +18,6 @@ from sqlalchemy.sql import text
 class CompoundRegistrar(BaseRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str, result_writer=None):
         super().__init__(db, mapping, error_handling, result_writer)
-        # self.compound_records_map = self._load_reference_map(models.Compound, "hash_mol")
-        # self.compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
         self._compound_records_map = None
         self._compound_details_map = None
 
@@ -172,7 +170,6 @@ class CompoundRegistrar(BaseRegistrar):
         self.sql_statements.append(batch_sql)
 
         # Clear temporary data structures
-        self.compounds_to_insert.clear()
         details_to_insert.clear()
         details_to_update.clear()
 
@@ -267,11 +264,16 @@ class CompoundRegistrar(BaseRegistrar):
         grouped.setdefault("compound_details", {})[value] = None
         return grouped
 
+    def cleanup_chunk(self):
+        super().cleanup_chunk()
+        self.compounds_to_insert.clear()
+
     def cleanup(self):
         super().cleanup()
-        self.compounds_to_insert.clear()
-        self.compound_records_map.clear()
-        self.compound_details_map.clear()
+        self.cleanup_chunk()
+        self._compound_records_map = None
+        self._compound_details_map = None
+        self.matching_setting = None
 
     def get_additional_cte(self):
         pass

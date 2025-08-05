@@ -12,8 +12,6 @@ from sqlalchemy.sql import text
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str, result_writer=None):
         super().__init__(db, mapping, error_handling, result_writer)
-        # self.batch_records_map = self._load_reference_map(models.Batch, "batch_regno")
-        # self.additions_map = self._load_reference_map(models.Addition, "name")
         self._batch_records_map = None
         self._additions_map = None
 
@@ -93,9 +91,6 @@ class BatchRegistrar(CompoundRegistrar):
         if additions:
             batch_cte += self._build_batch_additions_cte(additions)
 
-        self.batches_to_insert.clear()
-        self.batch_details.clear()
-        self.batch_additions.clear()
         return batch_cte
 
     def _build_inserted_batches_cte(self, batches) -> str:
@@ -136,10 +131,14 @@ class BatchRegistrar(CompoundRegistrar):
         grouped.setdefault("batch_details", {})[value] = None
         return grouped
 
-    def cleanup(self):
-        super().cleanup()
+    def cleanup_chunk(self):
+        super().cleanup_chunk()
         self.batches_to_insert.clear()
         self.batch_details.clear()
         self.batch_additions.clear()
-        self.batch_records_map.clear()
-        self.additions_map.clear()
+
+    def cleanup(self):
+        super().cleanup()
+        self.cleanup_chunk()
+        self._batch_records_map = None
+        self._additions_map = None

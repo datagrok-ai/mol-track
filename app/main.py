@@ -142,11 +142,12 @@ def process_registration(
     result_writer = ResultWriter(output_path="registration_output.csv")
     registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling, result_writer=result_writer)
 
-    text_stream = io.TextIOWrapper(csv_file.file, encoding="utf-8")
     try:
-        for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
-            registrar.register_all(chunk_rows)
-        result = registrar.result(output_format=output_format)
+        with io.TextIOWrapper(csv_file.file, encoding="utf-8") as text_stream:
+            for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
+                registrar.register_all(chunk_rows)
+                registrar.cleanup_chunk()
+            result = registrar.result(output_format=output_format)
     finally:
         registrar.cleanup()
         text_stream.close()
