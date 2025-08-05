@@ -139,7 +139,7 @@ def process_registration(
     db: Session,
     background_tasks: BackgroundTasks,
 ):
-    result_writer = ResultWriter(output_path="registration_output.csv")
+    result_writer = ResultWriter(output_path=f"registration_output.{output_format.value}", format=output_format)
     registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling, result_writer=result_writer)
 
     try:
@@ -152,11 +152,8 @@ def process_registration(
         registrar.cleanup()
         text_stream.close()
         csv_file.file.close()
-        result_writer.close()
 
-    if output_format == enums.OutputFormat.csv:
-        background_tasks.add_task(result_writer.delete)
-
+    background_tasks.add_task(result_writer.delete)
     return result
 
 

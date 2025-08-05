@@ -158,15 +158,14 @@ class BaseRegistrar(ABC):
         self.flush_output_rows()
         self.result_writer.close()
 
-        if output_format == enums.OutputFormat.csv:
-            return FileResponse(
-                path=self.result_writer.output_path,
-                media_type="text/csv",
-                filename="compounds_result.csv",
-                headers={"Content-Disposition": "attachment; filename=compounds_result.csv"},
-            )
+        media_type = "text/csv" if output_format.value == "csv" else "application/json"
 
-        return {"status": "Success"}
+        return FileResponse(
+            path=self.result_writer.output_path,
+            media_type=media_type,
+            filename=f"compounds_result.{output_format.value}",
+            headers={"Content-Disposition": f"attachment; filename=compounds_result.{output_format.value}"},
+        )
 
     def cleanup_chunk(self):
         self.sql_statements.clear()
