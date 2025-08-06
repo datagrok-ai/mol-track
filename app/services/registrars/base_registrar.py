@@ -63,7 +63,7 @@ class BaseRegistrar(ABC):
                 enums.ScopeClass.COMPOUND: "compound_details",
                 enums.ScopeClass.BATCH: "batch_details",
                 enums.ScopeClass.ASSAY_RUN: "assay_run_details",
-                enums.ScopeClass.ASSAY_RESULT: "assay_results",
+                enums.ScopeClass.ASSAY_RESULT: "assay_result_details",
             }.get(scope)
             return f"{prefix}.{col}" if prefix else col
 
