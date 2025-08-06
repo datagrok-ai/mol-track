@@ -108,8 +108,14 @@ def get_synonym_id(db: Session) -> int:
     return result
 
 
-def get_entities_by_scope(db: Session, scope: enums.ScopeClass, semantic_type_id: Optional[int] = None):
-    query = db.query(models.Property).filter(models.Property.scope == scope)
+def get_entities_by_scope(
+    db: Session,
+    scope: Optional[enums.ScopeClass] = None,
+    semantic_type_id: Optional[int] = None,
+):
+    query = db.query(models.Property)
+    if scope is not None:
+        query = query.filter(models.Property.scope == scope)
     if semantic_type_id is not None:
         query = query.filter(models.Property.semantic_type_id == semantic_type_id)
     return query.all()

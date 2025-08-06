@@ -94,6 +94,11 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
         return {"status": "failed", "error": str(e)}
 
 
+@router.get("/schema/")
+def get_schema(db: Session = Depends(get_db)):
+    return crud.get_entities_by_scope(db)
+
+
 @router.get("/schema/compounds", response_model=List[models.PropertyBase])
 def get_schema_compounds(db: Session = Depends(get_db)):
     return crud.get_entities_by_scope(db, enums.ScopeClass.COMPOUND)
