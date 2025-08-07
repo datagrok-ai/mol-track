@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 import csv
 import io
 from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
@@ -19,6 +18,7 @@ from app.services.search.search_filter_builder import SearchFilterBuilder
 from sqlalchemy.sql import text
 
 from app.utils.logging_utils import logger
+from app.utils.admin_utils import admin
 
 
 # Handle both package imports and direct execution
@@ -34,21 +34,8 @@ except ImportError:
 # models.Base.metadata.create_all(bind=engine)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    db = SessionLocal()
-    try:
-        get_admin_user(db)
-    finally:
-        db.close()
-
-    yield
-
-
-app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches", lifespan=lifespan)
+app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
-
-admin_user_id: str | None = None
 
 
 # Dependency
@@ -60,14 +47,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def get_admin_user(db: Session):
-    admin = db.query(models.User).filter(models.User.email == "admin@datagrok.ai").first()
-    if not admin:
-        raise Exception("Admin user not found.")
-    global admin_user_id
-    admin_user_id = admin.id
 
 
 def get_or_raise_exception(get_func, db, id, not_found_msg):
@@ -320,7 +299,7 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
     property_service = PropertyService(all_properties)
 
     assays_to_insert = [
-        {"name": assay.name, "created_by": admin_user_id, "updated_by": admin_user_id} for assay in payload
+        {"name": assay.name, "created_by": admin.admin_user_id, "updated_by": admin.admin_user_id} for assay in payload
     ]
 
     stmt = insert(models.Assay).returning(models.Assay.id)

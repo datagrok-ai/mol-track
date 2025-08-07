@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app import main
+from app.utils.admin_utils import admin
 from app import models
 from app.utils import enums, sql_utils
 from app.services.registrars.base_registrar import BaseRegistrar
@@ -26,8 +26,8 @@ class AssayRunRegistrar(BaseRegistrar):
         return {
             "assay_id": getattr(existing_assay, "id"),
             "name": assay_name + assay_details.get("Assay Run Date"),
-            "created_by": main.admin_user_id,
-            "updated_by": main.admin_user_id,
+            "created_by": admin.admin_user_id,
+            "updated_by": admin.admin_user_id,
         }
 
     def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
