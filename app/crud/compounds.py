@@ -5,7 +5,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 from app.crud.properties import enrich_properties
 from app import models
-from app import main
+from app.utils.admin_utils import admin
 from app.utils import type_casting_utils
 
 
@@ -90,7 +90,7 @@ def update_compound(db: Session, compound_id: int, update_data: models.CompoundU
                 )
 
             setattr(existing_detail, type_casting_utils.value_type_to_field[expected_type], cast_value)
-            existing_detail.updated_by = main.admin_user_id
+            existing_detail.updated_by = admin.admin_user_id
 
     db.add(db_compound)
     db.commit()
