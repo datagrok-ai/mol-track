@@ -162,6 +162,11 @@ def get_compound_properties(compound_id: int, db: Session = Depends(get_db)):
     return compound.properties
 
 
+@router.put("/compounds/{compound_id}", response_model=models.CompoundResponse)
+def update_compound_by_id(compound_id: int, update_data: models.CompoundUpdate, db: Session = Depends(get_db)):
+    return crud.update_compound(db, compound_id, update_data)
+
+
 @router.delete("/compounds/{compound_id}", response_model=models.Compound)
 def delete_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
     batches = crud.get_batches_by_compound(db, compound_id=compound_id)

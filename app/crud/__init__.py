@@ -4,6 +4,7 @@ from .compounds import (
     get_compound_by_id,
     get_compound_by_hash,
     read_compounds,
+    update_compound,
     delete_compound,
 )
 
