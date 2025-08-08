@@ -494,7 +494,7 @@ def get_table_row_counts(specific_tables: list[str] | None = None) -> dict[str, 
         """)
 
         tables_result = connection.execute(tables_query, {"schema": DB_SCHEMA})
-        all_tables = [row[0] for row in tables_result]
+        all_tables = [row[0] for row in tables_result] + ["rdk.mols"]
 
         # Filter tables if specific_tables is provided
         if specific_tables is not None:
@@ -521,24 +521,15 @@ def list_schema_group(
     List the schema.
     """
     print(f"Listing schema from {url}")
-    response = requests.get(f"{url}/v1/schema/compounds")
-    compounds_schema = response.json()
-    response = requests.get(f"{url}/v1/schema/batches")
-    batches_schema = response.json()
+    response = requests.get(f"{url}/v1/schema")
+    schema = response.json()
 
     if output_format == "json":
-        typer.echo(f"Compounds schema:\n{json.dumps(compounds_schema, indent=2)}")
-        typer.echo(f"Batches schema:\n{json.dumps(batches_schema, indent=2)}")
+        typer.echo(f"Schema:\n{json.dumps(schema, indent=2)}")
     else:
-        # Combine compound and batch properties into a single table
-        compound_props = compounds_schema if isinstance(compounds_schema, list) else compounds_schema.get("properties", [])
-        if isinstance(batches_schema, dict) and "properties" in batches_schema:
-            batch_props = batches_schema["properties"]
-        else:
-            batch_props = batches_schema if isinstance(batches_schema, list) else []
-        all_props = compound_props + batch_props
-        typer.echo("Combined Compounds and Batches schema:")
-        display_properties_table(all_props, max_rows=max_rows)
+        schema_props = schema if isinstance(schema, list) else schema.get("properties", [])
+        typer.echo("Schema:")
+        display_properties_table(schema_props, max_rows=max_rows)
 
 
 @schema_app.command("load")
@@ -953,6 +944,26 @@ def list_properties(
 
 def display_properties_table(properties_data, max_rows=None):
     """Display properties data in a rich table format."""
+    # Define the scope order for sorting (matching the API's uppercase format)
+    scope_order = ["COMPOUND", "BATCH", "ASSAY", "ASSAY_RUN", "ASSAY_RESULT"]
+    
+    # Create a function to get scope priority for sorting
+    def get_scope_priority(scope):
+        try:
+            return scope_order.index(scope.upper())
+        except ValueError:
+            # If scope is not in the predefined order, put it at the end
+            return len(scope_order)
+    
+    # Sort properties by scope first, then by name alphabetically
+    sorted_properties = sorted(
+        properties_data,
+        key=lambda prop: (
+            get_scope_priority(prop.get("scope", "")),
+            prop.get("name", "").lower()
+        )
+    )
+    
     columns = [
         ("Name", "cyan", {"no_wrap": True}),
         ("Scope", "magenta", {}),
@@ -970,7 +981,7 @@ def display_properties_table(properties_data, max_rows=None):
             format_timestamp(prop.get("created_at", "")),
         ]
 
-    display_data_table(data=properties_data, title="Properties", columns=columns, row_extractor=extract_property_row, max_rows=max_rows)
+    display_data_table(data=sorted_properties, title="Properties", columns=columns, row_extractor=extract_property_row, max_rows=max_rows)
 
 
 # Batch Commands
@@ -1553,6 +1564,7 @@ def database_clean(
             "compound_details",
             "compounds",
             "properties",
+            "rdk.mols",
         ]
 
         # Tables to preserve
