@@ -10,8 +10,8 @@ from app.services.registrars.base_registrar import BaseRegistrar
 
 
 class AssayRunRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[str], error_handling: str, result_writer=None):
-        super().__init__(db, mapping, error_handling, result_writer)
+    def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
+        super().__init__(db, mapping, error_handling)
         self._assay_records_map = None
         self.assay_runs_to_insert = []
 

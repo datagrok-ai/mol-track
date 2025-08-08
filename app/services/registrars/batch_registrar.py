@@ -10,8 +10,8 @@ from sqlalchemy.sql import text
 
 
 class BatchRegistrar(CompoundRegistrar):
-    def __init__(self, db: Session, mapping: Optional[str], error_handling: str, result_writer=None):
-        super().__init__(db, mapping, error_handling, result_writer)
+    def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
+        super().__init__(db, mapping, error_handling)
         self._batch_records_map = None
         self._additions_map = None
 

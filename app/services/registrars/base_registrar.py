@@ -14,7 +14,7 @@ from app import models
 
 
 class BaseRegistrar(ABC):
-    def __init__(self, db, mapping: Optional[str], error_handling: str, result_writer=None):
+    def __init__(self, db, mapping: Optional[str], error_handling: str):
         """
         Base class for processing and registering data to a database.
         :param db: SQLAlchemy database session.
@@ -27,8 +27,6 @@ class BaseRegistrar(ABC):
         self._addition_records_map = None
 
         self.property_service = property_service.PropertyService(self.property_records_map)
-        self.result_writer = result_writer
-
         self.user_mapping = self._load_mapping(mapping)
         self.output_rows = []
 

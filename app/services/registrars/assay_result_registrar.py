@@ -10,8 +10,8 @@ from app.services.registrars.base_registrar import BaseRegistrar
 
 
 class AssayResultsRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[Dict[str, str]], error_handling: str, result_writer=None):
-        super().__init__(db, mapping, error_handling, result_writer)
+    def __init__(self, db: Session, mapping: Optional[Dict[str, str]], error_handling: str):
+        super().__init__(db, mapping, error_handling)
         self.assay_results_to_insert = []
 
     def _check_single_result(self, results: list, error_context: str):
