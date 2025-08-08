@@ -1459,68 +1459,6 @@ def database_stats():
         raise typer.Exit(1)
 
 
-@database_app.command("list-properties")
-def database_list_properties(
-    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table, json, or csv"),
-    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display"),
-):
-    """
-    List all properties from the moltrack.properties table.
-    
-    Displays the following fields:
-    - name: Property name
-    - scope: Property scope (COMPOUND, BATCH, etc.)
-    - value_type: Data type (int, double, bool, datetime, string)
-    - semantic_type_id: Semantic type identifier
-    - created_at: Creation timestamp
-    """
-    try:
-        if engine is None or DB_SCHEMA is None:
-            raise ImportError("Database connection not available - engine or DB_SCHEMA is None")
-
-        # Query the properties table
-        query = text(f"""
-            SELECT name, scope, value_type, semantic_type_id, created_at
-            FROM {DB_SCHEMA}.properties
-            ORDER BY scope, name
-        """)
-
-        with engine.connect() as connection:
-            result = connection.execute(query)
-            properties_data = []
-            
-            for row in result:
-                properties_data.append({
-                    "name": row[0],
-                    "scope": row[1],
-                    "value_type": row[2],
-                    "semantic_type_id": row[3],
-                    "created_at": row[4].isoformat() if row[4] else None
-                })
-
-        if output_format == "json":
-            typer.echo(json.dumps(properties_data, indent=2))
-        elif output_format == "csv":
-            # Write to CSV format
-            writer = csv.writer(sys.stdout)
-            writer.writerow(["name", "scope", "value_type", "semantic_type_id", "created_at"])
-            for prop in properties_data:
-                writer.writerow([
-                    prop["scope"],
-                    prop["name"],
-                    prop["value_type"],
-                    prop["semantic_type_id"],
-                    prop["created_at"]
-                ])
-        else:
-            # Default to table format
-            display_properties_table(properties_data, max_rows=max_rows)
-
-    except Exception as e:
-        typer.echo(f"❌ Error querying properties table: {e}", err=True)
-        raise typer.Exit(1)
-
-
 @database_app.command("clean")
 def database_clean(
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"), url: str = DEFAULT_SERVER_URL
