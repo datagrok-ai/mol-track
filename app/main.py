@@ -167,7 +167,7 @@ def process_registration(
 
 
 @router.post("/compounds/")
-async def register_compounds(
+def register_compounds(
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
