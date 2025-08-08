@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pytest import Session
 from app.services.registrars.compound_registrar import CompoundRegistrar
-from app import main
+from app.utils.admin_utils import admin
 from app import models
 from app.utils import enums, sql_utils
 from sqlalchemy.sql import text
@@ -38,8 +38,8 @@ class BatchRegistrar(CompoundRegistrar):
         return {
             "inchikey": inchikey,
             "notes": None,
-            "created_by": main.admin_user_id,
-            "updated_by": main.admin_user_id,
+            "created_by": admin.admin_user_id,
+            "updated_by": admin.admin_user_id,
             "created_at": datetime.now(),
             "batch_regno": self._next_batch_regno(),
         }
@@ -58,8 +58,8 @@ class BatchRegistrar(CompoundRegistrar):
                     "batch_regno": batch_regno,
                     "addition_id": getattr(addition, "id"),
                     "addition_equivalent": float(value),
-                    "created_by": main.admin_user_id,
-                    "updated_by": main.admin_user_id,
+                    "created_by": admin.admin_user_id,
+                    "updated_by": admin.admin_user_id,
                 }
             )
         return records

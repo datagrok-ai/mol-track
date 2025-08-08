@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy import inspect
 from app.utils import type_casting_utils
-from app import main
+from app.utils.admin_utils import admin
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
 
 
@@ -112,8 +112,8 @@ class PropertyService:
                 detail[col_name] = default
 
             if include_user_fields:
-                detail["created_by"] = main.admin_user_id
-                detail["updated_by"] = main.admin_user_id
+                detail["created_by"] = admin.admin_user_id
+                detail["updated_by"] = admin.admin_user_id
 
             if update_checker:
                 result = update_checker(entity_ids, detail, field_name, casted_value)

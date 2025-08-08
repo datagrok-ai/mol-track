@@ -123,6 +123,18 @@ class Compound(CompoundResponseBase, table=True):
     )
 
 
+class CompoundDetailUpdate(SQLModel):
+    property_id: int
+    value: Any
+
+
+class CompoundUpdate(SQLModel):
+    original_molfile: Optional[str] = None
+    is_archived: Optional[bool] = None
+    canonical_smiles: Optional[str] = None
+    properties: Optional[List[CompoundDetailUpdate]] = None
+
+
 class BatchDetailBase(SQLModel):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)

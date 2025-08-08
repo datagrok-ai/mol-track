@@ -7,7 +7,7 @@ from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
 
 from rdkit.Chem.RegistrationHash import HashLayer, GetMolHash, HashScheme
-from app import main
+from app.utils.admin_utils import admin
 from app import models
 from app.utils import enums, sql_utils, chemistry_utils
 from app.utils.logging_utils import logger
@@ -104,8 +104,8 @@ class CompoundRegistrar(BaseRegistrar):
             "hash_no_stereo_tautomer": hash_no_stereo_tautomer,
             "created_at": now,
             "updated_at": now,
-            "created_by": main.admin_user_id,
-            "updated_by": main.admin_user_id,
+            "created_by": admin.admin_user_id,
+            "updated_by": admin.admin_user_id,
             "is_archived": compound_data.get("is_archived", False),
         }
 

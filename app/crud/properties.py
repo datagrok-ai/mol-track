@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from typing import List, Optional
 from sqlalchemy import insert
 from app import models
-from app import main
+from app.utils.admin_utils import admin
 
 from typing import Type, Dict, Any
 from app.utils import enums
@@ -76,8 +76,8 @@ def bulk_create_if_not_exists(
             data = validated.model_dump()
             data.update(
                 {
-                    "created_by": main.admin_user_id,
-                    "updated_by": main.admin_user_id,
+                    "created_by": admin.admin_user_id,
+                    "updated_by": admin.admin_user_id,
                 }
             )
             to_insert.append(data)
@@ -108,8 +108,14 @@ def get_synonym_id(db: Session) -> int:
     return result
 
 
-def get_entities_by_scope(db: Session, scope: enums.ScopeClass, semantic_type_id: Optional[int] = None):
-    query = db.query(models.Property).filter(models.Property.scope == scope)
+def get_entities_by_scope(
+    db: Session,
+    scope: Optional[enums.ScopeClass] = None,
+    semantic_type_id: Optional[int] = None,
+):
+    query = db.query(models.Property)
+    if scope is not None:
+        query = query.filter(models.Property.scope == scope)
     if semantic_type_id is not None:
         query = query.filter(models.Property.semantic_type_id == semantic_type_id)
     return query.all()

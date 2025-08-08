@@ -4,7 +4,8 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_, select
 
-from app import models, main
+from app import models
+from app.utils.admin_utils import admin
 from app.utils import enums, sql_utils
 from app.services.registrars.base_registrar import BaseRegistrar
 
@@ -114,8 +115,8 @@ class AssayResultsRegistrar(BaseRegistrar):
         return {
             "batch_id": batch_id,
             "assay_run_id": assay_run_id,
-            "created_by": main.admin_user_id,
-            "updated_by": main.admin_user_id,
+            "created_by": admin.admin_user_id,
+            "updated_by": admin.admin_user_id,
         }
 
     # TODO: Identify the specific data row(s) in assay_results.csv causing failures

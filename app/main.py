@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 import csv
 import io
 import tempfile
@@ -23,6 +22,7 @@ from app.services.search.search_filter_builder import SearchFilterBuilder
 from sqlalchemy.sql import text
 
 from app.utils.logging_utils import logger
+from app.utils.admin_utils import admin
 
 
 # Handle both package imports and direct execution
@@ -38,21 +38,8 @@ except ImportError:
 # models.Base.metadata.create_all(bind=engine)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    db = SessionLocal()
-    try:
-        get_admin_user(db)
-    finally:
-        db.close()
-
-    yield
-
-
-app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches", lifespan=lifespan)
+app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
-
-admin_user_id: str | None = None
 
 
 # Dependency
@@ -64,14 +51,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def get_admin_user(db: Session):
-    admin = db.query(models.User).filter(models.User.email == "admin@datagrok.ai").first()
-    if not admin:
-        raise Exception("Admin user not found.")
-    global admin_user_id
-    admin_user_id = admin.id
 
 
 def get_or_raise_exception(get_func, db, id, not_found_msg):
@@ -96,6 +75,11 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
     except Exception as e:
         db.rollback()
         return {"status": "failed", "error": str(e)}
+
+
+@router.get("/schema/")
+def get_schema(db: Session = Depends(get_db)):
+    return crud.get_entities_by_scope(db)
 
 
 @router.get("/schema/compounds", response_model=List[models.PropertyBase])
@@ -205,6 +189,11 @@ def get_compound_synonyms(compound_id: int, db: Session = Depends(get_db)):
 def get_compound_properties(compound_id: int, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
     return compound.properties
+
+
+@router.put("/compounds/{compound_id}", response_model=models.CompoundResponse)
+def update_compound_by_id(compound_id: int, update_data: models.CompoundUpdate, db: Session = Depends(get_db)):
+    return crud.update_compound(db, compound_id, update_data)
 
 
 @router.delete("/compounds/{compound_id}", response_model=models.Compound)
@@ -339,7 +328,7 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
     property_service = PropertyService(all_properties)
 
     assays_to_insert = [
-        {"name": assay.name, "created_by": admin_user_id, "updated_by": admin_user_id} for assay in payload
+        {"name": assay.name, "created_by": admin.admin_user_id, "updated_by": admin.admin_user_id} for assay in payload
     ]
 
     stmt = insert(models.Assay).returning(models.Assay.id)

@@ -1,10 +1,10 @@
 {
     "epa_batch_id": "batch_details.epa_batch_id",
     "Species": "assay_run_details.Cell Species",
-    "Concentration (µM)": "assay_results.Dosed Concentration",
-    "Mean HTC recovery (%; n=2)": "assay_results.Mean HTC recovery",
-    "SD HTC recovery (%; n=2)": "assay_results.SD HTC recovery",
-    "Reported CLint (µL/min/ 106 cells)": "assay_results.Reported CLint",
+    "Concentration (µM)": "assay_result_details.Dosed Concentration",
+    "Mean HTC recovery (%; n=2)": "assay_result_details.Mean HTC recovery",
+    "SD HTC recovery (%; n=2)": "assay_result_details.SD HTC recovery",
+    "Reported CLint (µL/min/ 106 cells)": "assay_result_details.Reported CLint",
     "assay_name": "assay.name",
     "Cell Lot": "assay_run_details.Cell Lot",
     "assay_date": "assay_run_details.Assay Run Date"
