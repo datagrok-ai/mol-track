@@ -119,7 +119,7 @@ class AssayResultsRegistrar(BaseRegistrar):
         }
 
     # TODO: Identify the specific data row(s) in assay_results.csv causing failures
-    def build_sql(self, rows: List[Dict[str, Any]]):
+    def build_sql(self, rows: List[Dict[str, Any]]) -> str:
         self.assay_results_to_insert = []
         details = []
 
@@ -150,8 +150,8 @@ class AssayResultsRegistrar(BaseRegistrar):
 
         if self.assay_results_to_insert:
             batch_sql = self.generate_sql(self.assay_results_to_insert, details)
-            self.sql_statements.append(batch_sql)
             details.clear()
+            return batch_sql
 
     def generate_sql(self, assay_results, details) -> str:
         assay_results_sql = self._generate_assay_result_sql(assay_results)

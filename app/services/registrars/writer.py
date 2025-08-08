@@ -1,62 +1,45 @@
-import os
+import io
 import csv
 import orjson
-from app.utils import enums
 
 
-class ResultWriter:
-    def __init__(self, output_path: str, format: str = enums.OutputFormat.json):
-        if not output_path:
-            raise ValueError("Output path must be specified")
-
-        self.output_path = output_path
+class StreamingResultWriter:
+    def __init__(self, format: str):
         self.format = format
-
-        if os.path.exists(self.output_path):
-            os.remove(self.output_path)
-
-        self._file = open(self.output_path, "a", newline="", encoding="utf-8")
-        self._writer = None
         self._header_written = False
         self._first_json_row = True
 
-        if self.format == enums.OutputFormat.json:
-            self._file.write("[")
+    def stream_rows(self, rows_iter):
+        if self.format == "csv":
+            yield from self._stream_csv(rows_iter)
+        else:
+            yield from self._stream_json(rows_iter)
 
-    def write_rows(self, rows):
-        if not rows:
-            return
+    def _stream_csv(self, rows_iter):
+        output = io.StringIO()
+        writer = None
 
-        if self.format == enums.OutputFormat.csv:
-            if self._writer is None:
-                self._writer = csv.DictWriter(self._file, fieldnames=rows[0].keys())
+        for rows in rows_iter:
+            if not writer:
+                writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+                writer.writeheader()
+                yield output.getvalue()
+                output.seek(0)
+                output.truncate(0)
 
-            if not self._header_written:
-                self._writer.writeheader()
-                self._header_written = True
+            writer.writerows(rows)
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
 
-            self._writer.writerows(rows)
-
-        elif self.format == enums.OutputFormat.json:
+    def _stream_json(self, rows_iter):
+        yield "["
+        first = True
+        for rows in rows_iter:
             for row in rows:
-                if not self._first_json_row:
-                    self._file.write(",")
+                if not first:
+                    yield ","
                 else:
-                    self._first_json_row = False
-                self._file.write(orjson.dumps(row).decode("utf-8"))
-
-        self._file.flush()
-
-    def close(self):
-        if self._file:
-            if self.format == enums.OutputFormat.json:
-                self._file.write("]")
-
-            self._file.close()
-            self._file = None
-            self._writer = None
-
-    def delete(self):
-        self.close()
-        if self.output_path and os.path.exists(self.output_path):
-            os.remove(self.output_path)
+                    first = False
+                yield orjson.dumps(row).decode("utf-8")
+        yield "]"

@@ -4,7 +4,6 @@ import json
 from abc import ABC, abstractmethod
 from typing import Iterator, List, Dict, Any, Optional
 
-from fastapi.responses import FileResponse
 from sqlalchemy import select, text
 from fastapi import HTTPException
 
@@ -32,7 +31,6 @@ class BaseRegistrar(ABC):
 
         self.user_mapping = self._load_mapping(mapping)
         self.output_rows = []
-        self.sql_statements = []
 
     @property
     def property_records_map(self):
@@ -122,7 +120,7 @@ class BaseRegistrar(ABC):
     # === SQL construction and registration methods ===
 
     @abstractmethod
-    def build_sql(self, rows: List[Dict[str, Any]]):
+    def build_sql(self, rows: List[Dict[str, Any]]) -> str:
         pass
 
     @abstractmethod
@@ -130,18 +128,15 @@ class BaseRegistrar(ABC):
         pass
 
     def register_all(self, rows: List[Dict[str, Any]]):
-        self.build_sql(rows)
+        batch_sql = self.build_sql(rows)
 
-        if self.sql_statements:
-            for sql in self.sql_statements:
-                try:
-                    self.db.execute(text(sql))
-                    self.db.commit()
-                except Exception as e:
-                    logger.error(f"An exception occurred: {e}")
-                    self.db.rollback()
-
-        self.flush_output_rows()
+        if batch_sql:
+            try:
+                self.db.execute(text(batch_sql))
+                self.db.commit()
+            except Exception as e:
+                logger.error(f"An exception occurred: {e}")
+                self.db.rollback()
 
     # === Output formatting methods ===
 
@@ -150,28 +145,7 @@ class BaseRegistrar(ABC):
         row["registration_error_message"] = error_msg or ""
         self.output_rows.append(row)
 
-    def flush_output_rows(self):
-        if self.result_writer and self.output_rows:
-            self.result_writer.write_rows(self.output_rows)
-
-    def result(self, output_format: str = enums.OutputFormat.json):
-        self.flush_output_rows()
-        self.result_writer.close()
-
-        subclass_name = self.__class__.__name__
-        base_name = subclass_name.removesuffix("Registrar")
-
-        media_type = "text/csv" if output_format.value == "csv" else "application/json"
-
-        return FileResponse(
-            path=self.result_writer.output_path,
-            media_type=media_type,
-            filename=f"{base_name.lower()}_result.{output_format.value}",
-            headers={"Content-Disposition": f"attachment; filename=compounds_result.{output_format.value}"},
-        )
-
     def cleanup_chunk(self):
-        self.sql_statements.clear()
         self.output_rows.clear()
 
     def cleanup(self):

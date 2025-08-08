@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
 import csv
 import io
-from fastapi import APIRouter, BackgroundTasks, FastAPI, Depends, File, Form, HTTPException, UploadFile
+import tempfile
+import shutil
+from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
@@ -11,7 +14,7 @@ from app.services.registrars.batch_registrar import BatchRegistrar
 from app.services.registrars.compound_registrar import CompoundRegistrar
 from app import models
 from app import crud
-from app.services.registrars.writer import ResultWriter
+from app.services.registrars.writer import StreamingResultWriter
 from app.utils import enums
 from app.services.property_service import PropertyService
 from app.services.search.engine import SearchEngine
@@ -137,29 +140,34 @@ def process_registration(
     error_handling,
     output_format,
     db: Session,
-    background_tasks: BackgroundTasks,
 ):
-    result_writer = ResultWriter(output_path=f"registration_output.{output_format.value}", format=output_format)
-    registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling, result_writer=result_writer)
+    registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling)
 
-    try:
-        with io.TextIOWrapper(csv_file.file, encoding="utf-8") as text_stream:
-            for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
-                registrar.register_all(chunk_rows)
-                registrar.cleanup_chunk()
-            result = registrar.result(output_format=output_format)
-    finally:
-        registrar.cleanup()
-        text_stream.close()
-        csv_file.file.close()
+    tmp = tempfile.SpooledTemporaryFile(mode="w+b", max_size=50 * 1024 * 1024)
+    shutil.copyfileobj(csv_file.file, tmp)
+    tmp.seek(0)
 
-    background_tasks.add_task(result_writer.delete)
-    return result
+    def row_generator():
+        try:
+            with io.TextIOWrapper(tmp, encoding="utf-8", newline="") as text_stream:
+                for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
+                    registrar.register_all(chunk_rows)
+                    yield registrar.output_rows.copy()
+                    registrar.cleanup_chunk()
+        finally:
+            tmp.close()
+            registrar.cleanup()
+
+    result_writer = StreamingResultWriter(output_format.value)
+    return StreamingResponse(
+        result_writer.stream_rows(row_generator()),
+        media_type="text/csv" if output_format.value == enums.OutputFormat.csv.value else "application/json",
+        headers={"Content-Disposition": f"attachment; filename=registration_result.{output_format.value}"},
+    )
 
 
 @router.post("/compounds/")
-def register_compounds(
-    background_tasks: BackgroundTasks,
+async def register_compounds(
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
@@ -167,7 +175,12 @@ def register_compounds(
     db: Session = Depends(get_db),
 ):
     return process_registration(
-        CompoundRegistrar, csv_file, mapping, error_handling, output_format, db, background_tasks
+        CompoundRegistrar,
+        csv_file,
+        mapping,
+        error_handling,
+        output_format,
+        db,
     )
 
 
@@ -272,14 +285,13 @@ def delete_addition(addition_id: int, db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-batches
 @router.post("/batches/")
 def register_batches_v1(
-    background_tasks: BackgroundTasks,
-    csv_file: UploadFile = File(...),
+    csv_file: UploadFile = File(),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(BatchRegistrar, csv_file, mapping, error_handling, output_format, db, background_tasks)
+    return process_registration(BatchRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 @router.get("/batches/", response_model=List[models.BatchResponse])
@@ -382,16 +394,13 @@ def get_assay_by_id(assay_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_runs/")
 def create_assay_runs(
-    background_tasks: BackgroundTasks,
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(
-        AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db, background_tasks
-    )
+    return process_registration(AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 @router.get("/assay_runs/", response_model=list[models.AssayRunResponse])
@@ -410,16 +419,13 @@ def get_assay_run_by_id(assay_run_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_results/")
 def create_assay_results(
-    background_tasks: BackgroundTasks,
     csv_file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(
-        AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db, background_tasks
-    )
+    return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
 @router.patch("/admin/compound-matching-rule")

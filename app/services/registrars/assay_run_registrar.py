@@ -35,7 +35,7 @@ class AssayRunRegistrar(BaseRegistrar):
             "updated_by": main.admin_user_id,
         }
 
-    def build_sql(self, rows: List[Dict[str, Any]]):
+    def build_sql(self, rows: List[Dict[str, Any]]) -> str:
         self.assay_runs_to_insert = []
         details = []
 
@@ -60,8 +60,8 @@ class AssayRunRegistrar(BaseRegistrar):
 
         if self.assay_runs_to_insert:
             batch_sql = self.generate_sql(self.assay_runs_to_insert, details)
-            self.sql_statements.append(batch_sql)
             details.clear()
+            return batch_sql
 
     def generate_sql(self, assay_runs, details) -> str:
         assay_runs_sql = self._generate_assay_run_sql(assay_runs)

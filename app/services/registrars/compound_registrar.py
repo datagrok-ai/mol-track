@@ -23,6 +23,7 @@ class CompoundRegistrar(BaseRegistrar):
 
         self.compounds_to_insert: Dict[str, Dict[str, Any]] = {}
         self.matching_setting = self._load_matching_setting()
+        self.normalized_mapping = {}
 
     @property
     def compound_records_map(self) -> Dict[str, models.Compound]:
@@ -136,7 +137,7 @@ class CompoundRegistrar(BaseRegistrar):
                     return models.UpdateCheckResult(action="skip")
         return models.UpdateCheckResult(action="insert")
 
-    def build_sql(self, rows: List[Dict[str, Any]]):
+    def build_sql(self, rows: List[Dict[str, Any]]) -> str:
         self.compounds_to_insert = {}
         details_to_insert, details_to_update = [], []
 
@@ -167,11 +168,11 @@ class CompoundRegistrar(BaseRegistrar):
         extra_sql = self.get_additional_cte()
         all_compounds_list = list(self.compounds_to_insert.values())
         batch_sql = self.generate_sql(all_compounds_list, details_to_insert, details_to_update, extra_sql)
-        self.sql_statements.append(batch_sql)
 
         # Clear temporary data structures
         details_to_insert.clear()
         details_to_update.clear()
+        return batch_sql
 
     def generate_sql(self, compounds, details_to_insert, details_to_update, extra_sql) -> str:
         parts = []
