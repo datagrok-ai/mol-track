@@ -13,8 +13,6 @@ from app.services.registrars.base_registrar import BaseRegistrar
 class AssayResultsRegistrar(BaseRegistrar):
     def __init__(self, db: Session, mapping: Optional[Dict[str, str]], error_handling: str):
         super().__init__(db, mapping, error_handling)
-        self.output_records: List[Dict[str, Any]] = []
-        self.assay_type_records_map = self._load_reference_map(models.Assay, "name")
         self.assay_results_to_insert = []
 
     def _check_single_result(self, results: list, error_context: str):
@@ -122,41 +120,39 @@ class AssayResultsRegistrar(BaseRegistrar):
         }
 
     # TODO: Identify the specific data row(s) in assay_results.csv causing failures
-    def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 10):
-        for batch in sql_utils.chunked(rows, batch_size):
-            global_idx = 0
-            self.assay_results_to_insert = []
-            details = []
+    def build_sql(self, rows: List[Dict[str, Any]]) -> str:
+        self.assay_results_to_insert = []
+        details = []
 
-            for idx, row in enumerate(batch):
-                try:
-                    grouped = self._group_data(row, "assay")
-                    batch_record = self._lookup_batch_by_details(grouped.get("batch_details"))
-                    assay_run_record = self._lookup_assay_run_by_details(
-                        grouped.get("assay"), grouped.get("assay_run_details")
-                    )
+        for idx, row in enumerate(rows):
+            try:
+                grouped = self._group_data(row, "assay")
+                batch_record = self._lookup_batch_by_details(grouped.get("batch_details"))
+                assay_run_record = self._lookup_assay_run_by_details(
+                    grouped.get("assay"), grouped.get("assay_run_details")
+                )
 
-                    batch_id = getattr(batch_record, "id")
-                    assay_run_id = getattr(assay_run_record, "id")
-                    assay_result = self._build_assay_result_record(batch_id, assay_run_id)
-                    self.assay_results_to_insert.append(assay_result)
+                batch_id = getattr(batch_record, "id")
+                assay_run_id = getattr(assay_run_record, "id")
+                assay_result = self._build_assay_result_record(batch_id, assay_run_id)
+                self.assay_results_to_insert.append(assay_result)
 
-                    inserted, updated = self.property_service.build_details_records(
-                        models.AssayResultDetail,
-                        grouped.get("assay_result_details", {}),
-                        {"rn": idx + 1},
-                        enums.ScopeClass.ASSAY_RESULT,
-                        False,
-                    )
-                    details.extend(inserted)
-                    self._add_output_row(row, grouped, "success")
-                except Exception as e:
-                    self.handle_row_error(row, e, global_idx, rows)
-                global_idx += 1
+                inserted, updated = self.property_service.build_details_records(
+                    models.AssayResultDetail,
+                    grouped.get("assay_result_details", {}),
+                    {"rn": idx + 1},
+                    enums.ScopeClass.ASSAY_RESULT,
+                    False,
+                )
+                details.extend(inserted)
+                self._add_output_row(row, "success")
+            except Exception as e:
+                self.handle_row_error(row, e, idx, rows)
 
-            if self.assay_results_to_insert:
-                batch_sql = self.generate_sql(self.assay_results_to_insert, details)
-                self.sql_statements.append(batch_sql)
+        if self.assay_results_to_insert:
+            batch_sql = self.generate_sql(self.assay_results_to_insert, details)
+            details.clear()
+            return batch_sql
 
     def generate_sql(self, assay_results, details) -> str:
         assay_results_sql = self._generate_assay_result_sql(assay_results)
@@ -189,3 +185,11 @@ class AssayResultsRegistrar(BaseRegistrar):
                 FROM (VALUES {values_sql}) AS d(rn, {", ".join(cols_without_key)})
                 JOIN numbered_assay_results nr ON d.rn = nr.rn
             )"""
+
+    def cleanup_chunk(self):
+        super().cleanup_chunk()
+        self.assay_results_to_insert.clear()
+
+    def cleanup(self):
+        super().cleanup()
+        self.cleanup_chunk()

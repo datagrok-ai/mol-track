@@ -35,10 +35,9 @@ def test_create_assay_run(client, preload_schema, preload_assays):
     assert response.status_code == 200
     result = response.json()
 
-    assert result["status"] == "Success"
-    assert isinstance(result["data"], list)
-    assert len(result["data"]) == 9
-    assert all(run.get("registration_status") == "success" for run in result["data"])
+    assert isinstance(result, list)
+    assert len(result) == 9
+    assert all(run.get("registration_status") == "success" for run in result)
 
 
 def test_get_assay_run_by_id(client, preload_schema, preload_assays, preload_assay_runs):

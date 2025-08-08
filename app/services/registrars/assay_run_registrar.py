@@ -12,9 +12,14 @@ from app.services.registrars.base_registrar import BaseRegistrar
 class AssayRunRegistrar(BaseRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
-        self.assay_records_map = self._load_reference_map(models.Assay, "name")
+        self._assay_records_map = None
         self.assay_runs_to_insert = []
-        self.output_records: List[Dict[str, Any]] = []
+
+    @property
+    def assay_records_map(self):
+        if self._assay_records_map is None:
+            self._assay_records_map = self._load_reference_map(models.Assay, "name")
+        return self._assay_records_map
 
     def _build_assay_run_record(self, assay_data: Dict[str, Any], assay_details: Dict[str, Any]) -> Dict[str, Any]:
         assay_name = assay_data.get("name")
@@ -30,35 +35,33 @@ class AssayRunRegistrar(BaseRegistrar):
             "updated_by": admin.admin_user_id,
         }
 
-    def build_sql(self, rows: List[Dict[str, Any]], batch_size: int = 5000):
-        global_idx = 0
-        for batch in sql_utils.chunked(rows, batch_size):
-            self.assay_runs_to_insert = []
-            details = []
+    def build_sql(self, rows: List[Dict[str, Any]]) -> str:
+        self.assay_runs_to_insert = []
+        details = []
 
-            for idx, row in enumerate(batch):
-                try:
-                    grouped = self._group_data(row, "assay")
-                    assay_data = grouped.get("assay", {})
-                    assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
-                    self.assay_runs_to_insert.append(assay_run)
+        for idx, row in enumerate(rows):
+            try:
+                grouped = self._group_data(row, "assay")
+                assay_data = grouped.get("assay", {})
+                assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
+                self.assay_runs_to_insert.append(assay_run)
 
-                    inserted, updated = self.property_service.build_details_records(
-                        models.AssayRunDetail,
-                        grouped.get("assay_run_details", {}),
-                        {"rn": idx + 1},
-                        enums.ScopeClass.ASSAY_RUN,
-                        False,
-                    )
-                    details.extend(inserted)
-                    self._add_output_row(assay_run, grouped, "success")
-                except Exception as e:
-                    self.handle_row_error(row, e, global_idx, rows)
-                global_idx += 1
+                inserted, updated = self.property_service.build_details_records(
+                    models.AssayRunDetail,
+                    grouped.get("assay_run_details", {}),
+                    {"rn": idx + 1},
+                    enums.ScopeClass.ASSAY_RUN,
+                    False,
+                )
+                details.extend(inserted)
+                self._add_output_row(row, "success")
+            except Exception as e:
+                self.handle_row_error(row, e, idx, rows)
 
-            if self.assay_runs_to_insert:
-                batch_sql = self.generate_sql(self.assay_runs_to_insert, details)
-                self.sql_statements.append(batch_sql)
+        if self.assay_runs_to_insert:
+            batch_sql = self.generate_sql(self.assay_runs_to_insert, details)
+            details.clear()
+            return batch_sql
 
     def generate_sql(self, assay_runs, details) -> str:
         assay_runs_sql = self._generate_assay_run_sql(assay_runs)
@@ -92,3 +95,12 @@ class AssayRunRegistrar(BaseRegistrar):
                 FROM (VALUES {values_sql}) AS d(rn, {", ".join(cols_without_key)})
                 JOIN numbered_assay_runs nr ON d.rn = nr.rn
             )"""
+
+    def cleanup_chunk(self):
+        super().cleanup_chunk()
+        self.assay_runs_to_insert.clear()
+
+    def cleanup(self):
+        super().cleanup()
+        self.cleanup_chunk()
+        self._assay_records_map = None

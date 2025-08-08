@@ -1,6 +1,9 @@
 import csv
 import io
+import tempfile
+import shutil
 from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
@@ -10,6 +13,7 @@ from app.services.registrars.batch_registrar import BatchRegistrar
 from app.services.registrars.compound_registrar import CompoundRegistrar
 from app import models
 from app import crud
+from app.services.registrars.writer import StreamingResultWriter
 from app.utils import enums
 from app.services.property_service import PropertyService
 from app.services.search.engine import SearchEngine
@@ -121,11 +125,29 @@ def process_registration(
     output_format,
     db: Session,
 ):
-    csv_content = csv_file.file.read().decode("utf-8")
     registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling)
-    rows = registrar.process_csv(csv_content)
-    registrar.register_all(rows)
-    return registrar.result(output_format=output_format)
+
+    tmp = tempfile.SpooledTemporaryFile(mode="w+b", max_size=50 * 1024 * 1024)
+    shutil.copyfileobj(csv_file.file, tmp)
+    tmp.seek(0)
+
+    def row_generator():
+        try:
+            with io.TextIOWrapper(tmp, encoding="utf-8", newline="") as text_stream:
+                for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
+                    registrar.register_all(chunk_rows)
+                    yield registrar.output_rows.copy()
+                    registrar.cleanup_chunk()
+        finally:
+            tmp.close()
+            registrar.cleanup()
+
+    result_writer = StreamingResultWriter(output_format.value)
+    return StreamingResponse(
+        result_writer.stream_rows(row_generator()),
+        media_type="text/csv" if output_format.value == enums.OutputFormat.csv.value else "application/json",
+        headers={"Content-Disposition": f"attachment; filename=registration_result.{output_format.value}"},
+    )
 
 
 @router.post("/compounds/")
@@ -136,7 +158,14 @@ def register_compounds(
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(CompoundRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(
+        CompoundRegistrar,
+        csv_file,
+        mapping,
+        error_handling,
+        output_format,
+        db,
+    )
 
 
 @router.get("/compounds/", response_model=List[models.CompoundResponse])
