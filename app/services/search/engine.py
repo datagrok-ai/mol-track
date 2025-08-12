@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.setup.database import DB_SCHEMA
 from app.services.search.operators import SearchOperators
 from app.services.search.utils import sanitize_field_name
+from app.models import Level
 
 
 class SearchEngineError(Exception):
@@ -47,6 +48,8 @@ class SearchEngine:
             # Build the SQL query
             query_info = self.query_builder.build_query(request)
 
+            print(query_info["sql"])
+
             # Execute main query
             results = self._execute_main_query(query_info["sql"], query_info["params"])
 
@@ -80,7 +83,7 @@ class SearchEngine:
 
         return errors
 
-    def _validate_filter(self, filter_obj: models.Filter, level: str, path: str = "filter") -> List[str]:
+    def _validate_filter(self, filter_obj: models.Filter, level: Level, path: str = "filter") -> List[str]:
         """Recursively validate filter conditions"""
         errors = []
 

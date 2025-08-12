@@ -458,7 +458,7 @@ def update_institution_id_pattern(
     if not pattern or not re.match(EXPECTED_PATTERN, pattern):
         raise HTTPException(
             status_code=400,
-            detail="""Invalid pattern format. 
+            detail="""Invalid pattern format.
                     The pattern must contain '{:d}'.
                     You can also use '{:0Nd}' for zero-padded numbers (numbers will be padded with zeros to N digits).,
                     Pattern can also have prefix and postfix, meant for identification of institution.
@@ -561,6 +561,30 @@ def search_assay_results_advanced(
     Automatically sets level to 'assay_results' and accepts filter parameters directly.
     """
     request = models.SearchRequest(level="assay_results", output=output, filter=filter)
+    return advanced_search(request, db)
+
+
+@router.post("/search/assays", response_model=models.SearchResponse)
+def search_assays_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
+    """
+    Endpoint for assay-level searches.
+
+    Automatically sets level to 'assays' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(level="assays", output=output, filter=filter)
+    return advanced_search(request, db)
+
+
+@router.post("/search/assay-runs", response_model=models.SearchResponse)
+def search_assay_runs_advanced(
+    output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)
+):
+    """
+    Endpoint for assay run-level searches.
+
+    Automatically sets level to 'assay_runs' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(level="assay_runs", output=output, filter=filter)
     return advanced_search(request, db)
 
 

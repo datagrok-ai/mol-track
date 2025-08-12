@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal
+from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal, get_args
 from pydantic import ConfigDict, field_validator, model_validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
@@ -639,7 +639,7 @@ class AtomicCondition(SQLModel):
         if len(parts) < 2 or len(parts) > 3:
             raise ValueError("Field must be in format 'table.field' or 'table.details.property'")
 
-        valid_tables = ["compounds", "batches", "assay_results"]
+        valid_tables = get_args(Level)
         if parts[0] not in valid_tables:
             allowed = ", ".join(valid_tables)
             raise ValueError(f"Invalid table: {parts[0]}. Must be one of {allowed}")
@@ -679,7 +679,7 @@ class LogicalNode(SQLModel):
 Filter = Union[AtomicCondition, LogicalNode]
 
 
-Level = Literal["compounds", "batches", "assay_results"]
+Level = Literal["compounds", "batches", "assay_results", "assay_runs", "assays"]
 
 
 class SearchRequest(SQLModel):
