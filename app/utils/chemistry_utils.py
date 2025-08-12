@@ -29,6 +29,9 @@ class MoleculeStandardizationConfig:
                 db.close()
         return self._config
 
+    def clear_cache(self):
+        self._config = None
+
 
 molecule_standardization_config = MoleculeStandardizationConfig()
 

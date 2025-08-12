@@ -3,10 +3,12 @@ import io
 import tempfile
 import shutil
 from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
+
+import yaml
 from app.services.registrars.assay_result_registrar import AssayResultsRegistrar
 from app.services.registrars.assay_run_registrar import AssayRunRegistrar
 from app.services.registrars.batch_registrar import BatchRegistrar
@@ -23,6 +25,7 @@ from sqlalchemy.sql import text
 
 from app.utils.logging_utils import logger
 from app.utils.admin_utils import admin
+from app.utils.chemistry_utils import molecule_standardization_config
 
 
 # Handle both package imports and direct execution
@@ -440,6 +443,38 @@ def update_compound_matching_rule(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
+
+
+@router.post("/admin/update-standardization-config")
+async def update_standardization_config(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    filename = file.filename.lower()
+    if not (filename.endswith(".yaml") or filename.endswith(".yml")):
+        raise HTTPException(status_code=400, detail="Uploaded file must be a YAML file (.yaml or .yml)")
+
+    try:
+        content = await file.read()
+        yaml.safe_load(content)
+        yaml_str = content.decode("utf-8")
+
+        setting = db.query(models.Settings).filter(models.Settings.name == "Molecule standardization rules").first()
+        if not setting:
+            raise HTTPException(status_code=404, detail="Standardization configuration setting not found")
+
+        setting.value = yaml_str
+        db.commit()
+        molecule_standardization_config.clear_cache()
+
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while updating the configuration: {str(e)}")
+
+    return JSONResponse(content={"message": "Standardization configuration updated successfully."})
 
 
 @router.patch("/admin/institution-id-pattern")
