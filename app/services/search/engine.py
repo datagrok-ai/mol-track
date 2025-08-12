@@ -48,8 +48,6 @@ class SearchEngine:
             # Build the SQL query
             query_info = self.query_builder.build_query(request)
 
-            print(query_info["sql"])
-
             # Execute main query
             results = self._execute_main_query(query_info["sql"], query_info["params"])
 

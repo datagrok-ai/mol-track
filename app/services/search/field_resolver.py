@@ -108,7 +108,7 @@ class FieldResolver:
         # Add cross-level join if needed
         if table_name != search_level:
             cross_joins, cross_tables, cross_from = self.join_resolver.resolve_join_components(
-                search_level, table_name, subquery
+                search_level, table_name, subquery, field_or_details == "details"
             )
             if cross_joins:
                 all_joins.add(cross_joins, cross_tables)
@@ -137,15 +137,21 @@ class FieldResolver:
     ) -> Dict[str, Any]:
         alias = table_config["details_alias"]
         table = table_config["details_table"]
+        base_table = table_config["table"]
 
         if subquery and cross_from == "":
             cross_from = table
 
         if table != cross_from:
             # Add details table join
+            field = f"{table_config['alias']}.id"
+            if subquery:
+                if joins.joinCount() and not joins.checkLastJoin(base_table):
+                    field = f"{joins.getLastTableAlias()}.{table_config['details_fk']}"
+                elif not joins.joinCount() and base_table != cross_from:
+                    field = f"{self.table_configs[cross_from]['alias']}.{table_config['details_fk']}"
             details_join = (
-                f"LEFT JOIN {self.db_schema}.{table} {alias} "
-                f"ON {alias}.{table_config['details_fk']} = {table_config['alias']}.id"
+                f"LEFT JOIN {self.db_schema}.{table} {alias} ON {alias}.{table_config['details_fk']} = {field}"
             )
             joins.add([details_join], [table])
 
@@ -159,7 +165,7 @@ class FieldResolver:
         subquery_sql = ""
         subquery_alias = ""
         if subquery:
-            joins_sql = joins.getJoinSQL() if cross_from != "assay_results" else joins.getJoinSQL(reversed=True)
+            joins_sql = joins.getJoinSQL()
             subquery_alias = self.table_configs[cross_from]["alias"] if table != cross_from else alias
             subquery_sql = f"SELECT 1 FROM {self.db_schema}.{cross_from} {subquery_alias} {joins_sql} "
 
@@ -192,7 +198,7 @@ class FieldResolver:
     ) -> Dict[str, Any]:
         subquery_sql = ""
         if subquery and search_level != table_config["table"]:
-            joins_sql = joins.getJoinSQL() if cross_from != "assay_results" else joins.getJoinSQL(reversed=True)
+            joins_sql = joins.getJoinSQL()
             subquery_sql = (
                 "SELECT 1 "
                 f"FROM {self.db_schema}.{self.table_configs[cross_from]['table']} "

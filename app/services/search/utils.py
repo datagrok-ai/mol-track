@@ -56,70 +56,33 @@ class JoinOrderingTool:
 
     This tool helps in constructing and ordering JOIN statements for different
     entities (such as compounds, batches, details, assay results, and properties)
-    when building dynamic SQL queries. It maintains a dictionary of join lists,
-    categorized by entity type, and provides methods to expand and update these
-    lists as needed.
+    when building dynamic SQL queries.
     """
 
     def __init__(self):
-        self.joins_dict = {
-            "compounds": set(),
-            "batches": set(),
-            "assay_results": set(),
-            "assay_runs": set(),
-            "assays": set(),
-            "compound_details": set(),
-            "batch_details": set(),
-            "assay_result_details": set(),
-            "assay_run_details": set(),
-            "assay_details": set(),
-            "properties": set(),
-        }
-        self.keys = set()
+        self.keys = []
         self.joins = []
 
     def add(self, joins: List[str], keys: List[str]) -> bool:
-        for i, join in enumerate(joins):
-            self.joins_dict[keys[i]].add(join)
+        for i in range(len(joins)):
             if keys[i] not in self.keys:
-                self.keys.add(keys[i])
+                self.keys.append(keys[i])
                 self.joins.append(joins[i])
 
-    def getListOfJoins(self) -> List[str]:
-        keys = [
-            "compounds",
-            "batches",
-            "assay_results",
-            "assay_runs",
-            "assays",
-            "compound_details",
-            "batch_details",
-            "assay_result_details",
-            "assay_run_details",
-            "assay_details",
-            "properties",
-        ]
-        joins = [join for key in keys for join in self.joins_dict.get(key, set())]
-        return " ".join(joins) if joins else ""
-
-    def getJoinSQL(self, reversed: bool = False) -> str:
-        if not reversed:
-            keys = ["compounds", "batches", "assay_results", "assay_runs", "assays"]
-        else:
-            keys = ["assay_results", "batches", "compounds", "assay_runs", "assays"]
-        keys.extend(
-            [
-                "compound_details",
-                "batch_details",
-                "assay_result_details",
-                "assay_run_details",
-                "assay_details",
-                "properties",
-            ]
-        )
-        # joins = [join for key in keys for join in self.joins_dict.get(key, set())]
-        # return " ".join(joins) if joins else ""
+    def getJoinSQL(self) -> str:
         return " ".join(self.joins) if self.joins else ""
+
+    def getLastTableAlias(self) -> str:
+        if len(self.keys):
+            return create_alias(self.keys[-1])
+
+    def checkLastJoin(self, table: Level) -> bool:
+        if len(self.keys):
+            return table == self.keys[-1]
+        return False
+
+    def joinCount(self):
+        return len(self.joins)
 
 
 class JoinResolutionError(Exception):
@@ -162,15 +125,17 @@ class JoinResolver:
                     queue.append((neighbor, path + [(neighbor, join_clause)]))
         return None
 
-    def resolve_join_components(self, from_level: str, to_level, subquery: bool = False):
+    def resolve_join_components(self, from_level: str, to_level, subquery: bool = False, details: bool = False):
         result = self._find_path(from_level, to_level)
         if not result:
             raise JoinResolutionError(f"No relationship defined from {from_level} to {to_level}")
         from_table = None
         if subquery:
             from_table = from_level
-            if result[0][1].find(f"{singularize(from_level)}_id") != -1:
+            if len(result) >= 1 and result[0][1].find(f"{singularize(from_level)}_id") != -1:
                 from_table = result.pop(0)[0]
+            if details and len(result) >= 1 and result[-1][1].find(f"{singularize(to_level)}_id") != -1:
+                result.pop(-1)
         joins, tables = [], []
         for table, join in result:
             joins.append(join)
