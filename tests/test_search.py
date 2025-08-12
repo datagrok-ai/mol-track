@@ -37,17 +37,16 @@ def test_valid_json_compounds(client):
     assert content["total_count"] == 2
     assert content["level"] == "compounds"
 
-    column_names = [s.replace(".", "_") for s in valid_output_compounds]
-    assert content["columns"] == column_names
+    assert content["columns"] == valid_output_compounds
 
     details = [
-        content["data"][0]["compounds_details_corporate_compound_id"],
-        content["data"][1]["compounds_details_corporate_compound_id"],
+        content["data"][0]["compounds.details.corporate_compound_id"],
+        content["data"][1]["compounds.details.corporate_compound_id"],
     ]
     assert "DG-000001" in details
     assert "DG-000002" in details
 
-    molregno = [str(content["data"][0]["compounds_molregno"]), str(content["data"][1]["compounds_molregno"])]
+    molregno = [str(content["data"][0]["compounds.molregno"]), str(content["data"][1]["compounds.molregno"])]
     assert molregno[0] in details[0]
     assert molregno[1] in details[1]
 
@@ -63,27 +62,21 @@ def test_valid_json_batches(client):
     assert content["total_count"] == 2
     assert content["level"] == "batches"
 
-    column_names = [s.replace(".", "_") for s in valid_output_batches]
-    assert content["columns"] == column_names
+    assert content["columns"] == valid_output_batches
 
     details = [
-        content["data"][0]["batches_details_corporate_batch_id"],
-        content["data"][1]["batches_details_corporate_batch_id"],
+        content["data"][0]["batches.details.corporate_batch_id"],
+        content["data"][1]["batches.details.corporate_batch_id"],
     ]
     assert "DGB-000001" in details
     assert "DGB-000002" in details
 
-    batchregno = [str(content["data"][0]["batches_batch_regno"]), str(content["data"][1]["batches_batch_regno"])]
+    batchregno = [str(content["data"][0]["batches.batch_regno"]), str(content["data"][1]["batches.batch_regno"])]
     assert batchregno[0] in details[0]
     assert batchregno[1] in details[1]
 
 
-valid_output_assay_results = [
-    "assay_results.id",
-    "assay_results.assay_run_id",
-    "assay_results.property_id",
-    "assay_results.value_num",
-]
+valid_output_assay_results = ["assay_results.id", "assay_results.assay_run_id", "assay_results.created_at"]
 
 valid_filter_assay_results = {"field": "assay_results.id", "operator": "<", "value": "6"}
 
@@ -101,8 +94,28 @@ def test_valid_json_assay_results(client):
     assert content["total_count"] == 5
     assert content["level"] == "assay_results"
 
-    column_names = [s.replace(".", "_") for s in valid_output_assay_results]
-    assert content["columns"] == column_names
+    assert content["columns"] == valid_output_assay_results
+
+
+@pytest.mark.usefixtures("preload_simple_data")
+def test_valid_molecular_operations(client):
+    output = ["compounds.canonical_smiles"]
+    filter = {
+        "field": "compounds.structure",
+        "operator": "IS SIMILAR",
+        "value": "CCCCC(CC)COC(=O)C1=CC=C(C=C1)O",
+        "threshold": 0.8,
+    }
+    response = client.post("v1/search/compounds", json={"output": output, "filter": filter})
+    assert response.status_code == 200
+
+    content = response.content.decode("utf-8")
+    content = json.loads(content)
+
+    assert content["total_count"] == 1
+    assert content["level"] == "compounds"
+
+    assert content["columns"] == output
 
 
 def test_missing_output_field(client):

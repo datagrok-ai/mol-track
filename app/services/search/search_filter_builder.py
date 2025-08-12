@@ -1,7 +1,8 @@
 from typing import List, Dict, Any
 import re
 from sqlalchemy.orm import Session
-from app.models import Token, LogicOp, CompareOp
+from app.models import Token
+from app.utils.enums import CompareOp, LogicOp
 from app.services.search.parser import Parser
 from app.services.search.engine import SearchEngine
 
@@ -22,7 +23,6 @@ class SearchFilterBuilder:
 
         search_engine = SearchEngine(self.db)
         err = search_engine._validate_filter(filter_tree, "")
-
         return {"filter:": filter_tree.model_dump() if err == [] else None, "errors": err}
 
     def _tokenize(self, expression: str) -> List[Token]:
@@ -40,7 +40,7 @@ class SearchFilterBuilder:
 
             # Parentheses
             if c in "()":
-                tokens.append(("LPAREN" if c == "(" else "RPAREN", c))
+                tokens.append(Token("LPAREN" if c == "(" else "RPAREN", c))
                 i += 1
                 continue
 
@@ -78,18 +78,17 @@ class SearchFilterBuilder:
                         else:
                             raise ValueError(f"Unsupported array item: {item}")
 
-                tokens.append(("ARRAY_LITERAL", values))
+                tokens.append(Token("ARRAY_LITERAL", values))
                 i = end + 1
                 continue
 
             # String literal (single quotes)
             if c == "'":
                 end = i + 1
-                while end < length and expression[end] != "'":
-                    end += 1
-                if end >= length:
+                end = expression.find("'", i + 1)
+                if end == -1:
                     raise ValueError("Unclosed string literal")
-                tokens.append(("STRING_LITERAL", expression[i + 1 : end]))
+                tokens.append(Token("STRING_LITERAL", expression[i + 1 : end]))
                 i = end + 1
                 continue
 
@@ -98,29 +97,22 @@ class SearchFilterBuilder:
             if number_match:
                 num_str = number_match.group(0)
                 value = float(num_str) if "." in num_str else int(num_str)
-                tokens.append(("NUMBER_LITERAL", value))
+                tokens.append(Token("NUMBER_LITERAL", value))
                 i += len(num_str)
                 continue
 
             # Boolean literal
-            if expression[i:].lower().startswith("true"):
-                tokens.append(("BOOLEAN_LITERAL", True))
-                i += 4
-                continue
-            if expression[i:].lower().startswith("false"):
-                tokens.append(("BOOLEAN_LITERAL", False))
-                i += 5
+            match = re.match(r"(true|false)", expression[i:], re.IGNORECASE)
+            if match:
+                tokens.append(Token("BOOLEAN_LITERAL", match.group(1).lower() == "true"))
+                i += len(match.group(0))
                 continue
 
             # Multi-word operators
-            matched_op = None
-            for op in self.COMPARE_OPS + self.LOGICAL_OPS:
-                if expression[i:].startswith(op):
-                    matched_op = op
-                    break
+            matched_op = next((op for op in self.COMPARE_OPS + self.LOGICAL_OPS if expression[i:].startswith(op)), None)
             if matched_op:
                 token_type = "COMPARE_OP" if matched_op in self.COMPARE_OPS else "LOGICAL_OP"
-                tokens.append((token_type, matched_op))
+                tokens.append(Token(token_type, matched_op))
                 i += len(matched_op)
                 continue
 
@@ -128,10 +120,9 @@ class SearchFilterBuilder:
             field_match = re.match(r"[a-zA-Z_][a-zA-Z0-9_.]*", expression[i:])
             if field_match:
                 field = field_match.group(0)
-                tokens.append(("FIELD", field))
+                tokens.append(Token("FIELD", field))
                 i += len(field)
                 continue
 
             raise ValueError(f"Unexpected character at position {i}: '{c}'")
-
         return tokens

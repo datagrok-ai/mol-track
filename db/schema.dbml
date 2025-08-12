@@ -167,7 +167,7 @@ Table moltrack.properties as Properties {
     semantic_type_id int [ref: > SemanticTypes.id]
     property_class text [note: "('CALCULATED', 'MEASURED', 'PREDICTED')"]
     unit text [note: 'future: unit should point to unit ontology']
-    scope text [not null, note: 'check in ["BATCH","COMPOUND","ASSAY","SETTINGS"]']
+    entity_type text [not null, note: 'check in ["BATCH","COMPOUND","ASSAY","SETTINGS"]']
     
     indexes {
         name

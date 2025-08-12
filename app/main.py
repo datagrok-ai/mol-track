@@ -1,7 +1,9 @@
-from contextlib import asynccontextmanager
 import csv
 import io
+import tempfile
+import shutil
 from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
@@ -11,6 +13,7 @@ from app.services.registrars.batch_registrar import BatchRegistrar
 from app.services.registrars.compound_registrar import CompoundRegistrar
 from app import models
 from app import crud
+from app.services.registrars.writer import StreamingResultWriter
 from app.utils import enums
 from app.services.property_service import PropertyService
 from app.services.search.engine import SearchEngine
@@ -19,6 +22,7 @@ from app.services.search.search_filter_builder import SearchFilterBuilder
 from sqlalchemy.sql import text
 
 from app.utils.logging_utils import logger
+from app.utils.admin_utils import admin
 
 
 # Handle both package imports and direct execution
@@ -34,21 +38,8 @@ except ImportError:
 # models.Base.metadata.create_all(bind=engine)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    db = SessionLocal()
-    try:
-        get_admin_user(db)
-    finally:
-        db.close()
-
-    yield
-
-
-app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches", lifespan=lifespan)
+app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
-
-admin_user_id: str | None = None
 
 
 # Dependency
@@ -60,14 +51,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def get_admin_user(db: Session):
-    admin = db.query(models.User).filter(models.User.email == "admin@datagrok.ai").first()
-    if not admin:
-        raise Exception("Admin user not found.")
-    global admin_user_id
-    admin_user_id = admin.id
 
 
 def get_or_raise_exception(get_func, db, id, not_found_msg):
@@ -94,14 +77,19 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
         return {"status": "failed", "error": str(e)}
 
 
+@router.get("/schema/")
+def get_schema(db: Session = Depends(get_db)):
+    return crud.get_entities_by_entity_type(db)
+
+
 @router.get("/schema/compounds", response_model=List[models.PropertyBase])
 def get_schema_compounds(db: Session = Depends(get_db)):
-    return crud.get_entities_by_scope(db, enums.ScopeClass.COMPOUND)
+    return crud.get_entities_by_entity_type(db, enums.EntityType.COMPOUND)
 
 
 @router.get("/schema/compounds/synonyms", response_model=List[models.SynonymTypeBase])
 def get_schema_compound_synonyms(db: Session = Depends(get_db)):
-    return crud.get_entities_by_scope(db, enums.ScopeClass.COMPOUND, crud.get_synonym_id(db))
+    return crud.get_entities_by_entity_type(db, enums.EntityType.COMPOUND, crud.get_synonym_id(db))
 
 
 def fetch_additions(db: Session):
@@ -115,14 +103,14 @@ def fetch_additions(db: Session):
 
 @router.get("/schema/batches", response_model=models.SchemaBatchResponse)
 def get_schema_batches(db: Session = Depends(get_db)):
-    properties = crud.get_entities_by_scope(db, enums.ScopeClass.BATCH)
+    properties = crud.get_entities_by_entity_type(db, enums.EntityType.BATCH)
     additions = fetch_additions(db)
     return models.SchemaBatchResponse(properties=properties, additions=additions)
 
 
 @router.get("/schema/batches/synonyms", response_model=models.SchemaBatchResponse)
 def get_schema_batch_synonyms(db: Session = Depends(get_db)):
-    synonym_types = crud.get_entities_by_scope(db, enums.ScopeClass.BATCH, crud.get_synonym_id(db))
+    synonym_types = crud.get_entities_by_entity_type(db, enums.EntityType.BATCH, crud.get_synonym_id(db))
     additions = fetch_additions(db)
     return models.SchemaBatchResponse(synonym_types=synonym_types, additions=additions)
 
@@ -137,11 +125,29 @@ def process_registration(
     output_format,
     db: Session,
 ):
-    csv_content = csv_file.file.read().decode("utf-8")
     registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling)
-    rows = registrar.process_csv(csv_content)
-    registrar.register_all(rows)
-    return registrar.result(output_format=output_format)
+
+    tmp = tempfile.SpooledTemporaryFile(mode="w+b", max_size=50 * 1024 * 1024)
+    shutil.copyfileobj(csv_file.file, tmp)
+    tmp.seek(0)
+
+    def row_generator():
+        try:
+            with io.TextIOWrapper(tmp, encoding="utf-8", newline="") as text_stream:
+                for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
+                    registrar.register_all(chunk_rows)
+                    yield registrar.output_rows.copy()
+                    registrar.cleanup_chunk()
+        finally:
+            tmp.close()
+            registrar.cleanup()
+
+    result_writer = StreamingResultWriter(output_format.value)
+    return StreamingResponse(
+        result_writer.stream_rows(row_generator()),
+        media_type="text/csv" if output_format.value == enums.OutputFormat.csv.value else "application/json",
+        headers={"Content-Disposition": f"attachment; filename=registration_result.{output_format.value}"},
+    )
 
 
 @router.post("/compounds/")
@@ -152,7 +158,14 @@ def register_compounds(
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(CompoundRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(
+        CompoundRegistrar,
+        csv_file,
+        mapping,
+        error_handling,
+        output_format,
+        db,
+    )
 
 
 @router.get("/compounds/", response_model=List[models.CompoundResponse])
@@ -176,6 +189,11 @@ def get_compound_synonyms(compound_id: int, db: Session = Depends(get_db)):
 def get_compound_properties(compound_id: int, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
     return compound.properties
+
+
+@router.put("/compounds/{compound_id}", response_model=models.CompoundResponse)
+def update_compound_by_id(compound_id: int, update_data: models.CompoundUpdate, db: Session = Depends(get_db)):
+    return crud.update_compound(db, compound_id, update_data)
 
 
 @router.delete("/compounds/{compound_id}", response_model=models.Compound)
@@ -310,7 +328,7 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
     property_service = PropertyService(all_properties)
 
     assays_to_insert = [
-        {"name": assay.name, "created_by": admin_user_id, "updated_by": admin_user_id} for assay in payload
+        {"name": assay.name, "created_by": admin.admin_user_id, "updated_by": admin.admin_user_id} for assay in payload
     ]
 
     stmt = insert(models.Assay).returning(models.Assay.id)
@@ -325,13 +343,13 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
             models.AssayDetail,
             properties=assay.extra_fields,
             entity_ids=entity_ids,
-            scope=enums.ScopeClass.ASSAY,
+            entity_type=enums.EntityType.ASSAY,
             include_user_fields=False,
         )
         detail_records.extend(inserted)
 
         for prop_data in assay.assay_result_properties:
-            prop_info = property_service.get_property_info(prop_data.name, enums.ScopeClass.ASSAY_RESULT)
+            prop_info = property_service.get_property_info(prop_data.name, enums.EntityType.ASSAY_RESULT)
             property_records.append(
                 {
                     "assay_id": assay_id,
@@ -426,7 +444,7 @@ def update_compound_matching_rule(
 
 @router.patch("/admin/institution-id-pattern")
 def update_institution_id_pattern(
-    scope: enums.ScopeClassReduced = Form(enums.ScopeClassReduced.BATCH),
+    entity_type: enums.EntityTypeReduced = Form(enums.EntityTypeReduced.BATCH),
     pattern: str = Form(default="DG-{:05d}"),
     db: Session = Depends(get_db),
 ):
@@ -447,7 +465,7 @@ def update_institution_id_pattern(
                     Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc.""",
         )
 
-    setting_name = "corporate_batch_id" if scope == "BATCH" else "corporate_compound_id"
+    setting_name = "corporate_batch_id" if entity_type == "BATCH" else "corporate_compound_id"
 
     try:
         db.execute(
@@ -457,7 +475,7 @@ def update_institution_id_pattern(
         db.commit()
         return {
             "status": "success",
-            "message": f"Corporate ID pattern for {scope} updated to {pattern}, ids will be looking like {pattern.format(1)}",
+            "message": f"Corporate ID pattern for {entity_type} updated to {pattern}, ids will be looking like {pattern.format(1)}",
         }
     except Exception as e:
         db.rollback()
@@ -519,7 +537,6 @@ def search_compounds_advanced(output: List[str], filter: Optional[models.Filter]
     Automatically sets level to 'compounds' and accepts filter parameters directly.
     """
     request = models.SearchRequest(level="compounds", output=output, filter=filter)
-
     return advanced_search(request, db)
 
 
@@ -531,7 +548,6 @@ def search_batches_advanced(output: List[str], filter: Optional[models.Filter] =
     Automatically sets level to 'batches' and accepts filter parameters directly.
     """
     request = models.SearchRequest(level="batches", output=output, filter=filter)
-
     return advanced_search(request, db)
 
 

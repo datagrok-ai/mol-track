@@ -1,5 +1,5 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal, Tuple
-from pydantic import field_validator, model_validator
+from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal
+from pydantic import ConfigDict, field_validator, model_validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
@@ -7,7 +7,6 @@ from app.utils import enums
 import os
 from datetime import datetime
 import uuid
-from enum import Enum as PyEnum
 # import crud
 # # Handle both package imports and direct execution
 # try:
@@ -124,6 +123,18 @@ class Compound(CompoundResponseBase, table=True):
     )
 
 
+class CompoundDetailUpdate(SQLModel):
+    property_id: int
+    value: Any
+
+
+class CompoundUpdate(SQLModel):
+    original_molfile: Optional[str] = None
+    is_archived: Optional[bool] = None
+    canonical_smiles: Optional[str] = None
+    properties: Optional[List[CompoundDetailUpdate]] = None
+
+
 class BatchDetailBase(SQLModel):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
     property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
@@ -203,7 +214,7 @@ class PropertyBase(SQLModel):
     value_type: enums.ValueType = Field(sa_column=Column(Enum(enums.ValueType), nullable=False))
     property_class: enums.PropertyClass = Field(sa_column=Column(Enum(enums.PropertyClass), nullable=False))
     unit: Optional[str] = Field(default=None)
-    scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
+    entity_type: enums.EntityType = Field(sa_column=Column(Enum(enums.EntityType), nullable=False))
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
     pattern: Optional[str] = Field(default=None)
 
@@ -223,8 +234,7 @@ class SynonymTypeBase(PropertyBase):
     unit: Optional[str] = Field(default="")
     semantic_type_id: Optional[int] = Field(default=1)
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("value_type")
     def validate_value_type(cls, v):
@@ -359,6 +369,22 @@ class AssayRun(AssayRunResponseBase, table=True):
     )
 
 
+class AssayResultDetail(SQLModel, table=True):
+    __tablename__ = "assay_result_details"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    assay_result_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_results.id", primary_key=True)
+    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
+
+    value_qualifier: Optional[int] = Field(default=0, nullable=False)  # 0 for "=", 1 for "<", 2 for ">"
+    value_num: Optional[float] = Field(default=None)
+    value_string: Optional[str] = Field(default=None)
+    value_bool: Optional[bool] = Field(default=None)
+
+    assay_result: "AssayResult" = Relationship(back_populates="assay_result_details")
+    property: Optional["Property"] = Relationship()
+
+
 class Property(PropertyResponse, table=True):
     __tablename__ = "properties"
     __table_args__ = (
@@ -370,8 +396,8 @@ class Property(PropertyResponse, table=True):
             name="properties_property_class_check",
         ),
         CheckConstraint(
-            "scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULT', 'SYSTEM')",
-            name="properties_scope_check",
+            "entity_type IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULT', 'SYSTEM')",
+            name="properties_entity_type_check",
         ),
         {"schema": DB_SCHEMA},
     )
@@ -380,13 +406,15 @@ class Property(PropertyResponse, table=True):
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
-    assay_results: List["AssayResult"] = Relationship(back_populates="property")
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
 
     assays: List["Assay"] = Relationship(link_model=AssayProperty, sa_relationship_kwargs={"viewonly": True})
     assay_runs: List["AssayRun"] = Relationship(
         back_populates="properties", link_model=AssayRunDetail, sa_relationship_kwargs={"viewonly": True}
+    )
+    assay_results: List["AssayResult"] = Relationship(
+        back_populates="properties", link_model=AssayResultDetail, sa_relationship_kwargs={"viewonly": True}
     )
     compounds: List["Compound"] = Relationship(
         back_populates="properties", link_model=CompoundDetail, sa_relationship_kwargs={"viewonly": True}
@@ -399,12 +427,9 @@ class Property(PropertyResponse, table=True):
 class AssayResultBase(SQLModel):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
     assay_run_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_runs.id", nullable=False)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", nullable=False)
-
-    value_qualifier: Optional[int] = Field(default=0, nullable=False)  # 0 for "=", 1 for "<", 2 for ">"
-    value_num: Optional[float] = Field(default=None)
-    value_string: Optional[str] = Field(default=None)
-    value_bool: Optional[bool] = Field(default=None)
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
 
 class AssayResultResponseBase(AssayResultBase):
@@ -434,7 +459,13 @@ class AssayResult(AssayResultResponseBase, table=True):
 
     batch: "Batch" = Relationship(back_populates="assay_results")
     assay_run: "AssayRun" = Relationship(back_populates="assay_results")
-    property: "Property" = Relationship(back_populates="assay_results")
+    assay_result_details: List["AssayResultDetail"] = Relationship(back_populates="assay_result")
+
+    properties: List["Property"] = Relationship(
+        back_populates="assay_results",
+        link_model=AssayResultDetail,
+        sa_relationship_kwargs={"lazy": "joined", "viewonly": True},
+    )
 
 
 class AssayDetail(SQLModel, table=True):
@@ -480,8 +511,7 @@ class AdditionFields(SQLModel):
         schema_extra={"validation_alias": "molecular weight"},
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class AdditionBase(AdditionFields):
@@ -590,48 +620,11 @@ class UpdateCheckResult(NamedTuple):
 
 
 # Advanced Search Models - New Recursive Structure
-class LogicOp(str, PyEnum):
-    """Logical operators for combining conditions"""
-
-    AND = "AND"
-    OR = "OR"
-
-
-class CompareOp(str, PyEnum):
-    """Comparison operators for atomic conditions"""
-
-    # String operators
-    EQUALS = "="
-    NOT_EQUALS = "!="
-    IN = "IN"
-    STARTS_WITH = "STARTS WITH"
-    ENDS_WITH = "ENDS WITH"
-    LIKE = "LIKE"
-    CONTAINS = "CONTAINS"
-
-    # Numeric operators
-    LESS_THAN = "<"
-    GREATER_THAN = ">"
-    LESS_THAN_OR_EQUAL = "<="
-    GREATER_THAN_OR_EQUAL = ">="
-    RANGE = "RANGE"
-
-    # Datetime operators
-    BEFORE = "BEFORE"
-    AFTER = "AFTER"
-    ON = "ON"
-
-    # Molecular operators (RDKit)
-    IS_SIMILAR = "IS SIMILAR"
-    IS_SUBSTRUCTURE_OF = "IS SUBSTRUCTURE OF"
-    HAS_SUBSTRUCTURE = "HAS SUBSTRUCTURE"
-
-
 class AtomicCondition(SQLModel):
     """Individual atomic search condition with field, operator, and value"""
 
     field: str  # e.g., "compounds.canonical_smiles", "compounds.details.chembl"
-    operator: CompareOp
+    operator: enums.CompareOp
     value: Any
     threshold: Optional[float] = None  # For similarity searches (e.g., molecular similarity)
 
@@ -643,12 +636,13 @@ class AtomicCondition(SQLModel):
 
         # Check for valid field format (table.field or table.details.property)
         parts = v.split(".")
-        if len(parts) < 2:
+        if len(parts) < 2 or len(parts) > 3:
             raise ValueError("Field must be in format 'table.field' or 'table.details.property'")
 
         valid_tables = ["compounds", "batches", "assay_results"]
         if parts[0] not in valid_tables:
-            raise ValueError(f"Invalid table: {parts[0]}. Must be one of {valid_tables}")
+            allowed = ", ".join(valid_tables)
+            raise ValueError(f"Invalid table: {parts[0]}. Must be one of {allowed}")
 
         return v
 
@@ -657,10 +651,11 @@ class AtomicCondition(SQLModel):
         # Validate threshold is provided for operators that require it
         if isinstance(values, AtomicCondition):
             operator = values.get("operator")
-            v = values.get("threshold")
-            if operator == CompareOp.IS_SIMILAR and v is None:
-                raise ValueError("IS SIMILAR operator requires a threshold value")
-            if operator != CompareOp.IS_SIMILAR and v is not None:
+            threshold = values.get("threshold")
+            if operator == enums.CompareOp.IS_SIMILAR:
+                if threshold is None:
+                    raise ValueError(f"Operator {operator.value} requires a threshold value")
+            elif threshold is not None:
                 raise ValueError(f"Threshold not supported for operator: {operator}")
         return values
 
@@ -668,7 +663,7 @@ class AtomicCondition(SQLModel):
 class LogicalNode(SQLModel):
     """Logical node combining multiple filters with AND/OR operator"""
 
-    operator: LogicOp
+    operator: enums.LogicOp
     conditions: List["Filter"]
 
     @field_validator("conditions")
@@ -684,16 +679,19 @@ class LogicalNode(SQLModel):
 Filter = Union[AtomicCondition, LogicalNode]
 
 
+Level = Literal["compounds", "batches", "assay_results"]
+
+
 class SearchRequest(SQLModel):
     """Main search request model with recursive filter structure"""
 
-    level: Literal["compounds", "batches", "assay_results"]
+    level: Level
     output: List[str]  # Columns to return
     filter: Optional[Filter] = None
 
     @field_validator("output")
     def validate_output(cls, v):
-        if not v or len(v) == 0:
+        if not v:
             raise ValueError("Output must specify at least one column")
         return v
 
@@ -712,4 +710,6 @@ class SearchResponse(SQLModel):
 LogicalNode.model_rebuild()
 
 
-Token = Tuple[str, Union[str, float, bool, None]]
+class Token(NamedTuple):
+    type: str
+    value: Union[str, float, bool, None]

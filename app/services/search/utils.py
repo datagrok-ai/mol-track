@@ -1,5 +1,38 @@
 import re
 from typing import List
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+
+
+def create_alias(table: str) -> str:
+    name_parts = table.split("_")
+    if len(name_parts) == 2:
+        # Since the table name is in the format "table_name", we can use the first letter of the first part and the
+        # first letter of the second part
+        return f"{name_parts[0][0]}{name_parts[1][0]}"
+    else:
+        return f"{name_parts[0][0]}"
+
+
+def singularize(word: str) -> str:
+    if word.endswith("es"):
+        return word[:-2]
+    elif word.endswith("s"):
+        return word[:-1]
+    return word
+
+
+def get_table_columns(table_name: str, session: Session) -> list:
+    """
+    Get the columns of a table in the database.
+    """
+
+    result = session.execute(
+        text("SELECT column_name FROM information_schema.columns WHERE table_name = :table_name"),
+        {"table_name": table_name},
+    )
+    columns = [row[0] for row in result.fetchall()]
+    return columns
 
 
 def sanitize_field_name(field_name: str) -> str:
@@ -21,16 +54,16 @@ class JoinOrderingTool:
     when building dynamic SQL queries. It maintains a dictionary of join lists,
     categorized by entity type, and provides methods to expand and update these
     lists as needed.
-
     """
 
     def __init__(self):
         self.joins_dict = {
             "compounds": set(),
             "batches": set(),
+            "assay_results": set(),
             "compound_details": set(),
             "batch_details": set(),
-            "assay_results": set(),
+            "assay_result_details": set(),
             "properties": set(),
         }
 
@@ -39,28 +72,23 @@ class JoinOrderingTool:
             self.joins_dict[keys[i]].add(join)
 
     def getListOfJoins(self) -> List[str]:
-        joins = []
-        joins.extend(list(self.joins_dict.get("compounds", set())))
-        joins.extend(list(self.joins_dict.get("batches", set())))
-        joins.extend(list(self.joins_dict.get("compound_details", set())))
-        joins.extend(list(self.joins_dict.get("batch_details", set())))
-        joins.extend(list(self.joins_dict.get("assay_results", set())))
-        joins.extend(list(self.joins_dict.get("properties", set())))
-
-        return joins
+        keys = [
+            "compounds",
+            "batches",
+            "compound_details",
+            "batch_details",
+            "assay_results",
+            "assay_result_details",
+            "properties",
+        ]
+        joins = [join for key in keys for join in self.joins_dict.get(key, set())]
+        return " ".join(joins) if joins else ""
 
     def getJoinSQL(self, reversed: bool = False) -> str:
-        joins = []
         if not reversed:
-            joins.extend(list(self.joins_dict.get("compounds", set())))
-            joins.extend(list(self.joins_dict.get("batches", set())))
-            joins.extend(list(self.joins_dict.get("assay_results", set())))
+            keys = ["compounds", "batches", "assay_results"]
         else:
-            joins.extend(list(self.joins_dict.get("assay_results", set())))
-            joins.extend(list(self.joins_dict.get("batches", set())))
-            joins.extend(list(self.joins_dict.get("compounds", set())))
-        joins.extend(list(self.joins_dict.get("compound_details", set())))
-        joins.extend(list(self.joins_dict.get("batch_details", set())))
-        joins.extend(list(self.joins_dict.get("properties", set())))
-
+            keys = ["assay_results", "batches", "compounds"]
+        keys.extend(["compound_details", "batch_details", "assay_result_details", "properties"])
+        joins = [join for key in keys for join in self.joins_dict.get(key, set())]
         return " ".join(joins) if joins else ""

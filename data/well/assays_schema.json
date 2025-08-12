@@ -2,13 +2,13 @@
     "properties": [
        {
           "name": "assay type",
-          "scope": "assay",
+          "entity_type": "assay",
           "property_class": "declared",
           "value_type": "string"
        },
        {
           "name": "assay format",
-          "scope": "assay",
+          "entity_type": "assay",
           "property_class": "declared",
           "value_type": "string"
        }

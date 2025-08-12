@@ -34,19 +34,19 @@ CREATE TABLE moltrack.properties (
   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
   name text NOT NULL,
   description text,
-  -- value_type defines the colummn in the batch_details, assay_run_details and assay_results 
+  -- value_type defines the colummn in the batch_details, assay_run_details and assay_results
   -- tables that store the property value:
-  -- * [value_num] for "int" and "double", 
-  -- * [value_datetime] for "datetime", 
-  -- * [value_uuid] for "uuid", 
+  -- * [value_num] for "int" and "double",
+  -- * [value_datetime] for "datetime",
+  -- * [value_uuid] for "uuid",
   -- * [value_string] for "string"
-  value_type text check (value_type in ('int', 'double', 'datetime', 'uuid', 'string')) NOT NULL,
+  value_type text check (value_type in ('int', 'double', 'datetime', 'uuid', 'string', 'bool')) NOT NULL,
   semantic_type_id INTEGER REFERENCES moltrack.semantic_types (id),
   property_class text check (property_class in ('DECLARED','CALCULATED', 'MEASURED', 'PREDICTED')) NOT NULL,
   unit text,
-  scope text check (scope in ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_RUN', 'ASSAY_RESULT', 'SYSTEM')) NOT NULL,
-  pattern text, -- regex for validating string value_type properties, e.g., identifier: CHEMBL.* 
-  UNIQUE(name, scope) -- Ensure unique property names within each scope
+  entity_type text check (entity_type in ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_RUN', 'ASSAY_RESULT', 'SYSTEM')) NOT NULL,
+  pattern text, -- regex for validating string value_type properties, e.g., identifier: CHEMBL.*
+  UNIQUE(name, entity_type) -- Ensure unique property names within each entity_type
 );
 
 -- System settings like compound standardization rules, compound uniqueness rules, compound identification rules and synonym generation rules.
@@ -104,7 +104,7 @@ CREATE TABLE moltrack.compound_details (
   value_qualifier smallint NOT NULL DEFAULT 0 check (value_qualifier in (0, 1, 2)) -- 0 for =, 1 for <, 2 for >
 );
 
--- Additions table - for salts and solvates 
+-- Additions table - for salts and solvates
 CREATE TABLE moltrack.additions (
   id serial PRIMARY KEY,
   created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
@@ -190,7 +190,7 @@ CREATE TABLE moltrack.assays (
   -- author_id uuid references moltrack.users (id)
 );
 
--- Assays details table - example domain: in vivo, in vitro, etc., detection method: fluorescence, etc. 
+-- Assays details table - example domain: in vivo, in vitro, etc., detection method: fluorescence, etc.
 CREATE TABLE moltrack.assay_details (
   assay_id int NOT NULL REFERENCES moltrack.assays (id),
   property_id int NOT NULL REFERENCES moltrack.properties (id),
@@ -202,7 +202,7 @@ CREATE TABLE moltrack.assay_details (
   value_string text
 );
 
--- assay_runs table - for assay_runs: kinase inhibition, cell viability, etc.  
+-- assay_runs table - for assay_runs: kinase inhibition, cell viability, etc.
 -- This is the level of the experiment executed by the user.
 CREATE TABLE moltrack.assay_runs (
   id serial PRIMARY KEY,
@@ -245,7 +245,15 @@ CREATE TABLE moltrack.assay_results (
   id serial PRIMARY KEY,
   batch_id int NOT NULL REFERENCES moltrack.batches (id),
   assay_run_id int NOT NULL REFERENCES moltrack.assay_runs (id),
-  property_id int NOT NULL REFERENCES moltrack.properties (id), -- should appear in assay_properties
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id)
+);
+
+CREATE TABLE moltrack.assay_result_details (
+  assay_result_id int NOT NULL REFERENCES moltrack.assay_results (id),
+  property_id int NOT NULL REFERENCES moltrack.properties (id),
 
   -- For performance reasons, only numbers, strings, and booleans are supported for assay results (no datetime or uuid).
   value_qualifier smallint NOT NULL DEFAULT 0 check (value_qualifier in (0, 1, 2)), -- 0 for =, 1 for <, 2 for >
@@ -253,7 +261,6 @@ CREATE TABLE moltrack.assay_results (
   value_string text,
   value_bool boolean
 );
-
 
 GRANT ALL PRIVILEGES ON SCHEMA moltrack TO CURRENT_USER;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA moltrack TO CURRENT_USER;

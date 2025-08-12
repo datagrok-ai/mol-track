@@ -25,8 +25,8 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
 *We will be developing this by example to understand its breath and depth.*  We know that we need to be able to define basic entities like properties and synonyms and associations.  The immediate need is for creations of these definitions.  Later we will think about the design for updates and (logical) deletions.
 
 - Semantic Types: name, description
-- Properties: name, value_type, semantic_type, property_class, unit, scope
-- Synonym Types: scope, name, pattern, description
+- Properties: name, value_type, semantic_type, property_class, unit, entity_type
+- Synonym Types: entity_type, name, pattern, description
 - Additions: name, description, code, is_active, formula, molecular_weight, smiles, molfile, role
 
 - `POST /schema` - used to define/ensure that a set of context definitions exist.
@@ -36,7 +36,7 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
    ```json
    {
        "properties": [
-         {"name": "MolLogP", "scope": "compound", "property_class": "calculated", "value_type": "double", "unit": ""}
+         {"name": "MolLogP", "entity_type": "compound", "property_class": "calculated", "value_type": "double", "unit": ""}
        ],
        "synonym_types": [
             {"name": "batch_corporate_id", "level": "batch", "pattern": ""},
@@ -266,13 +266,13 @@ To successfully load assay data, you will need to load the:
       "properties": [
          {
             "name": "assay format",
-            "scope": "assay",
+            "entity_type": "assay",
             "property_class": "declared",
             "value_type": "string"
          },
          {
             "name": "biological system",
-            "scope": "assay",
+            "entity_type": "assay",
             "property_class": "declared",
             "value_type": "string"
          },
@@ -280,21 +280,21 @@ To successfully load assay data, you will need to load the:
             "name": "Cell Species",
             "value_type": "string",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "declared"
          },
          {
             "name": "Cell Lot",
             "value_type": "string",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "measured"
          },
          {
             "name": "Cell Concentration",
             "value_type": "double",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "measured",
             "units": "10^6 cells/mL"
          },
@@ -302,14 +302,14 @@ To successfully load assay data, you will need to load the:
             "name": "Assay Run Date",
             "value_type": "datetime",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "measured"
          },
          {
             "name": "Assayer",
             "value_type": "uuid",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "measured"
          },
          {
@@ -318,7 +318,7 @@ To successfully load assay data, you will need to load the:
             "unit": "uL/min/10^6 cells",
             "required": true,
             "property_class": "measured",
-            "scope": "assay_result"
+            "entity_type": "assay_result"
          },
          {
             "name": "Mean HTC recovery",
@@ -326,7 +326,7 @@ To successfully load assay data, you will need to load the:
             "required": false,
             "value_type": "double",
             "property_class": "measured",
-            "scope": "assay_result"
+            "entity_type": "assay_result"
          },
          {
             "name": "SD HTC recovery",
@@ -334,7 +334,7 @@ To successfully load assay data, you will need to load the:
             "required": false,
             "value_type": "double",
             "property_class": "measured",
-            "scope": "assay_result"
+            "entity_type": "assay_result"
          },
          {
             "name": "Dosed Concentration",
@@ -342,13 +342,13 @@ To successfully load assay data, you will need to load the:
             "required": true,
             "value_type": "double",
             "property_class": "measured",
-            "scope": "assay_result"
+            "entity_type": "assay_result"
          }
       ]
    }
    ```
 
-   The output should be a listing of success / skipping / failure for the creation of each property.  A property may be skipped if it already exists at the proper scope. Skipped or failed records should provide a description as to why they did not succeed.
+   The output should be a listing of success / skipping / failure for the creation of each property.  A property may be skipped if it already exists at the proper entity_type. Skipped or failed records should provide a description as to why they did not succeed.
 
 - `POST /assays` will create an instance of an assay type and values in assay_details and assay_properties. An example payload is presented below and in the file [assay_instances.json](../data/black/assays_instances.json)
 
@@ -532,7 +532,7 @@ Properties and synonym types can probably follow the standard approaches:
 ## *Deferred* - Properties ##
 
 - `POST /properties` takes a json structure in the body of the call with fields corresponding to a single property definition, registers the single property and returns the json structure for that property and including the id.
-- `GET /properties` returns an array of json structures detailing each property.  A query string, defining the scope and limiting the return set, is also allowed.
+- `GET /properties` returns an array of json structures detailing each property.  A query string, defining the entity_type and limiting the return set, is also allowed.
 - `GET /properties/{property_id}` returns the json structure for a single property.
 - do we need updates.
 - register a set of properties at one time through a "schema"

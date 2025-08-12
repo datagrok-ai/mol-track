@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy import inspect
 from app.utils import type_casting_utils
-from app import main
+from app.utils.admin_utils import admin
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
 
 
@@ -16,15 +16,16 @@ class PropertyService:
             "batch_details": "corporate_batch_id",
         }
 
-    def get_property_info(self, prop_name: str, scope: str) -> Dict[str, Any]:
+    def get_property_info(self, prop_name: str, entity_type: str) -> Dict[str, Any]:
         prop = self.property_records_map.get(prop_name)
         if prop is None:
             raise HTTPException(status_code=400, detail=f"Unknown property: {prop_name}")
 
-        retieved_scope = getattr(prop, "scope", None)
-        if retieved_scope != scope:
+        retieved_entity_type = getattr(prop, "entity_type", None)
+        if retieved_entity_type != entity_type:
             raise HTTPException(
-                status_code=400, detail=f"Property '{prop_name}' has scope '{retieved_scope}', expected '{scope}'"
+                status_code=400,
+                detail=f"Property '{prop_name}' has entity_type '{retieved_entity_type}', expected '{entity_type}'",
             )
 
         value_type = getattr(prop, "value_type", None)
@@ -47,14 +48,14 @@ class PropertyService:
         model: Type,
         properties: Dict[str, Any],
         entity_ids: Dict[str, Any],
-        scope: str,
+        entity_type: str,
         include_user_fields: bool = True,
         update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         records_to_insert, records_to_update = [], []
 
         for prop_name, value in properties.items():
-            prop_info = self.get_property_info(prop_name, scope)
+            prop_info = self.get_property_info(prop_name, entity_type)
             prop = prop_info["property"]
             value_type = prop_info["value_type"]
             cast_fn = prop_info["cast_fn"]
@@ -112,8 +113,8 @@ class PropertyService:
                 detail[col_name] = default
 
             if include_user_fields:
-                detail["created_by"] = main.admin_user_id
-                detail["updated_by"] = main.admin_user_id
+                detail["created_by"] = admin.admin_user_id
+                detail["updated_by"] = admin.admin_user_id
 
             if update_checker:
                 result = update_checker(entity_ids, detail, field_name, casted_value)

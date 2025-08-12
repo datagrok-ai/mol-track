@@ -27,7 +27,7 @@ class PropertyClass(CaseInsensitiveEnum):
     PREDICTED = "PREDICTED"
 
 
-class ScopeClass(CaseInsensitiveEnum):
+class EntityType(CaseInsensitiveEnum):
     BATCH = "BATCH"
     COMPOUND = "COMPOUND"
     ASSAY = "ASSAY"
@@ -36,7 +36,7 @@ class ScopeClass(CaseInsensitiveEnum):
     SYSTEM = "SYSTEM"
 
 
-class ScopeClassReduced(CaseInsensitiveEnum):
+class EntityTypeReduced(CaseInsensitiveEnum):
     BATCH = "BATCH"
     COMPOUND = "COMPOUND"
 
@@ -65,3 +65,50 @@ class CompoundMatchingRule(CaseInsensitiveEnum):
     ALL_LAYERS = "ALL_LAYERS"
     STEREO_INSENSITIVE_LAYERS = "STEREO_INSENSITIVE_LAYERS"
     TAUTOMER_INSENSITIVE_LAYERS = "TAUTOMER_INSENSITIVE_LAYERS"
+
+
+class LogicOp(str, enum.Enum):
+    """Logical operators for combining conditions"""
+
+    AND = "AND"
+    OR = "OR"
+
+
+class CompareOp(str, enum.Enum):
+    """Comparison operators for atomic conditions"""
+
+    # String operators
+    EQUALS = "="
+    NOT_EQUALS = "!="
+    IN = "IN"
+    STARTS_WITH = "STARTS WITH"
+    ENDS_WITH = "ENDS WITH"
+    LIKE = "LIKE"
+    CONTAINS = "CONTAINS"
+
+    # Numeric operators
+    LESS_THAN = "<"
+    GREATER_THAN = ">"
+    LESS_THAN_OR_EQUAL = "<="
+    GREATER_THAN_OR_EQUAL = ">="
+    RANGE = "RANGE"
+
+    # Datetime operators
+    BEFORE = "BEFORE"
+    AFTER = "AFTER"
+    ON = "ON"
+
+    # Molecular operators (RDKit)
+    IS_SIMILAR = "IS SIMILAR"
+    IS_SUBSTRUCTURE_OF = "IS SUBSTRUCTURE OF"
+    HAS_SUBSTRUCTURE = "HAS SUBSTRUCTURE"
+
+
+class OperatorType(enum.Enum):
+    """Types of operators for different data types"""
+
+    STRING = "string"
+    NUMERIC = "numeric"
+    DATETIME = "datetime"
+    BOOLEAN = "boolean"
+    MOLECULAR = "molecular"

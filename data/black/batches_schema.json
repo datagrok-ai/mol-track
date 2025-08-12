@@ -2,7 +2,7 @@
     "properties": [
         {
             "name": "acquired_date",
-            "scope": "batch",
+            "entity_type": "batch",
             "property_class": "measured",
             "value_type": "datetime",
             "unit": ""
@@ -11,7 +11,7 @@
     "synonym_types": [
         {
             "name": "epa_batch_id",
-            "scope": "batch",
+            "entity_type": "batch",
             "pattern": ""
         }
     ]

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pytest import Session
 from app.services.registrars.compound_registrar import CompoundRegistrar
-from app import main
+from app.utils.admin_utils import admin
 from app import models
 from app.utils import enums, sql_utils
 from sqlalchemy.sql import text
@@ -12,12 +12,24 @@ from sqlalchemy.sql import text
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
-        self.batch_records_map = self._load_reference_map(models.Batch, "batch_regno")
-        self.additions_map = self._load_reference_map(models.Addition, "name")
+        self._batch_records_map = None
+        self._additions_map = None
 
         self.batches_to_insert = []
         self.batch_details = []
         self.batch_additions = []
+
+    @property
+    def batch_records_map(self):
+        if self._batch_records_map is None:
+            self._batch_records_map = self._load_reference_map(models.Batch, "batch_regno")
+        return self._batch_records_map
+
+    @property
+    def additions_map(self):
+        if self._additions_map is None:
+            self._additions_map = self._load_reference_map(models.Addition, "name")
+        return self._additions_map
 
     def _next_batch_regno(self) -> int:
         return self.db.execute(text("SELECT nextval('moltrack.batch_regno_seq');")).scalar()
@@ -26,8 +38,8 @@ class BatchRegistrar(CompoundRegistrar):
         return {
             "inchikey": inchikey,
             "notes": None,
-            "created_by": main.admin_user_id,
-            "updated_by": main.admin_user_id,
+            "created_by": admin.admin_user_id,
+            "updated_by": admin.admin_user_id,
             "created_at": datetime.now(),
             "batch_regno": self._next_batch_regno(),
         }
@@ -46,8 +58,8 @@ class BatchRegistrar(CompoundRegistrar):
                     "batch_regno": batch_regno,
                     "addition_id": getattr(addition, "id"),
                     "addition_equivalent": float(value),
-                    "created_by": main.admin_user_id,
-                    "updated_by": main.admin_user_id,
+                    "created_by": admin.admin_user_id,
+                    "updated_by": admin.admin_user_id,
                 }
             )
         return records
@@ -60,7 +72,7 @@ class BatchRegistrar(CompoundRegistrar):
             models.BatchDetail,
             grouped.get("batch_details", {}),
             {"batch_regno": batch_record["batch_regno"]},
-            enums.ScopeClass.BATCH,
+            enums.EntityType.BATCH,
         )
         self.batch_details.extend(inserted)
         self.batch_additions.extend(
@@ -113,19 +125,20 @@ class BatchRegistrar(CompoundRegistrar):
                 JOIN inserted_batches ib ON ba.batch_regno = ib.batch_regno
             )"""
 
-    def get_additional_output_info(self, grouped) -> dict:
-        if not self.batches_to_insert:
-            return {}
-        last_batch = self.batches_to_insert[-1]
-        subset = {k: last_batch[k] for k in ("notes", "batch_regno")}
-        return {
-            **subset,
-            **{f"batch_property_{k}": v for k, v in grouped.get("batch_details", {}).items()},
-            **{f"batch_addition_{k}": v for k, v in grouped.get("batch_additions", {}).items()},
-        }
-
     def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
         grouped = super()._group_data(row, entity_name)
         value = self.property_service.institution_synonym_dict["batch_details"]
         grouped.setdefault("batch_details", {})[value] = None
         return grouped
+
+    def cleanup_chunk(self):
+        super().cleanup_chunk()
+        self.batches_to_insert.clear()
+        self.batch_details.clear()
+        self.batch_additions.clear()
+
+    def cleanup(self):
+        super().cleanup()
+        self.cleanup_chunk()
+        self._batch_records_map = None
+        self._additions_map = None
