@@ -420,7 +420,31 @@ def create_assay_results(
     return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
-@router.patch("/admin/compound-matching-rule")
+@router.patch("/admin/settings")
+async def update_settings(
+    setting_name: enums.SettingsName = Form(enums.SettingsName.COMPOUND_MATCHING_RULE),
+    rule: Optional[enums.CompoundMatchingRule] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    entity_type: Optional[enums.EntityTypeReduced] = Form(None),
+    pattern: Optional[str] = Form(default="DG-{:06d}"),
+    db: Session = Depends(get_db),
+):
+    if setting_name == enums.SettingsName.COMPOUND_MATCHING_RULE:
+        if rule is None:
+            raise HTTPException(status_code=400, detail="Compound matching rule must be provided")
+        return update_compound_matching_rule(rule, db)
+
+    elif setting_name == enums.SettingsName.MOLECULE_STANDARDIZATION_RULES:
+        if not file or file.filename == "":
+            raise HTTPException(status_code=400, detail="Standardization configuration file must be provided")
+        return await update_standardization_config(file, db)
+
+    elif setting_name == enums.SettingsName.INSTITUTION_ID_PATTERN:
+        if not entity_type or not pattern:
+            raise HTTPException(status_code=400, detail="Entity type and pattern must be provided")
+        return update_institution_id_pattern(entity_type, pattern, db)
+
+
 def update_compound_matching_rule(
     rule: enums.CompoundMatchingRule = Form(enums.CompoundMatchingRule.ALL_LAYERS), db: Session = Depends(get_db)
 ):
@@ -445,7 +469,6 @@ def update_compound_matching_rule(
         raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
 
 
-@router.post("/admin/update-standardization-config")
 async def update_standardization_config(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -477,10 +500,9 @@ async def update_standardization_config(
     return JSONResponse(content={"message": "Standardization configuration updated successfully."})
 
 
-@router.patch("/admin/institution-id-pattern")
 def update_institution_id_pattern(
     entity_type: enums.EntityTypeReduced = Form(enums.EntityTypeReduced.BATCH),
-    pattern: str = Form(default="DG-{:05d}"),
+    pattern: str = Form(default="DG-{:06d}"),
     db: Session = Depends(get_db),
 ):
     """
@@ -500,11 +522,17 @@ def update_institution_id_pattern(
                     Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc.""",
         )
 
-    setting_name = "corporate_batch_id" if entity_type == "BATCH" else "corporate_compound_id"
+    property_name = "corporate_batch_id" if entity_type == "BATCH" else "corporate_compound_id"
+    setting_name = "corporate_batch_id_pattern" if entity_type == "BATCH" else "corporate_compound_id_pattern"
 
     try:
         db.execute(
-            text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :setting"),
+            text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :property"),
+            {"property": property_name, "pattern": pattern},
+        )
+
+        db.execute(
+            text("UPDATE moltrack.settings SET value = :pattern WHERE name = :setting"),
             {"setting": setting_name, "pattern": pattern},
         )
         db.commit()

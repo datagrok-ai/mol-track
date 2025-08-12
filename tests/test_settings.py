@@ -1,11 +1,20 @@
 from app.utils.enums import CompoundMatchingRule
+import app.utils.enums as enums
 
 
 def test_update_institution_id_pattern_valid(client):
     # Test with valid pattern
     response = client.patch(
-        "/v1/admin/institution-id-pattern", data={"entity_type": "COMPOUND", "pattern": "DG-{:09d}"}
+        "/v1/admin/settings",
+        data={
+            "setting_name": enums.SettingsName.INSTITUTION_ID_PATTERN.value,
+            "entity_type": "COMPOUND",
+            "pattern": "DG-{:09d}",
+        },
     )
+
+    print("response result!!")
+    print(response.json())
 
     assert response.status_code == 200
     assert "Corporate ID pattern for EntityTypeReduced.COMPOUND updated" in response.json()["message"]
@@ -15,7 +24,12 @@ def test_update_institution_id_pattern_valid(client):
 def test_update_institution_id_pattern_invalid_format(client):
     # Test invalid pattern (doesn't match expected regex)
     response = client.patch(
-        "/v1/admin/institution-id-pattern", data={"entity_type": "BATCH", "pattern": "INVALID-PATTERN"}
+        "/v1/admin/settings",
+        data={
+            "setting_name": enums.SettingsName.INSTITUTION_ID_PATTERN.value,
+            "entity_type": "BATCH",
+            "pattern": "INVALID-PATTERN",
+        },
     )
 
     assert response.status_code == 400
@@ -24,7 +38,13 @@ def test_update_institution_id_pattern_invalid_format(client):
 
 def test_update_compound_matching_rule_already_set(client):
     # Assuming the default value in the database is 'ALL_LAYERS'
-    response = client.patch("/v1/admin/compound-matching-rule", data={"rule": CompoundMatchingRule.ALL_LAYERS.value})
+    response = client.patch(
+        "/v1/admin/settings",
+        data={
+            "setting_name": enums.SettingsName.COMPOUND_MATCHING_RULE.value,
+            "rule": CompoundMatchingRule.ALL_LAYERS.value,
+        },
+    )
 
     assert response.status_code == 200
     assert (
@@ -36,7 +56,11 @@ def test_update_compound_matching_rule_already_set(client):
 def test_update_compound_matching_rule_success(client):
     # Update to a different rule succesfully
     response = client.patch(
-        "/v1/admin/compound-matching-rule", data={"rule": CompoundMatchingRule.STEREO_INSENSITIVE_LAYERS.value}
+        "/v1/admin/settings",
+        data={
+            "setting_name": enums.SettingsName.COMPOUND_MATCHING_RULE.value,
+            "rule": CompoundMatchingRule.STEREO_INSENSITIVE_LAYERS.value,
+        },
     )
 
     assert response.status_code == 200
