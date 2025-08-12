@@ -152,7 +152,7 @@ class CompoundRegistrar(BaseRegistrar):
                     models.CompoundDetail,
                     grouped.get("compound_details", {}),
                     {"molregno": compound["molregno"]},
-                    enums.ScopeClass.COMPOUND,
+                    enums.EntityType.COMPOUND,
                     True,
                     self._compound_update_checker,
                 )

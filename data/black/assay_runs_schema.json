@@ -4,21 +4,21 @@
           "name": "Cell Species",
           "value_type": "string",
           "required": true,
-          "scope": "assay_run",
+          "entity_type": "assay_run",
           "property_class": "declared"
        },
        {
           "name": "Cell Lot",
           "value_type": "string",
           "required": true,
-          "scope": "assay_run",
+          "entity_type": "assay_run",
           "property_class": "measured"
        },
        {
           "name": "Cell Concentration",
           "value_type": "double",
           "required": true,
-          "scope": "assay_run",
+          "entity_type": "assay_run",
           "property_class": "measured",
           "units": "10^6 cells/mL"
        },
@@ -26,14 +26,14 @@
           "name": "Assay Run Date",
           "value_type": "datetime",
           "required": true,
-          "scope": "assay_run",
+          "entity_type": "assay_run",
           "property_class": "measured"
        },
        {
           "name": "Assayer",
           "value_type": "string",
           "required": true,
-          "scope": "assay_run",
+          "entity_type": "assay_run",
           "property_class": "measured"
        }
     ]

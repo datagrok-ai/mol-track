@@ -27,7 +27,7 @@ class AssayResultsRegistrar(BaseRegistrar):
         details: Dict[str, Any],
         details_model,
         parent_id_field: str,
-        scope: str,
+        entity_type: str,
         parent_id_value: Optional[int],
     ):
         """
@@ -47,7 +47,7 @@ class AssayResultsRegistrar(BaseRegistrar):
         for prop_name, value in details.items():
             if value in (None, "", []):
                 continue  # Skip this property if value is empty (we are not inserting empty values)
-            prop_info = self.property_service.get_property_info(prop_name, scope)
+            prop_info = self.property_service.get_property_info(prop_name, entity_type)
 
             property_values.append(
                 {
@@ -83,7 +83,7 @@ class AssayResultsRegistrar(BaseRegistrar):
         return subq
 
     def _lookup_batch_by_details(self, batch_details: Dict[str, Any]) -> models.Batch:
-        subq = self._lookup_by_details(batch_details, models.BatchDetail, "batch_id", enums.ScopeClass.BATCH, None)
+        subq = self._lookup_by_details(batch_details, models.BatchDetail, "batch_id", enums.EntityType.BATCH, None)
 
         batch_matches = self.db.query(models.Batch).filter(models.Batch.id.in_(select(subq))).all()
         return self._check_single_result(batch_matches, "batches")
@@ -101,7 +101,7 @@ class AssayResultsRegistrar(BaseRegistrar):
         assays = assay_query.all()
         assay = self._check_single_result(assays, "assays")
         subq = self._lookup_by_details(
-            assay_run_details, models.AssayRunDetail, "assay_run_id", enums.ScopeClass.ASSAY_RUN, None
+            assay_run_details, models.AssayRunDetail, "assay_run_id", enums.EntityType.ASSAY_RUN, None
         )
         assay_runs = (
             self.db.query(models.AssayRun)
@@ -141,7 +141,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                     models.AssayResultDetail,
                     grouped.get("assay_result_details", {}),
                     {"rn": idx + 1},
-                    enums.ScopeClass.ASSAY_RESULT,
+                    enums.EntityType.ASSAY_RESULT,
                     False,
                 )
                 details.extend(inserted)

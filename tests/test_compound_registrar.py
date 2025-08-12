@@ -3,14 +3,16 @@ from app.utils import enums
 from tests.conftest import BLACK_DIR, read_json, _preload_compounds
 
 
-def extract_name_scope(items):
-    return sorted([{"name": item["name"], "scope": item["scope"].upper()} for item in items], key=lambda x: x["name"])
+def extract_name_entity_type(items):
+    return sorted(
+        [{"name": item["name"], "entity_type": item["entity_type"].upper()} for item in items], key=lambda x: x["name"]
+    )
 
 
-def assert_name_scope_equal(actual, expected):
-    actual_name_scope = extract_name_scope(actual)
-    expected_name_scope = extract_name_scope(expected)
-    assert actual_name_scope == expected_name_scope
+def assert_name_entity_type_equal(actual, expected):
+    actual_name_entity_type = extract_name_entity_type(actual)
+    expected_name_entity_type = extract_name_entity_type(expected)
+    assert actual_name_entity_type == expected_name_entity_type
 
 
 @pytest.mark.parametrize(
@@ -34,11 +36,11 @@ def test_schema(client, endpoint, schema_file, response_key, expected_keys, prel
         expected.extend(expected_data.get(key, []))
 
     if "/compounds" in endpoint:
-        expected.append({"name": "corporate_compound_id", "scope": enums.ScopeClass.COMPOUND})
+        expected.append({"name": "corporate_compound_id", "entity_type": enums.EntityType.COMPOUND})
     if "/batches" in endpoint:
-        expected.append({"name": "corporate_batch_id", "scope": enums.ScopeClass.BATCH})
+        expected.append({"name": "corporate_batch_id", "entity_type": enums.EntityType.BATCH})
 
-    assert_name_scope_equal(actual, expected)
+    assert_name_entity_type_equal(actual, expected)
 
     if "/v1/schema/batches" in endpoint:
         assert "additions" in response_data
@@ -48,7 +50,7 @@ def test_register_compounds_without_mapping(client, preload_schema):
     register_response = _preload_compounds(client, BLACK_DIR / "compounds.csv")
     assert register_response.status_code == 200
 
-    register_data = register_response.json().get("data", [])
+    register_data = register_response.json()
     assert len(register_data) == 54
 
     get_response = client.get("/v1/compounds/")

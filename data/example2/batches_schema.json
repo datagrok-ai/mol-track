@@ -2,14 +2,14 @@
     "properties": [
         {
             "name": "acquired_date",
-            "scope": "batch",
+            "entity_type": "batch",
             "property_class": "measured",
             "value_type": "datetime",
             "unit": ""
         },
         {
             "name": "Batch QC",
-            "scope": "batch",
+            "entity_type": "batch",
             "property_class": "declared",
             "value_type": "string",
             "unit": ""
@@ -18,7 +18,7 @@
     "synonym_types": [
         {
             "name": "batch_corporate_id",
-            "scope": "batch",
+            "entity_type": "batch",
             "pattern": ""
         }
     ]

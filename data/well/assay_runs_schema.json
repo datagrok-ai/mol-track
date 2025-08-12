@@ -4,35 +4,35 @@
             "name": "Assay Run Date",
             "value_type": "datetime",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "declared"
         },
         {
             "name": "Cell Line",
             "value_type": "string",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "declared"
         },
         {
             "name": "Therapeutic Area",
             "value_type": "string",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "declared"
         },
         {
             "name": "Target",
             "value_type": "string",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "declared"
         },
         {
             "name": "Protein Batch",
             "value_type": "string",
             "required": true,
-            "scope": "assay_run",
+            "entity_type": "assay_run",
             "property_class": "declared"
         }
     ]

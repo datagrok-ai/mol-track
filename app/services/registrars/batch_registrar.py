@@ -72,7 +72,7 @@ class BatchRegistrar(CompoundRegistrar):
             models.BatchDetail,
             grouped.get("batch_details", {}),
             {"batch_regno": batch_record["batch_regno"]},
-            enums.ScopeClass.BATCH,
+            enums.EntityType.BATCH,
         )
         self.batch_details.extend(inserted)
         self.batch_additions.extend(

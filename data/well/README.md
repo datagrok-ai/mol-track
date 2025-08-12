@@ -28,6 +28,6 @@ This is a synthetic dataset with a reasonably coherent set of molecule and assay
   - [mapping](./assay_results_mapping.json)
   - [data](./assay_results.csv)
 
-[assay_results.csv](assay_results.csv) is the original data file.  I created [cols.csv](./cols.csv) to characterize which columns should be mapped to which scope in the assay domain. 
+[assay_results.csv](assay_results.csv) is the original data file.  I created [cols.csv](./cols.csv) to characterize which columns should be mapped to which entity_type in the assay domain. 
 
 [load.sh](load.csv) is used in conjunction with the client/client.py to perform the loading.  Mapping files are required for the loading to accommodate the original column names.

@@ -2,7 +2,7 @@
     "properties": [
         {
             "name": "MolLogP",
-            "scope": "compound",
+            "entity_type": "compound",
             "property_class": "calculated",
             "value_type": "double",
             "unit": ""
@@ -11,12 +11,12 @@
     "synonym_types": [
         {
             "name": "xyz_id",
-            "scope": "compound",
+            "entity_type": "compound",
             "pattern": ""
         },
         {
             "name": "ChEMBL ID",
-            "scope": "compound",
+            "entity_type": "compound",
             "pattern": "CHEMBL[0-9]+"
         }
     ]

@@ -214,7 +214,7 @@ class PropertyBase(SQLModel):
     value_type: enums.ValueType = Field(sa_column=Column(Enum(enums.ValueType), nullable=False))
     property_class: enums.PropertyClass = Field(sa_column=Column(Enum(enums.PropertyClass), nullable=False))
     unit: Optional[str] = Field(default=None)
-    scope: enums.ScopeClass = Field(sa_column=Column(Enum(enums.ScopeClass), nullable=False))
+    entity_type: enums.EntityType = Field(sa_column=Column(Enum(enums.EntityType), nullable=False))
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
     pattern: Optional[str] = Field(default=None)
 
@@ -396,8 +396,8 @@ class Property(PropertyResponse, table=True):
             name="properties_property_class_check",
         ),
         CheckConstraint(
-            "scope IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULT', 'SYSTEM')",
-            name="properties_scope_check",
+            "entity_type IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULT', 'SYSTEM')",
+            name="properties_entity_type_check",
         ),
         {"schema": DB_SCHEMA},
     )

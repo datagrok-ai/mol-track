@@ -1,4 +1,4 @@
-from app.utils.enums import ScopeClass, ValueType
+from app.utils.enums import EntityType, ValueType
 
 
 ASSAY_RUN_DATE = "Assay Run Date"
@@ -6,7 +6,7 @@ EPA_BATCH_ID = "epa batch id"
 SMILES = "smiles"
 ASSAY_NAME = "name"
 SCHEMA_GENERATING_RULES = {
-    ScopeClass.COMPOUND: {
+    EntityType.COMPOUND: {
         "identity_columns": {
             "property_names": [SMILES],
             "property_mapping": [None],
@@ -14,7 +14,7 @@ SCHEMA_GENERATING_RULES = {
         },
         "alias": "compound_details",
     },
-    ScopeClass.BATCH: {
+    EntityType.BATCH: {
         "identity_columns": {
             "property_names": [SMILES, EPA_BATCH_ID],
             "property_mapping": [None, "batch_details"],
@@ -22,7 +22,7 @@ SCHEMA_GENERATING_RULES = {
         },
         "alias": "batch_details",
     },
-    ScopeClass.ASSAY: {
+    EntityType.ASSAY: {
         "identity_columns": {
             "property_names": [ASSAY_NAME],
             "property_mapping": ["assay"],
@@ -30,7 +30,7 @@ SCHEMA_GENERATING_RULES = {
         },
         "alias": "assay",
     },
-    ScopeClass.ASSAY_RUN: {
+    EntityType.ASSAY_RUN: {
         "identity_columns": {
             "property_names": [ASSAY_NAME, ASSAY_RUN_DATE],
             "property_mapping": ["assay", "assay_run_details"],
@@ -38,7 +38,7 @@ SCHEMA_GENERATING_RULES = {
         },
         "alias": "assay_run_details",
     },
-    ScopeClass.ASSAY_RESULT: {
+    EntityType.ASSAY_RESULT: {
         "identity_columns": {
             "property_names": [ASSAY_NAME, ASSAY_RUN_DATE, EPA_BATCH_ID],
             "property_mapping": ["assay", "assay_run_details", "batch_details"],

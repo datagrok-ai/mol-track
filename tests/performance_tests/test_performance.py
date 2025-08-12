@@ -7,7 +7,7 @@ import httpx
 from httpx import HTTPError, RequestError
 from tests.performance_tests.data_generator import DataGenerator
 from tests.performance_tests.enums import DatasetSize
-from app.utils.enums import ScopeClass
+from app.utils.enums import EntityType
 from typing import Dict, Any
 from tests.performance_tests.utils import load_config, format_time
 
@@ -35,13 +35,13 @@ class PerformanceTesterError(Exception):
 
 
 class PerformanceTester:
-    def __init__(self, config: Dict[str, Any], base_url: str = "http://localhost:8000"):
-        self.scopes = {
-            ScopeClass.COMPOUND: "/v1/compounds/",
-            ScopeClass.BATCH: "/v1/batches/",
-            ScopeClass.ASSAY: "/v1/assays",
-            ScopeClass.ASSAY_RUN: "/v1/assay_runs/",
-            ScopeClass.ASSAY_RESULT: "/v1/assay_results/",
+    def __init__(self, config: Dict[str, Any], base_url: str = "http://127.0.0.1:8001"):
+        self.entity_types = {
+            EntityType.COMPOUND: "/v1/compounds/",
+            EntityType.BATCH: "/v1/batches/",
+            EntityType.ASSAY: "/v1/assays",
+            EntityType.ASSAY_RUN: "/v1/assay_runs/",
+            EntityType.ASSAY_RESULT: "/v1/assay_results/",
         }
         self.times = {}
         self.base_url = base_url
@@ -62,16 +62,16 @@ class PerformanceTester:
         logger.info(f"Data generation completed in {format_time(gen_time)}")
         _, pop_time = self.populate_database()
 
-        scope_performance = {
-            scope: f"Total time for adding {scope}s to database: "
-            f"{format_time(self.times[scope])} for a total of {self.total_records[scope]} records"
-            for scope in self.times
+        entity_type_performance = {
+            entity_type: f"Total time for adding {entity_type}s to database: "
+            f"{format_time(self.times[entity_type])} for a total of {self.total_records[entity_type]} records"
+            for entity_type in self.times
         }
 
         return {
             "generate_data_time": f"{format_time(gen_time)}",
             "populate_database_time": f"{format_time(pop_time)}",
-            "time_per_scope": scope_performance,
+            "time_per_entity_type": entity_type_performance,
             "total": f"Total time for all operations: {format_time(gen_time + pop_time)}",
         }
 
@@ -84,27 +84,27 @@ class PerformanceTester:
     def populate_database(self):
         try:
             # Add schemas
-            for scope in self.scopes.keys():
-                self._post_json_file(file_path=DATA_DIR / f"schemas/{scope.value}_schema.json", url="/v1/schema/")
+            for entity_type in self.entity_types.keys():
+                self._post_json_file(file_path=DATA_DIR / f"schemas/{entity_type.value}_schema.json", url="/v1/schema/")
 
             # Add assays
             self._post_json_file(file_path=DATA_DIR / "ASSAY.json", url="/v1/assays")
 
             # Add compounds, batches, assay runs, and assay results
-            for scope, url in self.scopes.items():
-                if scope != ScopeClass.ASSAY:
+            for entity_type, url in self.entity_types.items():
+                if entity_type != EntityType.ASSAY:
                     _, measured_time = self._post_csv_with_mapping(
-                        file_path=DATA_DIR / f"{scope.value}.csv",
+                        file_path=DATA_DIR / f"{entity_type.value}.csv",
                         url=url,
-                        mapping_file=DATA_DIR / f"{scope.value}_mapping.json",
+                        mapping_file=DATA_DIR / f"{entity_type.value}_mapping.json",
                     )
-                    self.times[scope] = measured_time
+                    self.times[entity_type] = measured_time
                     logger.info(
-                        f"Populated database for scope {scope.value} "
-                        f"({self.total_records[scope]} records) in {format_time(measured_time)}"
+                        f"Populated database for entity_type {entity_type.value} "
+                        f"({self.total_records[entity_type]} records) in {format_time(measured_time)}"
                     )
         except PerformanceTesterError as e:
-            logger.error(f"Failed to add data for scope '{scope.value}': {e}")
+            logger.error(f"Failed to add data for entity_type '{entity_type.value}': {e}")
             raise
 
     def _read_file(self, path: Path, binary=False):

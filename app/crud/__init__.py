@@ -8,7 +8,7 @@ from .compounds import (
     delete_compound,
 )
 
-from .properties import create_properties, get_properties, get_entities_by_scope, get_synonym_id
+from .properties import create_properties, get_properties, get_entities_by_entity_type, get_synonym_id
 
 from .batches import get_batches_by_compound, get_batches, get_batch, delete_batch
 

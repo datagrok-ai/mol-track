@@ -6,7 +6,7 @@
           "unit": "",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Avg IC50",
@@ -14,7 +14,7 @@
           "unit": "nM",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Endpoint Unit",
@@ -22,7 +22,7 @@
           "unit": "",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "IC50 Absolute",
@@ -30,7 +30,7 @@
           "unit": "nM",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Inflection",
@@ -38,7 +38,7 @@
           "unit": "nM",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Min",
@@ -46,7 +46,7 @@
           "unit": "nM",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Signal to Background",
@@ -54,7 +54,7 @@
           "unit": "",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "StdDev",
@@ -62,7 +62,7 @@
           "unit": "",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Z Prime",
@@ -70,7 +70,7 @@
           "unit": "",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "rSquared",
@@ -78,7 +78,7 @@
           "unit": "",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Hill",
@@ -86,7 +86,7 @@
           "unit": "",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Max",
@@ -94,7 +94,7 @@
           "unit": "nM",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Qualified Reported IC50",
@@ -102,7 +102,7 @@
           "unit": "nM",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "Number results",
@@ -110,7 +110,7 @@
           "unit": "",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        }
     ]
 } 

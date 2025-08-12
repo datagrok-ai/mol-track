@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from tests.performance_tests.smiles_generator import SmilesGenerator
 from tests.performance_tests.schema_rules import SMILES, EPA_BATCH_ID, ASSAY_NAME, ASSAY_RUN_DATE
 from tests.performance_tests.enums import DatasetSize
-from app.utils.enums import ValueType, ScopeClass
+from app.utils.enums import ValueType, EntityType
 
 
 class AssayRunKey(NamedTuple):
@@ -32,7 +32,7 @@ class DataGenerator:
         self.total_compounds = self._get_compound_count(size)
         self.num_records: Dict[str, int] = {}
         self._non_identity_cache: Dict[str, List[Dict[str, Any]]] = {}
-        self._create_value_types_for_scopes()
+        self._create_value_types_for_entity_types()
         self.distributions = config.get("distributions", {})
         self.config = config
         if seed is not None:
@@ -41,10 +41,10 @@ class DataGenerator:
     def generate_all(self) -> Dict[str, int]:
         """
         Generate all data: compounds, batches, assays, assay runs, and assay results.
-        Writes each scope to a separate CSV or JSON file.
+        Writes each entity_type to a separate CSV or JSON file.
 
         Returns:
-            Dict[str, int]: A dictionary of record counts per scope.
+            Dict[str, int]: A dictionary of record counts per entity_type.
         """
 
         sb = SchemaBuilder(self.output_dir, self.config, self.value_types)
@@ -66,23 +66,23 @@ class DataGenerator:
             List[str]: A list of generated SMILES strings.
         """
 
-        scope = ScopeClass.COMPOUND
+        entity_type = EntityType.COMPOUND
         smiles_list = []
         sg = SmilesGenerator(data_path=self.output_dir)
-        writer = self._get_writer(scope)
+        writer = self._get_writer(entity_type)
 
         while len(smiles_list) < self.total_compounds:
             chunk = []
             for _ in range(min(self.chunk_size, self.total_compounds - len(smiles_list))):
                 smi = sg.generate_smile()
                 smiles_list.append(smi)
-                details = self._generate_details(scope)
+                details = self._generate_details(entity_type)
                 row = {SMILES: smi, **details}
                 chunk.append(row)
-            writer.write_csv_chunk(f"{scope.value}.csv", chunk)
+            writer.write_csv_chunk(f"{entity_type.value}.csv", chunk)
 
-        self.num_records[scope] = self.total_compounds + self.total_compounds * (
-            len(self._get_non_identity_properties(scope)) + 1
+        self.num_records[entity_type] = self.total_compounds + self.total_compounds * (
+            len(self._get_non_identity_properties(entity_type)) + 1
         )  # +1 for corporate_compound_id
         return smiles_list
 
@@ -97,8 +97,8 @@ class DataGenerator:
             List[str]: A list of generated EPA Batch IDs.
         """
 
-        scope = ScopeClass.BATCH
-        writer = self._get_writer(scope)
+        entity_type = EntityType.BATCH
+        writer = self._get_writer(entity_type)
         batch_ids = []
         total_generated = 0
 
@@ -106,18 +106,18 @@ class DataGenerator:
             chunk_smiles = smiles_list[chunk_start : chunk_start + self.chunk_size]
             chunk = []
             for smiles in chunk_smiles:
-                num_batches = self._get_record_count(scope)
+                num_batches = self._get_record_count(entity_type)
                 total_generated += num_batches
                 for _ in range(num_batches):
                     epa_batch_id = f"batch_id_{uuid4()}"
                     batch_ids.append(epa_batch_id)
-                    details = self._generate_details(scope)
+                    details = self._generate_details(entity_type)
                     row = {SMILES: smiles, EPA_BATCH_ID: epa_batch_id, **details}
                     chunk.append(row)
-            writer.write_csv_chunk(f"{scope.value}.csv", chunk)
+            writer.write_csv_chunk(f"{entity_type.value}.csv", chunk)
 
-        self.num_records[scope] = total_generated + total_generated * (
-            len(self._get_non_identity_properties(scope)) + 2
+        self.num_records[entity_type] = total_generated + total_generated * (
+            len(self._get_non_identity_properties(entity_type)) + 2
         )  # +2 for corporate_batch_id and EPA Batch ID
         return batch_ids
 
@@ -129,21 +129,21 @@ class DataGenerator:
             str: Name of the generated assay.
         """
 
-        scope = ScopeClass.ASSAY
+        entity_type = EntityType.ASSAY
         num_of_assays = self.config.get("number_of_assays", 1)
         assays = []
         assay_names = []
         for i in range(num_of_assays):
-            properties = self.schemas[scope]["properties"]
-            ar_properties = self.schemas[ScopeClass.ASSAY_RESULT]["properties"]
+            properties = self.schemas[entity_type]["properties"]
+            ar_properties = self.schemas[EntityType.ASSAY_RESULT]["properties"]
             assays.append({prop["name"]: self._generate_value(prop["value_type"]) for prop in properties})
             assays[i][ASSAY_NAME] = f"assay_name_{uuid1()}"
             assay_names.append(assays[i][ASSAY_NAME])
             assays[i]["assay_result_properties"] = [{"name": p["name"], "required": False} for p in ar_properties]
 
         writer = FileWriter(self.output_dir)
-        writer.write_json(f"{scope.value}.json", assays)
-        self.num_records[scope] = 1
+        writer.write_json(f"{entity_type.value}.json", assays)
+        self.num_records[entity_type] = 1
         return assay_names
 
     def _generate_assay_runs(self, assay_names: List[str]) -> List[AssayRunKey]:
@@ -157,28 +157,30 @@ class DataGenerator:
             List[str]: A list of unique assay run dates.
         """
 
-        scope = ScopeClass.ASSAY_RUN
+        entity_type = EntityType.ASSAY_RUN
         assay_runs = []
         unique_dates = set()
         assay_run_dates = []
-        writer = self._get_writer(scope)
+        writer = self._get_writer(entity_type)
         assay_run_keys = []
         total_generated = 0
 
         for assay_name in assay_names:
-            num_assay_runs = self._get_record_count(scope)
+            num_assay_runs = self._get_record_count(entity_type)
             total_generated += num_assay_runs
             for _ in range(num_assay_runs):
                 assay_run_date = self.generate_unique_date(unique_dates)
                 assay_run_dates.append(assay_run_date)
 
-                details = self._generate_details(scope)
+                details = self._generate_details(entity_type)
                 row = {ASSAY_NAME: assay_name, ASSAY_RUN_DATE: assay_run_date, **details}
                 assay_run_keys.append(AssayRunKey(assay_name, assay_run_date))
                 assay_runs.append(row)
-        writer.write_csv_chunk(f"{scope.value}.csv", assay_runs)
+        writer.write_csv_chunk(f"{entity_type.value}.csv", assay_runs)
 
-        self.num_records[scope] = total_generated + total_generated * len(self._get_non_identity_properties(scope))
+        self.num_records[entity_type] = total_generated + total_generated * len(
+            self._get_non_identity_properties(entity_type)
+        )
         return assay_run_keys
 
     def _generate_assay_results(self, assay_run_keys: List[AssayRunKey], batch_ids: List[str]) -> None:
@@ -191,8 +193,8 @@ class DataGenerator:
             batch_ids (List[str]): List of unique EPA Batch IDs.
         """
 
-        scope = ScopeClass.ASSAY_RESULT
-        writer = self._get_writer(scope)
+        entity_type = EntityType.ASSAY_RESULT
+        writer = self._get_writer(entity_type)
         total_generated = 0
 
         for chunk_start in range(0, len(batch_ids), self.chunk_size):
@@ -200,10 +202,10 @@ class DataGenerator:
             chunk = []
             for batch_id in chunk_batches:
                 for ark in assay_run_keys:
-                    num_records = self._get_record_count(scope)
+                    num_records = self._get_record_count(entity_type)
                     total_generated += num_records
                     for _ in range(num_records):
-                        details = self._generate_details(scope)
+                        details = self._generate_details(entity_type)
                         row = {
                             ASSAY_NAME: ark.assay_name,
                             ASSAY_RUN_DATE: ark.assay_run_date,
@@ -211,58 +213,61 @@ class DataGenerator:
                             **details,
                         }
                         chunk.append(row)
-            writer.write_csv_chunk(f"{scope.value}.csv", chunk)
+            writer.write_csv_chunk(f"{entity_type.value}.csv", chunk)
 
-        self.num_records[scope] = total_generated + total_generated * len(self._get_non_identity_properties(scope))
+        self.num_records[entity_type] = total_generated + total_generated * len(
+            self._get_non_identity_properties(entity_type)
+        )
 
     # ==================== Utility Functions ==================== #
-    def _get_writer(self, scope: ScopeClass) -> FileWriter:
-        """Returns a writer for the given scope."""
+    def _get_writer(self, entity_type: EntityType) -> FileWriter:
+        """Returns a writer for the given entity_type."""
 
-        return FileWriter(self.output_dir, self._get_headers(scope.value))
+        return FileWriter(self.output_dir, self._get_headers(entity_type.value))
 
-    def _get_headers(self, scope: ScopeClass) -> List[str]:
+    def _get_headers(self, entity_type: EntityType) -> List[str]:
         """
-        Constructs the CSV header for a given schema scope. It excludes
+        Constructs the CSV header for a given schema entity_type. It excludes
         identity columns and includes only synthetic property names,
-        as defined by the schema rules for that scope.
+        as defined by the schema rules for that entity_type.
 
         Args:
-            scope (str): The name of the schema scope (e.g., 'compound').
+            entity_type (str): The name of the schema entity_type (e.g., 'compound').
 
         Returns:
             List[str]: A list of column headers for the CSV row.
         """
 
-        schema = self.schemas[scope]
+        schema = self.schemas[entity_type]
         identity = schema["identity"]
         properties = schema["properties"]
         return [p["name"] for p in identity + properties]
 
-    def _get_non_identity_properties(self, scope: ScopeClass) -> List[Dict[str, Any]]:
-        """Return and cache non-identity properties for a given scope."""
+    def _get_non_identity_properties(self, entity_type: EntityType) -> List[Dict[str, Any]]:
+        """Return and cache non-identity properties for a given entity_type."""
 
-        if scope in self._non_identity_cache:
-            return self._non_identity_cache[scope]
-        schema = self.schemas[scope]
+        if entity_type in self._non_identity_cache:
+            return self._non_identity_cache[entity_type]
+        schema = self.schemas[entity_type]
         identity_cols = set(schema["identity_cols"])
         non_identity = [prop for prop in schema["properties"] if prop["name"] not in identity_cols]
-        self._non_identity_cache[scope] = non_identity
+        self._non_identity_cache[entity_type] = non_identity
         return non_identity
 
-    def _generate_details(self, scope: ScopeClass) -> Dict[str, Any]:
+    def _generate_details(self, entity_type: EntityType) -> Dict[str, Any]:
         """
         Generates a dictionary of synthetic values for non-identity properties.
 
         Args:
-            scope (str): The schema scope (e.g., 'compound').
+            entity_type (str): The schema entity_type (e.g., 'compound').
 
         Returns:
             Dict[str, Any]: A dictionary mapping property names to values.
         """
 
         return {
-            prop["name"]: self._generate_value(prop["value_type"]) for prop in self._get_non_identity_properties(scope)
+            prop["name"]: self._generate_value(prop["value_type"])
+            for prop in self._get_non_identity_properties(entity_type)
         }
 
     def _generate_value(self, value_type) -> Any:
@@ -303,13 +308,13 @@ class DataGenerator:
             DatasetSize.XLARGE: 100_000_000,
         }[size]
 
-    def _get_record_count(self, scope: ScopeClass) -> int:
-        """Get the number of records to generate for a scope, using weighted probabilities."""
+    def _get_record_count(self, entity_type: EntityType) -> int:
+        """Get the number of records to generate for a entity_type, using weighted probabilities."""
 
-        if scope not in self.distributions:
-            raise ValueError(f"No distribution defined for scope: {scope.value}")
+        if entity_type not in self.distributions:
+            raise ValueError(f"No distribution defined for entity_type: {entity_type.value}")
 
-        dist = self.distributions[scope.value]
+        dist = self.distributions[entity_type.value]
         return random.choices(dist["choices"], weights=dist["weights"], k=1)[0]
 
     def _create_directory(self, path: Path) -> None:
@@ -318,14 +323,14 @@ class DataGenerator:
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
 
-    def _create_value_types_for_scopes(self) -> None:
-        """Create value types and scopes for the schema builder."""
+    def _create_value_types_for_entity_types(self) -> None:
+        """Create value types and entity_types for the schema builder."""
 
         value_types = {}
         shared_list = [ValueType.string, ValueType.int, ValueType.double, ValueType.datetime, ValueType.uuid]
-        for scope in (ScopeClass.COMPOUND, ScopeClass.BATCH, ScopeClass.ASSAY_RUN, ScopeClass.ASSAY):
-            value_types[scope] = shared_list
-        value_types[ScopeClass.ASSAY_RESULT] = [ValueType.string, ValueType.int, ValueType.double, ValueType.bool]
+        for entity_type in (EntityType.COMPOUND, EntityType.BATCH, EntityType.ASSAY_RUN, EntityType.ASSAY):
+            value_types[entity_type] = shared_list
+        value_types[EntityType.ASSAY_RESULT] = [ValueType.string, ValueType.int, ValueType.double, ValueType.bool]
         self.value_types = value_types
 
     def generate_unique_date(self, unique_dates: set):

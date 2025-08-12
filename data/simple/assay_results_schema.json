@@ -6,7 +6,7 @@
           "unit": "uL/min/10^6 cells",
           "required": true,
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        },
        {
           "name": "concentration",
@@ -14,7 +14,7 @@
           "required": true,
           "value_type": "double",
           "property_class": "measured",
-          "scope": "assay_result"
+          "entity_type": "assay_result"
        }
     ]
 } 

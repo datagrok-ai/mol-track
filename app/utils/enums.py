@@ -27,7 +27,7 @@ class PropertyClass(CaseInsensitiveEnum):
     PREDICTED = "PREDICTED"
 
 
-class ScopeClass(CaseInsensitiveEnum):
+class EntityType(CaseInsensitiveEnum):
     BATCH = "BATCH"
     COMPOUND = "COMPOUND"
     ASSAY = "ASSAY"
@@ -36,7 +36,7 @@ class ScopeClass(CaseInsensitiveEnum):
     SYSTEM = "SYSTEM"
 
 
-class ScopeClassReduced(CaseInsensitiveEnum):
+class EntityTypeReduced(CaseInsensitiveEnum):
     BATCH = "BATCH"
     COMPOUND = "COMPOUND"
 
