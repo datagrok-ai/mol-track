@@ -16,11 +16,6 @@ INSERT INTO moltrack.semantic_types (name, description)
 VALUES ('Synonym', 'A semantic type representing a synonym or alternative identifier')
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO moltrack.settings (name, value, description)
-VALUES
-    ('corporate_compound_id_pattern', 'DG-{:06d}', 'Pattern for corporate compound IDs'),
-    ('corporate_batch_id_pattern', 'DGB-{:06d}', 'Pattern for corporate batch IDs');
-
 with ADMIN AS (
   SELECT id FROM moltrack.users WHERE email = 'admin@datagrok.ai'
 ),
@@ -34,8 +29,7 @@ VALUES (
   'corporate_compound_id', 'Official institution synonym for compounds',
   'string', 
   (SELECT id FROM STYPE), 
-  'DECLARED', 'COMPOUND',
-  (SELECT value FROM moltrack.settings WHERE name = 'corporate_compound_id_pattern')
+  'DECLARED', 'COMPOUND', 'DG-{:06d}'
 ), (
   (SELECT id FROM ADMIN),
   (SELECT id FROM ADMIN),
@@ -43,7 +37,7 @@ VALUES (
   'string', 
   (SELECT id FROM STYPE), 
   'DECLARED', 'BATCH',
-  (SELECT value FROM moltrack.settings WHERE name = 'corporate_batch_id_pattern')
+  'DGB-{:06d}'
 );
 
 INSERT INTO moltrack.settings (name, value, description)

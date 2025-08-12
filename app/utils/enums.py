@@ -112,11 +112,3 @@ class OperatorType(enum.Enum):
     DATETIME = "datetime"
     BOOLEAN = "boolean"
     MOLECULAR = "molecular"
-
-
-class SettingsName(str, enum.Enum):
-    """Names of settings used in the application"""
-
-    MOLECULE_STANDARDIZATION_RULES = "Molecule standardization rules"
-    COMPOUND_MATCHING_RULE = "Compound matching rule"
-    INSTITUTION_ID_PATTERN = "Institution ID pattern"
