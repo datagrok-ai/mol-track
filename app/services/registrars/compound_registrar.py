@@ -62,7 +62,8 @@ class CompoundRegistrar(BaseRegistrar):
         if mol is None:
             raise HTTPException(status_code=400, detail="Invalid SMILES string")
 
-        standardized_mol = chemistry_utils.standardize_mol(mol)
+        config = chemistry_utils.get_molecule_standardization_config()
+        standardized_mol = chemistry_utils.standardize_mol(mol, config)
         mol_layers = chemistry_utils.generate_hash_layers(standardized_mol)
         hash_mol = GetMolHash(mol_layers, self.matching_setting)
 

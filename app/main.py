@@ -25,7 +25,7 @@ from sqlalchemy.sql import text
 
 from app.utils.logging_utils import logger
 from app.utils.admin_utils import admin
-from app.utils.chemistry_utils import molecule_standardization_config
+from app.utils.chemistry_utils import get_molecule_standardization_config
 
 
 # Handle both package imports and direct execution
@@ -445,7 +445,7 @@ def update_compound_matching_rule(
         raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
 
 
-@router.post("/admin/update-standardization-config")
+@router.patch("/admin/update-standardization-config")
 async def update_standardization_config(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -465,7 +465,8 @@ async def update_standardization_config(
 
         setting.value = yaml_str
         db.commit()
-        molecule_standardization_config.clear_cache()
+        config = get_molecule_standardization_config()
+        config.clear_cache()
 
     except yaml.YAMLError as e:
         raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")

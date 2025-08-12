@@ -1,3 +1,4 @@
+from typing import Optional
 import uuid
 import yaml
 
@@ -6,39 +7,48 @@ from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.RegistrationHash import HashLayer
 
-from app.setup.database import SessionLocal
 from app import models
+from sqlalchemy.orm import Session
 
 
 class MoleculeStandardizationConfig:
-    def __init__(self):
+    def __init__(self, db: Optional[Session] = None):
         self._config = None
+        self.db = db
 
     @property
     def config(self) -> dict:
         if self._config is None:
-            db = SessionLocal()
             try:
                 setting = (
-                    db.query(models.Settings).filter(models.Settings.name == "Molecule standardization rules").first()
+                    self.db.query(models.Settings)
+                    .filter(models.Settings.name == "Molecule standardization rules")
+                    .first()
                 )
                 if not setting:
                     raise Exception("Molecule standardization config not found in settings table.")
                 self._config = yaml.safe_load(setting.value)
             finally:
-                db.close()
+                self.db.close()
         return self._config
 
     def clear_cache(self):
         self._config = None
 
 
-molecule_standardization_config = MoleculeStandardizationConfig()
+molecule_standardization_config = None
 
 
-def standardize_mol(
-    mol: Chem.Mol,
-) -> Chem.Mol:
+def get_molecule_standardization_config():
+    global molecule_standardization_config
+    if molecule_standardization_config is None:
+        from app.main import get_db  # Import here, so this only happens when function is called
+
+        molecule_standardization_config = MoleculeStandardizationConfig(db=next(get_db()))
+    return molecule_standardization_config
+
+
+def standardize_mol(mol: Chem.Mol, molecule_standardization_config: MoleculeStandardizationConfig) -> Chem.Mol:
     """
     Standardizes a given RDKit molecule using operations defined in the
     molecule standardization settings.
@@ -52,7 +62,6 @@ def standardize_mol(
         Chem.Mol: The standardized molecule after performing all configured operations.
     """
     config = molecule_standardization_config.config
-
     # Apply only the enabled operations in the order of declaration in the config.
     for operation in config.get("operations", []):
         operation_type = operation.get("type")
