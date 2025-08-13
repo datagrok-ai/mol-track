@@ -1,5 +1,5 @@
+from typing import Optional
 import uuid
-import os
 import yaml
 
 from rdkit import Chem
@@ -7,32 +7,58 @@ from rdkit.Chem import RegistrationHash
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.RegistrationHash import HashLayer
 
-STANDARDIZER_CONFIG_FILE = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "setup", "molecule_standarizer_operations.yaml")
-)
+from app import models
+from sqlalchemy.orm import Session
 
 
-def standardize_mol(
-    mol: Chem.Mol,
-    standardizer_config_file: str = STANDARDIZER_CONFIG_FILE,
-) -> Chem.Mol:
+class MoleculeStandardizationConfig:
+    def __init__(self, db: Optional[Session] = None):
+        self._config = None
+        self.db = db
+
+    @property
+    def config(self) -> dict:
+        if self._config is None:
+            setting = (
+                self.db.query(models.Settings).filter(models.Settings.name == "Molecule standardization rules").first()
+            )
+            if not setting:
+                raise Exception("Molecule standardization config not found in settings table.")
+            self._config = yaml.safe_load(setting.value)
+        return self._config
+
+    def clear_cache(self):
+        self._config = None
+
+    def set_db(self, db: Session):
+        self.db = db
+
+
+molecule_standardization_config = MoleculeStandardizationConfig()
+
+
+def get_molecule_standardization_config(db: Optional[Session] = None):
+    global molecule_standardization_config
+    if db is not None:
+        molecule_standardization_config.set_db(db)
+    return molecule_standardization_config
+
+
+def standardize_mol(mol: Chem.Mol, db: Optional[Session] = None) -> Chem.Mol:
     """
-    Standardizes a given RDKit molecule using operations defined in a YAML configuration file.
+    Standardizes a given RDKit molecule using operations defined in the
+    molecule standardization settings.
 
-    The operations are dynamically executed in the order defined in the file, but only if they are enabled.
+    The operations are dynamically executed in the order defined in the setting, but only if they are enabled.
 
     Args:
         mol (Chem.Mol): The molecule to standardize.
-        standardizer_config_file (str): Path to the YAML configuration file with operation definitions.
 
     Returns:
         Chem.Mol: The standardized molecule after performing all configured operations.
     """
-
-    with open(standardizer_config_file, "r") as f:
-        config = yaml.safe_load(f)
-
-    # Apply only the enabled operations in the order of declaration in the yml file.
+    config = get_molecule_standardization_config(db).config
+    # Apply only the enabled operations in the order of declaration in the config.
     for operation in config.get("operations", []):
         operation_type = operation.get("type")
         is_enabled = operation.get("enable", True)
@@ -41,7 +67,7 @@ def standardize_mol(
             continue
 
         if not operation_type:
-            raise ValueError(f"Operation type is missing in the configuration file:{standardizer_config_file}.")
+            raise ValueError("Operation type is missing in the configuration.")
 
         mol = apply_standardizer_operation(mol, operation_type)
 
