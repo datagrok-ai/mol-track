@@ -420,31 +420,6 @@ def create_assay_results(
     return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
 
 
-@router.patch("/admin/compound-matching-rule")
-def update_compound_matching_rule(
-    rule: enums.CompoundMatchingRule = Form(enums.CompoundMatchingRule.ALL_LAYERS), db: Session = Depends(get_db)
-):
-    """
-    Update the compound matching rule.
-    """
-    try:
-        old_value_query = db.execute(text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'"))
-        old_value = old_value_query.scalar()
-
-        if old_value == rule.value:
-            return {"status": "success", "message": f"Compound matching rule is already set to {rule.value}"}
-
-        db.execute(
-            text("UPDATE moltrack.settings SET value = :rule WHERE name = 'Compound Matching Rule'"),
-            {"rule": rule.value},
-        )
-        db.commit()
-        return {"status": "success", "message": f"Compound matching rule updated from {old_value} to {rule.value}"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
-
-
 @router.patch("/admin/update-standardization-config")
 async def update_standardization_config(
     file: UploadFile = File(...),
@@ -478,10 +453,75 @@ async def update_standardization_config(
     return JSONResponse(content={"message": "Standardization configuration updated successfully."})
 
 
-@router.patch("/admin/institution-id-pattern")
+@router.patch("/admin/settings")
+def update_settings(
+    name: enums.SettingName = Form(...),
+    value: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    def parse_int(value: str, field_name: str) -> int:
+        try:
+            return int(value)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"{field_name} must be an integer")
+
+    if name == enums.SettingName.COMPOUND_MATCHING_RULE:
+        try:
+            rule_enum = enums.CompoundMatchingRule(value)
+        except ValueError:
+            allowed = [r.value for r in enums.CompoundMatchingRule]
+            raise HTTPException(
+                status_code=400, detail=f"Invalid compound matching rule value. Must be one of: {allowed}"
+            )
+        return update_compound_matching_rule(rule_enum, db)
+
+    setting_handlers = {
+        enums.SettingName.MOLREGNO_SEQUENCE_START: lambda v: set_molregno_sequence_start(
+            parse_int(v, "MOLREGNO sequence start"), db
+        ),
+        enums.SettingName.BATCHREGNO_SEQUENCE_START: lambda v: set_batchregno_sequence_start(
+            parse_int(v, "BACTHREGNO sequence start"), db
+        ),
+        enums.SettingName.CORPORATE_COMPOUND_ID_PATTERN: lambda v: update_institution_id_pattern(
+            enums.EntityTypeReduced.COMPOUND, v, db
+        ),
+        enums.SettingName.CORPORATE_BATCH_ID_PATTERN: lambda v: update_institution_id_pattern(
+            enums.EntityTypeReduced.BATCH, v, db
+        ),
+    }
+
+    handler = setting_handlers.get(name)
+    if not handler:
+        raise HTTPException(status_code=400, detail=f"Unknown setting: {name}")
+
+    return handler(value)
+
+
+def update_compound_matching_rule(rule: enums.CompoundMatchingRule, db: Session = Depends(get_db)):
+    """
+    Update the compound matching rule.
+    """
+    try:
+        old_value_query = db.execute(text("SELECT value FROM moltrack.settings WHERE name = 'Compound Matching Rule'"))
+        old_value = old_value_query.scalar()
+
+        if old_value == rule.value:
+            return {"status": "success", "message": f"Compound matching rule is already set to {rule.value}"}
+
+        db.execute(
+            text("UPDATE moltrack.settings SET value = :rule WHERE name = 'Compound Matching Rule'"),
+            {"rule": rule.value},
+        )
+        db.commit()
+        return {"status": "success", "message": f"Compound matching rule updated from {old_value} to {rule.value}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
+
+
 def update_institution_id_pattern(
-    entity_type: enums.EntityTypeReduced = Form(enums.EntityTypeReduced.BATCH),
-    pattern: str = Form(default="DG-{:05d}"),
+    entity_type: enums.EntityTypeReduced,
+    pattern: str,
     db: Session = Depends(get_db),
 ):
     """
@@ -501,11 +541,21 @@ def update_institution_id_pattern(
                     Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc.""",
         )
 
-    setting_name = "corporate_batch_id" if entity_type == "BATCH" else "corporate_compound_id"
+    property_name = "corporate_batch_id" if entity_type == enums.EntityTypeReduced.BATCH else "corporate_compound_id"
+    setting_name = (
+        "corporate_batch_id_pattern"
+        if entity_type == enums.EntityTypeReduced.BATCH
+        else "corporate_compound_id_pattern"
+    )
 
     try:
         db.execute(
-            text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :setting"),
+            text("UPDATE moltrack.properties SET pattern = :pattern WHERE name = :property"),
+            {"property": property_name, "pattern": pattern},
+        )
+
+        db.execute(
+            text("UPDATE moltrack.settings SET value = :pattern WHERE name = :setting"),
             {"setting": setting_name, "pattern": pattern},
         )
         db.commit()
@@ -518,13 +568,11 @@ def update_institution_id_pattern(
         raise HTTPException(status_code=500, detail=f"Error updating corporate ID pattern: {str(e)}")
 
 
-@router.patch("/admin/molregno-sequence-start")
-def set_molregno_sequence_start(start_value: int = Form(...), db: Session = Depends(get_db)):
+def set_molregno_sequence_start(start_value: int, db: Session = Depends(get_db)):
     return seq_start_update(start_value, "moltrack.molregno_seq", db)
 
 
-@router.patch("/admin/batchregno-sequence-start")
-def set_batchregno_sequence_start(start_value: int = Form(...), db: Session = Depends(get_db)):
+def set_batchregno_sequence_start(start_value: int, db: Session = Depends(get_db)):
     return seq_start_update(start_value, "moltrack.batch_regno_seq", db)
 
 
@@ -544,6 +592,11 @@ def seq_start_update(start_value: int, seq_name, db: Session):
         )
 
     try:
+        setting_name = "molregno_sequence_start" if "molregno" in seq_name else "batchregno_sequence_start"
+        db.execute(
+            text("UPDATE moltrack.settings SET value = :start_value WHERE name = :setting_name"),
+            {"start_value": str(start_value), "setting_name": setting_name},
+        )
         db.execute(text("SELECT setval(:seq_name, :start_value)"), {"seq_name": seq_name, "start_value": start_value})
         db.commit()
         return {"status": "success", "message": f"The {seq_name} set to {start_value}"}
