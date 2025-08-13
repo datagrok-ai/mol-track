@@ -688,6 +688,7 @@ class SearchRequest(SQLModel):
     level: Level
     output: List[str]  # Columns to return
     filter: Optional[Filter] = None
+    output_format: enums.SearchOutputFormat
 
     @field_validator("output")
     def validate_output(cls, v):

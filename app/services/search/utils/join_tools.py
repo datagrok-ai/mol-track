@@ -1,53 +1,7 @@
-import re
-from typing import List
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 from collections import deque
+from typing import List
 from app.models import Level
-
-
-def create_alias(table: Level) -> str:
-    if table != "assay_runs":
-        name_parts = table.split("_")
-        if len(name_parts) == 2:
-            # Since the table name is in the format "table_name", we can use the first letter of the first part and the
-            # first letter of the second part
-            return f"{name_parts[0][0]}{name_parts[1][0]}"
-        else:
-            return f"{name_parts[0][0]}"
-    else:
-        return "rn"
-
-
-def singularize(word: str) -> str:
-    if word.endswith("es"):
-        return word[:-2]
-    elif word.endswith("s"):
-        return word[:-1]
-    return word
-
-
-def get_table_columns(table_name: str, session: Session) -> list:
-    """
-    Get the columns of a table in the database.
-    """
-
-    result = session.execute(
-        text("SELECT column_name FROM information_schema.columns WHERE table_name = :table_name"),
-        {"table_name": table_name},
-    )
-    columns = [row[0] for row in result.fetchall()]
-    return columns
-
-
-def sanitize_field_name(field_name: str) -> str:
-    """Sanitize field name for use in SQL aliases"""
-    # Replace dots and special characters with underscores
-    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", field_name)
-    # Ensure it doesn't start with a number
-    if sanitized and sanitized[0].isdigit():
-        sanitized = f"field_{sanitized}"
-    return sanitized
+from app.services.search.utils.utils import create_alias, singularize
 
 
 class JoinOrderingTool:

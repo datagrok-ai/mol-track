@@ -5,7 +5,8 @@ Handles resolution of field paths like 'compounds.details.chembl' to SQL compone
 
 from typing import Any, Dict, get_args
 from sqlalchemy.orm import Session
-from app.services.search.utils import JoinOrderingTool, create_alias, singularize, get_table_columns, JoinResolver
+from app.services.search.utils.utils import create_alias, singularize, get_table_columns
+from app.services.search.utils.join_tools import JoinOrderingTool, JoinResolver
 from app.models import Level
 
 

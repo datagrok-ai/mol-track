@@ -1,6 +1,7 @@
 import pytest
 import json
 from sqlalchemy import text
+from app.utils import enums
 
 valid_filter = {
     "operator": "OR",
@@ -28,15 +29,22 @@ valid_output_batches = ["batches.batch_regno", "batches.details.corporate_batch_
 
 @pytest.mark.usefixtures("preload_simple_data")
 def test_valid_json_compounds(client):
-    response = client.post("v1/search/compounds", json={"output": valid_output_compounds, "filter": valid_filter})
+    response = client.post(
+        "v1/search/compounds",
+        json={
+            "output": valid_output_compounds,
+            "filter": valid_filter,
+            "output_format": enums.SearchOutputFormat.json.value,
+        },
+    )
+
     assert response.status_code == 200
+    assert response.headers["content-disposition"].startswith("attachment;")
 
     content = response.content.decode("utf-8")
     content = json.loads(content)
 
     assert content["total_count"] == 2
-    assert content["level"] == "compounds"
-
     assert content["columns"] == valid_output_compounds
 
     details = [
@@ -60,8 +68,6 @@ def test_valid_json_batches(client):
     content = json.loads(content)
 
     assert content["total_count"] == 2
-    assert content["level"] == "batches"
-
     assert content["columns"] == valid_output_batches
 
     details = [
@@ -92,9 +98,41 @@ def test_valid_json_assay_results(client):
     content = json.loads(content)
 
     assert content["total_count"] == 5
-    assert content["level"] == "assay_results"
-
     assert content["columns"] == valid_output_assay_results
+
+
+valid_output_assays = ["assays.id", "assays.name"]
+valid_filter_assays = {"field": "assays.id", "operator": "=", "value": "1"}
+
+
+@pytest.mark.usefixtures("preload_simple_data")
+def test_valid_json_assays(client):
+    response = client.post("v1/search/assays", json={"output": valid_output_assays, "filter": valid_filter_assays})
+    assert response.status_code == 200
+
+    content = response.content.decode("utf-8")
+    content = json.loads(content)
+
+    assert content["total_count"] == 1
+    assert content["columns"] == valid_output_assays
+
+
+valid_output_assay_runs = ["assay_runs.id", "assay_runs.name"]
+valid_filter_assay_runs = {"field": "assays.id", "operator": "=", "value": "1"}
+
+
+@pytest.mark.usefixtures("preload_simple_data")
+def test_valid_json_assay_runs(client):
+    response = client.post(
+        "v1/search/assay-runs", json={"output": valid_output_assay_runs, "filter": valid_filter_assay_runs}
+    )
+    assert response.status_code == 200
+
+    content = response.content.decode("utf-8")
+    content = json.loads(content)
+
+    assert content["total_count"] == 9
+    assert content["columns"] == valid_output_assay_runs
 
 
 @pytest.mark.usefixtures("preload_simple_data")
@@ -113,8 +151,6 @@ def test_valid_molecular_operations(client):
     content = json.loads(content)
 
     assert content["total_count"] == 1
-    assert content["level"] == "compounds"
-
     assert content["columns"] == output
 
 

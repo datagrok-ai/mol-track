@@ -61,6 +61,12 @@ class OutputFormat(str, enum.Enum):
     csv = "csv"
 
 
+class SearchOutputFormat(str, enum.Enum):
+    json = "json"
+    csv = "csv"
+    parquet = "parquet"
+
+
 class CompoundMatchingRule(CaseInsensitiveEnum):
     ALL_LAYERS = "ALL_LAYERS"
     STEREO_INSENSITIVE_LAYERS = "STEREO_INSENSITIVE_LAYERS"

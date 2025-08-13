@@ -21,6 +21,7 @@ dependencies = [
     "sqlalchemy>=2.0.40",
     "sqlmodel>=0.0.24",
     "uvicorn>=0.34.2",
+    "pyarrow>=16.1.0"
 ]
 
 [tool.ruff]

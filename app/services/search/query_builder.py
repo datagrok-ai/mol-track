@@ -2,7 +2,8 @@ from typing import Any, Dict, List
 from app.services.search.field_resolver import FieldResolutionError, FieldResolver
 from app.services.search.operators import SearchOperators
 import app.models as models
-from app.services.search.utils import JoinOrderingTool, sanitize_field_name
+from app.services.search.utils.utils import sanitize_field_name
+from app.services.search.utils.join_tools import JoinOrderingTool
 
 
 class QueryBuildError(Exception):
