@@ -3,10 +3,12 @@ import io
 import tempfile
 import shutil
 from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
+
+import yaml
 from app.services.registrars.assay_result_registrar import AssayResultsRegistrar
 from app.services.registrars.assay_run_registrar import AssayRunRegistrar
 from app.services.registrars.batch_registrar import BatchRegistrar
@@ -23,6 +25,7 @@ from sqlalchemy.sql import text
 
 from app.utils.logging_utils import logger
 from app.utils.admin_utils import admin
+from app.utils.chemistry_utils import get_molecule_standardization_config
 
 
 # Handle both package imports and direct execution
@@ -79,17 +82,17 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
 
 @router.get("/schema/")
 def get_schema(db: Session = Depends(get_db)):
-    return crud.get_entities_by_scope(db)
+    return crud.get_entities_by_entity_type(db)
 
 
 @router.get("/schema/compounds", response_model=List[models.PropertyBase])
 def get_schema_compounds(db: Session = Depends(get_db)):
-    return crud.get_entities_by_scope(db, enums.ScopeClass.COMPOUND)
+    return crud.get_entities_by_entity_type(db, enums.EntityType.COMPOUND)
 
 
 @router.get("/schema/compounds/synonyms", response_model=List[models.SynonymTypeBase])
 def get_schema_compound_synonyms(db: Session = Depends(get_db)):
-    return crud.get_entities_by_scope(db, enums.ScopeClass.COMPOUND, crud.get_synonym_id(db))
+    return crud.get_entities_by_entity_type(db, enums.EntityType.COMPOUND, crud.get_synonym_id(db))
 
 
 def fetch_additions(db: Session):
@@ -103,14 +106,14 @@ def fetch_additions(db: Session):
 
 @router.get("/schema/batches", response_model=models.SchemaBatchResponse)
 def get_schema_batches(db: Session = Depends(get_db)):
-    properties = crud.get_entities_by_scope(db, enums.ScopeClass.BATCH)
+    properties = crud.get_entities_by_entity_type(db, enums.EntityType.BATCH)
     additions = fetch_additions(db)
     return models.SchemaBatchResponse(properties=properties, additions=additions)
 
 
 @router.get("/schema/batches/synonyms", response_model=models.SchemaBatchResponse)
 def get_schema_batch_synonyms(db: Session = Depends(get_db)):
-    synonym_types = crud.get_entities_by_scope(db, enums.ScopeClass.BATCH, crud.get_synonym_id(db))
+    synonym_types = crud.get_entities_by_entity_type(db, enums.EntityType.BATCH, crud.get_synonym_id(db))
     additions = fetch_additions(db)
     return models.SchemaBatchResponse(synonym_types=synonym_types, additions=additions)
 
@@ -343,13 +346,13 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
             models.AssayDetail,
             properties=assay.extra_fields,
             entity_ids=entity_ids,
-            scope=enums.ScopeClass.ASSAY,
+            entity_type=enums.EntityType.ASSAY,
             include_user_fields=False,
         )
         detail_records.extend(inserted)
 
         for prop_data in assay.assay_result_properties:
-            prop_info = property_service.get_property_info(prop_data.name, enums.ScopeClass.ASSAY_RESULT)
+            prop_info = property_service.get_property_info(prop_data.name, enums.EntityType.ASSAY_RESULT)
             property_records.append(
                 {
                     "assay_id": assay_id,
@@ -442,9 +445,42 @@ def update_compound_matching_rule(
         raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
 
 
+@router.patch("/admin/update-standardization-config")
+async def update_standardization_config(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    filename = file.filename.lower()
+    if not (filename.endswith(".yaml") or filename.endswith(".yml")):
+        raise HTTPException(status_code=400, detail="Uploaded file must be a YAML file (.yaml or .yml)")
+
+    try:
+        content = await file.read()
+        yaml.safe_load(content)
+        yaml_str = content.decode("utf-8")
+
+        setting = db.query(models.Settings).filter(models.Settings.name == "Molecule standardization rules").first()
+        if not setting:
+            raise HTTPException(status_code=404, detail="Standardization configuration setting not found")
+
+        setting.value = yaml_str
+        db.commit()
+        config = get_molecule_standardization_config(db)
+        config.clear_cache()
+
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {str(e)}")
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"An error occurred while updating the configuration: {str(e)}")
+
+    return JSONResponse(content={"message": "Standardization configuration updated successfully."})
+
+
 @router.patch("/admin/institution-id-pattern")
 def update_institution_id_pattern(
-    scope: enums.ScopeClassReduced = Form(enums.ScopeClassReduced.BATCH),
+    entity_type: enums.EntityTypeReduced = Form(enums.EntityTypeReduced.BATCH),
     pattern: str = Form(default="DG-{:05d}"),
     db: Session = Depends(get_db),
 ):
@@ -465,7 +501,7 @@ def update_institution_id_pattern(
                     Example: 'DG-{:05d}' for ids in format 'DG-00001', 'DG-00002' etc.""",
         )
 
-    setting_name = "corporate_batch_id" if scope == "BATCH" else "corporate_compound_id"
+    setting_name = "corporate_batch_id" if entity_type == "BATCH" else "corporate_compound_id"
 
     try:
         db.execute(
@@ -475,7 +511,7 @@ def update_institution_id_pattern(
         db.commit()
         return {
             "status": "success",
-            "message": f"Corporate ID pattern for {scope} updated to {pattern}, ids will be looking like {pattern.format(1)}",
+            "message": f"Corporate ID pattern for {entity_type} updated to {pattern}, ids will be looking like {pattern.format(1)}",
         }
     except Exception as e:
         db.rollback()

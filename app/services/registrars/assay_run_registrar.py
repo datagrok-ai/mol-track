@@ -50,7 +50,7 @@ class AssayRunRegistrar(BaseRegistrar):
                     models.AssayRunDetail,
                     grouped.get("assay_run_details", {}),
                     {"rn": idx + 1},
-                    enums.ScopeClass.ASSAY_RUN,
+                    enums.EntityType.ASSAY_RUN,
                     False,
                 )
                 details.extend(inserted)

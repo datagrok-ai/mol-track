@@ -63,24 +63,32 @@ def test_apply_standardizer_operation_invalid():
         apply_standardizer_operation(test_mol, "InvalidOperation")
 
 
-def test_standardize_mol(test_molecule, temp_standardizer_config):
-    standardized_mol = standardize_mol(test_molecule, temp_standardizer_config)
+def test_standardize_mol(client, test_db, test_molecule, temp_standardizer_config):
+    client.patch(
+        "/v1/admin/update-standardization-config",
+        files={"file": ("standardize.yaml", open(temp_standardizer_config).read(), "application/x-yaml")},
+    )
+    standardized_mol = standardize_mol(test_molecule, test_db)
     assert Chem.MolToSmiles(standardized_mol) == "O=C(O)c1ccccc1"
 
 
-# Test for missing operation type in the configuration
-def test_standardize_mol_missing_operation(test_molecule, tmp_path):
+def test_standardize_mol_missing_operation(client, test_db, test_molecule, tmp_path):
     config_data = {"operations": [{"enable": True}]}
     config_file = tmp_path / "invalid_config.yaml"
     with open(config_file, "w") as f:
         yaml.dump(config_data, f)
 
-    with pytest.raises(ValueError, match="Operation type is missing in the configuration file"):
-        standardize_mol(test_molecule, str(config_file))
+    client.patch(
+        "/v1/admin/update-standardization-config",
+        files={"file": ("standardize.yaml", open(config_file).read(), "application/x-yaml")},
+    )
+
+    with pytest.raises(ValueError, match="Operation type is missing in the configuration."):
+        standardize_mol(test_molecule, test_db)
 
 
 # Test for disabled operations. Ensure molecule remains unchanged and with salt since all operations are disabled
-def test_standardize_mol_disabled_operations(test_molecule, tmp_path):
+def test_standardize_mol_disabled_operations(client, test_db, test_molecule, tmp_path):
     config_data = {
         "operations": [
             {"type": "Cleanup", "enable": False},
@@ -91,6 +99,12 @@ def test_standardize_mol_disabled_operations(test_molecule, tmp_path):
     config_file = tmp_path / "disabled_config.yaml"
     with open(config_file, "w") as f:
         yaml.dump(config_data, f)
+
+    client.patch(
+        "/v1/admin/update-standardization-config",
+        files={"file": ("standardize.yaml", open(config_file).read(), "application/x-yaml")},
+    )
+
     original_smiles = Chem.MolToSmiles(test_molecule)
-    standardized_mol = standardize_mol(test_molecule, str(config_file))
+    standardized_mol = standardize_mol(test_molecule, test_db)
     assert Chem.MolToSmiles(standardized_mol) == original_smiles

@@ -81,13 +81,13 @@ class BaseRegistrar(ABC):
 
     def _assign_column(self, col: str) -> str:
         if col in self.property_records_map:
-            scope = getattr(self.property_records_map[col], "scope", None)
+            entity_type = getattr(self.property_records_map[col], "entity_type", None)
             prefix = {
-                enums.ScopeClass.COMPOUND: "compound_details",
-                enums.ScopeClass.BATCH: "batch_details",
-                enums.ScopeClass.ASSAY_RUN: "assay_run_details",
-                enums.ScopeClass.ASSAY_RESULT: "assay_result_details",
-            }.get(scope)
+                enums.EntityType.COMPOUND: "compound_details",
+                enums.EntityType.BATCH: "batch_details",
+                enums.EntityType.ASSAY_RUN: "assay_run_details",
+                enums.EntityType.ASSAY_RESULT: "assay_result_details",
+            }.get(entity_type)
             return f"{prefix}.{col}" if prefix else col
 
         if col in self.addition_records_map:

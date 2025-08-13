@@ -7,7 +7,7 @@ def test_register_batches_without_mapping(client, preload_schema):
     register_response = _preload_batches(client, BLACK_DIR / "batches.csv")
     assert register_response.status_code == 200
 
-    register_data = register_response.json().get("data", [])
+    register_data = register_response.json()
     assert len(register_data) == 54
 
     get_response = client.get("/v1/batches/")

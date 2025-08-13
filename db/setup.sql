@@ -22,7 +22,7 @@ with ADMIN AS (
 STYPE AS (
   SELECT id FROM moltrack.semantic_types WHERE name = 'Synonym'
 )
-INSERT INTO moltrack.properties (created_by, updated_by, name, description, value_type, semantic_type_id, property_class, scope, pattern)
+INSERT INTO moltrack.properties (created_by, updated_by, name, description, value_type, semantic_type_id, property_class, entity_type, pattern)
 VALUES (
   (SELECT id FROM ADMIN),
   (SELECT id FROM ADMIN),
@@ -44,5 +44,24 @@ INSERT INTO moltrack.settings (name, value, description)
 VALUES ('Compound Matching Rule',
         'ALL_LAYERS',
         'Defines the rule for matching compounds. Possible values: ALL_LAYERS (default), STEREO_INSENSITIVE_LAYERS, TAUTOMER_INSENSITIVE_LAYERS');
+
+INSERT INTO moltrack.settings (name, value, description)
+VALUES (
+  'Molecule standardization rules',
+  'operations:
+  - type: "Cleanup"
+    description: "Basic cleanup of the molecule, including removal of explicit hydrogens"
+    enable: true
+
+  - type: "FragmentParent"
+    description: "Retains the largest parent fragment of the molecule."
+    enable: true
+
+  - type: "Uncharger"
+    description: "Neutralizes charges on the molecule."
+    enable: true
+  ',
+  'Defines the molecule standardization pipeline'
+);
 
 COMMIT;
