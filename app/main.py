@@ -465,7 +465,7 @@ async def update_standardization_config(
 
         setting.value = yaml_str
         db.commit()
-        config = get_molecule_standardization_config()
+        config = get_molecule_standardization_config(db)
         config.clear_cache()
 
     except yaml.YAMLError as e:

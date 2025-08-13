@@ -3,7 +3,6 @@ import yaml
 from rdkit import Chem
 
 from app.utils.chemistry_utils import apply_standardizer_operation, standardize_mol
-from app.utils.chemistry_utils import MoleculeStandardizationConfig
 
 # Some test molecules where taken from https://github.com/greglandrum/RSC_OpenScience_Standardization_202104/blob/main/MolStandardize%20pieces.ipynb
 
@@ -69,8 +68,7 @@ def test_standardize_mol(client, test_db, test_molecule, temp_standardizer_confi
         "/v1/admin/update-standardization-config",
         files={"file": ("standardize.yaml", open(temp_standardizer_config).read(), "application/x-yaml")},
     )
-    molecule_standardization_config = MoleculeStandardizationConfig(test_db)
-    standardized_mol = standardize_mol(test_molecule, molecule_standardization_config)
+    standardized_mol = standardize_mol(test_molecule, test_db)
     assert Chem.MolToSmiles(standardized_mol) == "O=C(O)c1ccccc1"
 
 
@@ -84,10 +82,9 @@ def test_standardize_mol_missing_operation(client, test_db, test_molecule, tmp_p
         "/v1/admin/update-standardization-config",
         files={"file": ("standardize.yaml", open(config_file).read(), "application/x-yaml")},
     )
-    molecule_standardization_config = MoleculeStandardizationConfig(test_db)
 
     with pytest.raises(ValueError, match="Operation type is missing in the configuration."):
-        standardize_mol(test_molecule, molecule_standardization_config)
+        standardize_mol(test_molecule, test_db)
 
 
 # Test for disabled operations. Ensure molecule remains unchanged and with salt since all operations are disabled
@@ -107,8 +104,7 @@ def test_standardize_mol_disabled_operations(client, test_db, test_molecule, tmp
         "/v1/admin/update-standardization-config",
         files={"file": ("standardize.yaml", open(config_file).read(), "application/x-yaml")},
     )
-    molecule_standardization_config = MoleculeStandardizationConfig(test_db)
 
     original_smiles = Chem.MolToSmiles(test_molecule)
-    standardized_mol = standardize_mol(test_molecule, molecule_standardization_config)
+    standardized_mol = standardize_mol(test_molecule, test_db)
     assert Chem.MolToSmiles(standardized_mol) == original_smiles

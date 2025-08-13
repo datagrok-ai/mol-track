@@ -19,36 +19,32 @@ class MoleculeStandardizationConfig:
     @property
     def config(self) -> dict:
         if self._config is None:
-            try:
-                setting = (
-                    self.db.query(models.Settings)
-                    .filter(models.Settings.name == "Molecule standardization rules")
-                    .first()
-                )
-                if not setting:
-                    raise Exception("Molecule standardization config not found in settings table.")
-                self._config = yaml.safe_load(setting.value)
-            finally:
-                self.db.close()
+            setting = (
+                self.db.query(models.Settings).filter(models.Settings.name == "Molecule standardization rules").first()
+            )
+            if not setting:
+                raise Exception("Molecule standardization config not found in settings table.")
+            self._config = yaml.safe_load(setting.value)
         return self._config
 
     def clear_cache(self):
         self._config = None
 
+    def set_db(self, db: Session):
+        self.db = db
 
-molecule_standardization_config = None
+
+molecule_standardization_config = MoleculeStandardizationConfig()
 
 
-def get_molecule_standardization_config():
+def get_molecule_standardization_config(db: Optional[Session] = None):
     global molecule_standardization_config
-    if molecule_standardization_config is None:
-        from app.main import get_db  # Import here, so this only happens when function is called
-
-        molecule_standardization_config = MoleculeStandardizationConfig(db=next(get_db()))
+    if db is not None:
+        molecule_standardization_config.set_db(db)
     return molecule_standardization_config
 
 
-def standardize_mol(mol: Chem.Mol, molecule_standardization_config: MoleculeStandardizationConfig) -> Chem.Mol:
+def standardize_mol(mol: Chem.Mol, db: Optional[Session] = None) -> Chem.Mol:
     """
     Standardizes a given RDKit molecule using operations defined in the
     molecule standardization settings.
@@ -61,7 +57,7 @@ def standardize_mol(mol: Chem.Mol, molecule_standardization_config: MoleculeStan
     Returns:
         Chem.Mol: The standardized molecule after performing all configured operations.
     """
-    config = molecule_standardization_config.config
+    config = get_molecule_standardization_config(db).config
     # Apply only the enabled operations in the order of declaration in the config.
     for operation in config.get("operations", []):
         operation_type = operation.get("type")
