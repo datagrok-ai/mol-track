@@ -12,18 +12,11 @@ from sqlalchemy.sql import text
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
         super().__init__(db, mapping, error_handling)
-        self._batch_records_map = None
         self._additions_map = None
 
         self.batches_to_insert = []
         self.batch_details = []
         self.batch_additions = []
-
-    @property
-    def batch_records_map(self):
-        if self._batch_records_map is None:
-            self._batch_records_map = self._load_reference_map(models.Batch, "batch_regno")
-        return self._batch_records_map
 
     @property
     def additions_map(self):
@@ -140,5 +133,4 @@ class BatchRegistrar(CompoundRegistrar):
     def cleanup(self):
         super().cleanup()
         self.cleanup_chunk()
-        self._batch_records_map = None
         self._additions_map = None

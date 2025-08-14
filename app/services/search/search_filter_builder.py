@@ -23,7 +23,7 @@ class SearchFilterBuilder:
 
         search_engine = SearchEngine(self.db)
         err = search_engine._validate_filter(filter_tree, "")
-        return {"filter:": filter_tree.model_dump() if err == [] else None, "errors": err}
+        return {"filter": filter_tree.model_dump() if err == [] else None, "errors": err}
 
     def _tokenize(self, expression: str) -> List[Token]:
         tokens: List[Token] = []

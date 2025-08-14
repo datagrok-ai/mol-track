@@ -1,5 +1,9 @@
+import os
+import re
+import tempfile
 from typing import Optional
 import uuid
+from fastapi import HTTPException
 import yaml
 
 from rdkit import Chem
@@ -146,3 +150,35 @@ def calculate_no_stereo_tautomer_hash(mol: Chem.Mol) -> str:
     Calculate the no-stereo tautomer hash for a given molecule.
     """
     return generate_uuid_from_string(generate_hash_layers(mol)[HashLayer.NO_STEREO_TAUTOMER_HASH])
+
+
+def validate_rdkit_call(func, *args, err_msg_prefix: str = ""):
+    """Run an RDKit function while capturing stderr output and handling errors.
+
+    Args:
+        func: RDKit callable (e.g., Chem.MolFromSmiles, Chem.MolToInchi)
+        *args: Arguments to pass to the function
+        err_msg_prefix: Prefix to add to the error message
+    """
+    with tempfile.NamedTemporaryFile(mode="w+", delete=True) as tmp_file:
+        stderr_fd = 2
+        stderr_backup = os.dup(stderr_fd)
+
+        try:
+            os.dup2(tmp_file.fileno(), stderr_fd)
+            result = func(*args)
+        except Exception as e:
+            os.dup2(stderr_backup, stderr_fd)
+            os.close(stderr_backup)
+            raise HTTPException(status_code=400, detail=f"{err_msg_prefix} {e}")
+        finally:
+            os.dup2(stderr_backup, stderr_fd)
+            os.close(stderr_backup)
+
+        tmp_file.seek(0)
+        error_msg = re.search(r"ERROR:.*", tmp_file.read().strip())
+
+    if result is None or error_msg:
+        msg = f"{err_msg_prefix} {error_msg.group(0) if error_msg else 'Execution failed'}"
+        raise HTTPException(status_code=400, detail=msg)
+    return result
