@@ -58,10 +58,9 @@ class CompoundRegistrar(BaseRegistrar):
         if not smiles:
             raise HTTPException(status_code=400, detail="SMILES value is required for compound creation.")
 
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            raise HTTPException(status_code=400, detail="Invalid SMILES string")
-
+        mol = chemistry_utils.validate_rdkit_call(
+            Chem.MolFromSmiles, smiles, err_msg_prefix=f"Invalid SMILES '{smiles}':"
+        )
         standardized_mol = chemistry_utils.standardize_mol(mol, self.db)
         mol_layers = chemistry_utils.generate_hash_layers(standardized_mol)
         hash_mol = GetMolHash(mol_layers, self.matching_setting)
@@ -78,10 +77,10 @@ class CompoundRegistrar(BaseRegistrar):
 
         now = datetime.now()
 
-        inchikey = Chem.InchiToInchiKey(Chem.MolToInchi(mol))
-        if inchikey is None:
-            raise HTTPException(status_code=400, detail="Failed to generate InChIKey: possibly invalid molecule")
-
+        inchi = chemistry_utils.validate_rdkit_call(Chem.MolToInchi, mol, err_msg_prefix="Failed to generate InChI:")
+        inchikey = chemistry_utils.validate_rdkit_call(
+            Chem.InchiToInchiKey, inchi, err_msg_prefix="Failed to generate InChIKey:"
+        )
         canonical_smiles = mol_layers[HashLayer.CANONICAL_SMILES]
         hash_canonical_smiles = chemistry_utils.generate_uuid_from_string(mol_layers[HashLayer.CANONICAL_SMILES])
         hash_tautomer = chemistry_utils.generate_uuid_from_string(mol_layers[HashLayer.TAUTOMER_HASH])
@@ -92,7 +91,7 @@ class CompoundRegistrar(BaseRegistrar):
 
         compound = {
             "canonical_smiles": canonical_smiles,
-            "inchi": Chem.MolToInchi(mol),
+            "inchi": inchi,
             "inchikey": inchikey,
             "original_molfile": compound_data.get("original_molfile", ""),
             "molregno": self._next_molregno(),
