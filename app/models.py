@@ -692,11 +692,24 @@ Filter = Union[AtomicCondition, LogicalNode]
 Level = Literal["compounds", "batches", "assay_results"]
 
 
+class Aggregation(SQLModel):
+    field: str
+    operation: enums.AggregationOp
+
+    @field_validator("field")
+    def validate_field_format(cls, v):
+        parts = v.split(".")
+        if len(parts) < 2 or len(parts) > 3:
+            raise ValueError("Aggregation field must be in format 'table.field' or 'table.details.property'")
+        return v
+
+
 class SearchRequest(SQLModel):
     """Main search request model with recursive filter structure"""
 
     level: Level
     output: List[str]  # Columns to return
+    aggregations: Optional[List[Aggregation]] = None
     filter: Optional[Filter] = None
 
     @field_validator("output")

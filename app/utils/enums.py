@@ -120,3 +120,11 @@ class SettingName(str, enum.Enum):
     BATCH_SEQUENCE_START = "BATCH_SEQUENCE_START"
     CORPORATE_COMPOUND_ID_PATTERN = "CORPORATE_COMPOUND_ID_PATTERN"
     CORPORATE_BATCH_ID_PATTERN = "CORPORATE_BATCH_ID_PATTERN"
+
+
+class AggregationOp(str, enum.Enum):
+    COUNT = "COUNT"
+    AVG = "AVG"
+    MAX = "MAX"
+    MIN = "MIN"
+    SUM = "SUM"

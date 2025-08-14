@@ -534,7 +534,7 @@ def update_institution_id_pattern(
     if not pattern or not re.match(EXPECTED_PATTERN, pattern):
         raise HTTPException(
             status_code=400,
-            detail="""Invalid pattern format. 
+            detail="""Invalid pattern format.
                     The pattern must contain '{:d}'.
                     You can also use '{:0Nd}' for zero-padded numbers (numbers will be padded with zeros to N digits).,
                     Pattern can also have prefix and postfix, meant for identification of institution.
@@ -619,7 +619,12 @@ def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)
 
 
 @router.post("/search/compounds", response_model=models.SearchResponse)
-def search_compounds_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
+def search_compounds_advanced(
+    output: List[str],
+    aggregations: Optional[models.Aggregation] = None,
+    filter: Optional[models.Filter] = None,
+    db: Session = Depends(get_db),
+):
     """
     Endpoint for compound-level searches.
 
@@ -630,7 +635,12 @@ def search_compounds_advanced(output: List[str], filter: Optional[models.Filter]
 
 
 @router.post("/search/batches", response_model=models.SearchResponse)
-def search_batches_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
+def search_batches_advanced(
+    output: List[str],
+    aggregations: Optional[models.Aggregation] = None,
+    filter: Optional[models.Filter] = None,
+    db: Session = Depends(get_db),
+):
     """
     Endpoint for batch-level searches.
 
@@ -642,7 +652,10 @@ def search_batches_advanced(output: List[str], filter: Optional[models.Filter] =
 
 @router.post("/search/assay-results", response_model=models.SearchResponse)
 def search_assay_results_advanced(
-    output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)
+    output: List[str],
+    aggregations: Optional[models.Aggregation] = None,
+    filter: Optional[models.Filter] = None,
+    db: Session = Depends(get_db),
 ):
     """
     Endpoint for assay result-level searches.
