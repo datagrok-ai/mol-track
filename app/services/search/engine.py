@@ -6,7 +6,8 @@ from app.services.search.query_builder import QueryBuilder, QueryBuildError
 from sqlalchemy import text
 from app.setup.database import DB_SCHEMA
 from app.services.search.operators import SearchOperators
-from app.services.search.utils import sanitize_field_name
+from app.services.search.utils.helper_functions import sanitize_field_name, prepare_search_output
+from app.models import Level
 
 
 class SearchEngineError(Exception):
@@ -23,8 +24,9 @@ class SearchEngine:
         self.db_schema = DB_SCHEMA
         self.field_resolver = FieldResolver(self.db_schema, db)
         self.query_builder = QueryBuilder(self.field_resolver)
+        self.results = None
 
-    def search(self, request: models.SearchRequest) -> models.SearchResponse:
+    def search(self, request: models.SearchRequest):
         """
         Executes search request
 
@@ -48,11 +50,9 @@ class SearchEngine:
             query_info = self.query_builder.build_query(request)
 
             # Execute main query
-            results = self._execute_main_query(query_info["sql"], query_info["params"])
+            results, headers = self._execute_main_query(query_info["sql"], query_info["params"])
 
-            return models.SearchResponse(
-                status="success", data=results, total_count=len(results), level=request.level, columns=columns
-            )
+            return prepare_search_output(results, headers, request.output_format)
 
         except (FieldResolutionError, QueryBuildError) as e:
             raise SearchEngineError(f"Search execution error: {str(e)}")
@@ -80,7 +80,7 @@ class SearchEngine:
 
         return errors
 
-    def _validate_filter(self, filter_obj: models.Filter, level: str, path: str = "filter") -> List[str]:
+    def _validate_filter(self, filter_obj: models.Filter, level: Level, path: str = "filter") -> List[str]:
         """Recursively validate filter conditions"""
         errors = []
 
@@ -118,13 +118,11 @@ class SearchEngine:
 
             # Get column names from result
             if result.returns_rows:
-                columns = [self.output_aliases[item] for item in list(result.keys())]
+                headers = [self.output_aliases[item] for item in list(result.keys())]
                 rows = result.fetchall()
-
-                # Convert rows to dictionaries
-                return [dict(zip(columns, row)) for row in rows]
+                return rows, headers
             else:
-                return []
+                return [], []
 
         except Exception as e:
             raise SearchEngineError(f"Main query execution failed: {str(e)}")

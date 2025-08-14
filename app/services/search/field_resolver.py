@@ -3,9 +3,10 @@ Field resolver for advanced search functionality
 Handles resolution of field paths like 'compounds.details.chembl' to SQL components
 """
 
-from typing import Any, Dict, List, get_args
+from typing import Any, Dict, get_args
 from sqlalchemy.orm import Session
-from app.services.search.utils import JoinOrderingTool, create_alias, singularize, get_table_columns
+from app.services.search.utils.helper_functions import create_alias, singularize, get_table_columns
+from app.services.search.utils.join_tools import JoinOrderingTool, JoinResolver
 from app.models import Level
 
 
@@ -20,6 +21,10 @@ class FieldResolver:
 
     def __init__(self, db_schema: str, db: Session):
         self.db_schema = db_schema
+        self._generate_table_config(db)
+        self.join_resolver = JoinResolver(db_schema, self.table_configs)
+
+    def _generate_table_config(self, db):
         tables = get_args(Level)
         self.table_configs = {}
         for table in tables:
@@ -34,64 +39,6 @@ class FieldResolver:
                 "direct_fields": {column: f"{alias}.{column}" for column in get_table_columns(table, db)},
             }
         self.table_configs["compounds"]["direct_fields"]["structure"] = "c.canonical_smiles"
-        # Cross-level relationship definitions
-        self.relationships = {
-            ("compounds", "batches"): {
-                "join": ["INNER JOIN {schema}.batches b ON b.compound_id = c.id"],
-                "tables": ["batches"],
-                "subquery": {"from_table": "batches", "join": [], "tables": []},
-            },
-            ("compounds", "assay_results"): {
-                "join": [
-                    "INNER JOIN {schema}.batches b ON b.compound_id = c.id",
-                    "INNER JOIN {schema}.assay_results ar ON ar.batch_id = b.id",
-                ],
-                "tables": ["batches", "assay_results"],
-                "subquery": {
-                    "from_table": "batches",
-                    "join": ["INNER JOIN {schema}.assay_results ar ON ar.batch_id = b.id"],
-                    "tables": ["assay_results"],
-                },
-            },
-            ("batches", "assay_results"): {
-                "join": ["INNER JOIN {schema}.assay_results ar ON ar.batch_id = b.id"],
-                "tables": ["assay_results"],
-                "subquery": {"from_table": "assay_results", "join": [], "tables": []},
-            },
-            ("batches", "compounds"): {
-                "join": ["INNER JOIN {schema}.compounds c ON c.id = b.compound_id"],
-                "tables": ["compounds"],
-                "subquery": {
-                    "from_table": "batches",
-                    "join": ["INNER JOIN {schema}.compounds c ON c.id = b.compound_id"],
-                    "tables": ["compounds"],
-                },
-            },
-            ("assay_results", "batches"): {
-                "join": ["INNER JOIN {schema}.batches b ON b.id = ar.batch_id"],
-                "tables": ["batches"],
-                "subquery": {
-                    "from_table": "assay_results",
-                    "join": ["INNER JOIN {schema}.batches b ON b.id = ar.batch_id"],
-                    "tables": ["batches"],
-                },
-            },
-            ("assay_results", "compounds"): {
-                "join": [
-                    "INNER JOIN {schema}.batches b ON b.id = ar.batch_id",
-                    "INNER JOIN {schema}.compounds c ON c.id = b.compound_id",
-                ],
-                "tables": ["batches", "compounds"],
-                "subquery": {
-                    "from_table": "assay_results",
-                    "join": [
-                        "INNER JOIN {schema}.batches b ON b.id = ar.batch_id",
-                        "INNER JOIN {schema}.compounds c ON c.id = b.compound_id",
-                    ],
-                    "tables": ["batches", "compounds"],
-                },
-            },
-        }
 
     def validate_field_path(self, field_path: str, level: Level = None) -> bool:
         """
@@ -161,7 +108,9 @@ class FieldResolver:
         cross_from = ""
         # Add cross-level join if needed
         if table_name != search_level:
-            cross_joins, cross_tables, cross_from = self._get_cross_level_data(search_level, table_name, subquery)
+            cross_joins, cross_tables, cross_from = self.join_resolver.resolve_join_components(
+                search_level, table_name, subquery, field_or_details == "details"
+            )
             if cross_joins:
                 all_joins.add(cross_joins, cross_tables)
 
@@ -184,34 +133,26 @@ class FieldResolver:
             | search_level_info
         )
 
-    def _get_cross_level_data(self, from_level: str, to_level: str, subquery: bool) -> List[str]:
-        """Get JOIN clauses for cross-level relationships"""
-        relationship_key = (from_level, to_level)
-        if relationship_key in self.relationships:
-            relationship = (
-                self.relationships[relationship_key]["subquery"] if subquery else self.relationships[relationship_key]
-            )
-            joins = relationship["join"]
-            joins = list(map(lambda join: join.format(schema=self.db_schema), joins))  # Format schema placeholders
-            from_level = relationship["from_table"] if subquery else ""
-            return (joins, relationship["tables"], from_level)
-        else:
-            raise FieldResolutionError(f"No relationship defined from {from_level} to {to_level}")
-
     def _resolve_dynamic_property(
         self, table_config: Dict, property_name: str, joins: JoinOrderingTool, subquery: bool, cross_from: str
     ) -> Dict[str, Any]:
         alias = table_config["details_alias"]
         table = table_config["details_table"]
+        base_table = table_config["table"]
 
         if subquery and cross_from == "":
             cross_from = table
 
         if table != cross_from:
             # Add details table join
+            field = f"{table_config['alias']}.id"
+            if subquery:
+                if joins.joinCount() and not joins.checkLastJoin(base_table):
+                    field = f"{joins.getLastTableAlias()}.{table_config['details_fk']}"
+                elif not joins.joinCount() and base_table != cross_from:
+                    field = f"{self.table_configs[cross_from]['alias']}.{table_config['details_fk']}"
             details_join = (
-                f"LEFT JOIN {self.db_schema}.{table} {alias} "
-                f"ON {alias}.{table_config['details_fk']} = {table_config['alias']}.id"
+                f"LEFT JOIN {self.db_schema}.{table} {alias} ON {alias}.{table_config['details_fk']} = {field}"
             )
             joins.add([details_join], [table])
 
@@ -225,7 +166,7 @@ class FieldResolver:
         subquery_sql = ""
         subquery_alias = ""
         if subquery:
-            joins_sql = joins.getJoinSQL() if cross_from != "assay_results" else joins.getJoinSQL(reversed=True)
+            joins_sql = joins.getJoinSQL()
             subquery_alias = self.table_configs[cross_from]["alias"] if table != cross_from else alias
             subquery_sql = f"SELECT 1 FROM {self.db_schema}.{cross_from} {subquery_alias} {joins_sql} "
 
@@ -258,7 +199,7 @@ class FieldResolver:
     ) -> Dict[str, Any]:
         subquery_sql = ""
         if subquery and search_level != table_config["table"]:
-            joins_sql = joins.getJoinSQL() if cross_from != "assay_results" else joins.getJoinSQL(reversed=True)
+            joins_sql = joins.getJoinSQL()
             subquery_sql = (
                 "SELECT 1 "
                 f"FROM {self.db_schema}.{self.table_configs[cross_from]['table']} "

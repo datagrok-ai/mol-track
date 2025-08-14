@@ -36,6 +36,14 @@ class EntityType(CaseInsensitiveEnum):
     SYSTEM = "SYSTEM"
 
 
+class SearchEntityType(str, enum.Enum):
+    BATCHES = "batches"
+    COMPOUNDS = "compounds"
+    ASSAYS = "assays"
+    ASSAY_RUNS = "assay_runs"
+    ASSAY_RESULTS = "assay_results"
+
+
 class EntityTypeReduced(CaseInsensitiveEnum):
     BATCH = "BATCH"
     COMPOUND = "COMPOUND"
@@ -59,6 +67,12 @@ class ErrorHandlingOptions(str, enum.Enum):
 class OutputFormat(str, enum.Enum):
     json = "json"
     csv = "csv"
+
+
+class SearchOutputFormat(str, enum.Enum):
+    json = "json"
+    csv = "csv"
+    parquet = "parquet"
 
 
 class CompoundMatchingRule(CaseInsensitiveEnum):

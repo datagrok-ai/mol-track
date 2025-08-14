@@ -2,7 +2,7 @@ import csv
 import io
 import tempfile
 import shutil
-from fastapi import APIRouter, FastAPI, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
@@ -534,7 +534,7 @@ def update_institution_id_pattern(
     if not pattern or not re.match(EXPECTED_PATTERN, pattern):
         raise HTTPException(
             status_code=400,
-            detail="""Invalid pattern format. 
+            detail="""Invalid pattern format.
                     The pattern must contain '{:d}'.
                     You can also use '{:0Nd}' for zero-padded numbers (numbers will be padded with zeros to N digits).,
                     Pattern can also have prefix and postfix, meant for identification of institution.
@@ -618,38 +618,83 @@ def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/search/compounds", response_model=models.SearchResponse)
-def search_compounds_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
+@router.post("/search/compounds")
+def search_compounds_advanced(
+    output: List[str] = Body(...),
+    filter: Optional[models.Filter] = Body(None),
+    output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    db: Session = Depends(get_db),
+):
     """
     Endpoint for compound-level searches.
 
     Automatically sets level to 'compounds' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(level="compounds", output=output, filter=filter)
+    request = models.SearchRequest(level="compounds", output=output, filter=filter, output_format=output_format)
     return advanced_search(request, db)
 
 
-@router.post("/search/batches", response_model=models.SearchResponse)
-def search_batches_advanced(output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)):
+@router.post("/search/batches")
+def search_batches_advanced(
+    output: List[str] = Body(...),
+    filter: Optional[models.Filter] = Body(None),
+    output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    db: Session = Depends(get_db),
+):
     """
     Endpoint for batch-level searches.
 
     Automatically sets level to 'batches' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(level="batches", output=output, filter=filter)
+    request = models.SearchRequest(level="batches", output=output, filter=filter, output_format=output_format)
     return advanced_search(request, db)
 
 
-@router.post("/search/assay-results", response_model=models.SearchResponse)
+@router.post("/search/assay-results")
 def search_assay_results_advanced(
-    output: List[str], filter: Optional[models.Filter] = None, db: Session = Depends(get_db)
+    output: List[str] = Body(...),
+    filter: Optional[models.Filter] = Body(None),
+    output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    db: Session = Depends(get_db),
 ):
     """
     Endpoint for assay result-level searches.
 
     Automatically sets level to 'assay_results' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(level="assay_results", output=output, filter=filter)
+    request = models.SearchRequest(level="assay_results", output=output, filter=filter, output_format=output_format)
+    return advanced_search(request, db)
+
+
+@router.post("/search/assays")
+def search_assays_advanced(
+    output: List[str] = Body(...),
+    filter: Optional[models.Filter] = Body(None),
+    output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint for assay-level searches.
+
+    Automatically sets level to 'assays' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(level="assays", output=output, filter=filter, output_format=output_format)
+    return advanced_search(request, db)
+
+
+@router.post("/search/assay-runs")
+def search_assay_runs_advanced(
+    output: List[str] = Body(...),
+    filter: Optional[models.Filter] = Body(None),
+    output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint for assay run-level searches.
+
+    Automatically sets level to 'assay_runs' and accepts filter parameters directly.
+    """
+    request = models.SearchRequest(level="assay_runs", output=output, filter=filter, output_format=output_format)
     return advanced_search(request, db)
 
 
