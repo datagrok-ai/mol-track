@@ -1,7 +1,7 @@
 from collections import deque
 from typing import List
 from app.models import Level
-from app.services.search.utils.utils import create_alias, singularize
+from app.services.search.utils.helper_functions import create_alias, singularize
 
 
 class JoinOrderingTool:
@@ -46,18 +46,26 @@ class JoinResolutionError(Exception):
 
 
 class JoinResolver:
-    def __init__(self, schema):
-        self.relationships = {
-            ("compounds", "batches"): f"INNER JOIN {schema}.batches b ON b.compound_id = c.id",
-            ("batches", "compounds"): f"INNER JOIN {schema}.compounds c ON c.id = b.compound_id",
-            ("batches", "assay_results"): f"INNER JOIN {schema}.assay_results ar ON ar.batch_id = b.id",
-            ("assay_results", "batches"): f"INNER JOIN {schema}.batches b ON b.id = ar.batch_id",
-            ("assay_results", "assay_runs"): f"INNER JOIN {schema}.assay_runs rn ON rn.id = ar.assay_run_id",
-            ("assay_runs", "assay_results"): f"INNER JOIN {schema}.assay_results ar ON rn.id = ar.assay_run_id",
-            ("assays", "assay_runs"): f"INNER JOIN {schema}.assay_runs rn ON rn.assay_id = a.id",
-            ("assay_runs", "assays"): f"INNER JOIN {schema}.assays a ON a.id = rn.assay_id",
-        }
+    def __init__(self, schema, table_configs):
+        self._generate_relationships(table_configs, schema)
         self.graph = self._build_graph()
+
+    def _generate_relationships(self, table_configs, schema):
+        self.relationships = {}
+        for from_name, from_table in table_configs.items():
+            for to_name, to_table in table_configs.items():
+                if from_name == to_name:
+                    continue
+                from_fk, from_alias = from_table["details_fk"], from_table["alias"]
+                to_fk, to_alias = to_table["details_fk"], to_table["alias"]
+                if from_fk in to_table["direct_fields"]:
+                    self.relationships[(from_name, to_name)] = (
+                        f"INNER JOIN {schema}.{to_name} {to_alias} ON {to_alias}.{from_fk} = {from_alias}.id"
+                    )
+                if to_fk in from_table["direct_fields"]:
+                    self.relationships[(from_name, to_name)] = (
+                        f"INNER JOIN {schema}.{to_name} {to_alias} ON {to_alias}.id = {from_alias}.{to_fk}"
+                    )
 
     def _build_graph(self):
         graph = {}
@@ -79,19 +87,21 @@ class JoinResolver:
                     queue.append((neighbor, path + [(neighbor, join_clause)]))
         return None
 
-    def resolve_join_components(self, from_level: str, to_level, subquery: bool = False, details: bool = False):
-        result = self._find_path(from_level, to_level)
-        if not result:
+    def resolve_join_components(
+        self, from_level: Level, to_level: Level, subquery: bool = False, details: bool = False
+    ):
+        join_path = self._find_path(from_level, to_level)
+        if not join_path:
             raise JoinResolutionError(f"No relationship defined from {from_level} to {to_level}")
         from_table = None
         if subquery:
             from_table = from_level
-            if len(result) >= 1 and result[0][1].find(f"{singularize(from_level)}_id") != -1:
-                from_table = result.pop(0)[0]
-            if details and len(result) >= 1 and result[-1][1].find(f"{singularize(to_level)}_id") != -1:
-                result.pop(-1)
+            if len(join_path) >= 1 and join_path[0][1].find(f"{singularize(from_level)}_id") != -1:
+                from_table = join_path.pop(0)[0]
+            if details and len(join_path) >= 1 and join_path[-1][1].find(f"{singularize(to_level)}_id") != -1:
+                join_path.pop(-1)
         joins, tables = [], []
-        for table, join in result:
+        for table, join in join_path:
             joins.append(join)
             tables.append(table)
         return joins, tables, from_table

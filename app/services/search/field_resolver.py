@@ -5,7 +5,7 @@ Handles resolution of field paths like 'compounds.details.chembl' to SQL compone
 
 from typing import Any, Dict, get_args
 from sqlalchemy.orm import Session
-from app.services.search.utils.utils import create_alias, singularize, get_table_columns
+from app.services.search.utils.helper_functions import create_alias, singularize, get_table_columns
 from app.services.search.utils.join_tools import JoinOrderingTool, JoinResolver
 from app.models import Level
 
@@ -21,8 +21,8 @@ class FieldResolver:
 
     def __init__(self, db_schema: str, db: Session):
         self.db_schema = db_schema
-        self.join_resolver = JoinResolver(db_schema)
         self._generate_table_config(db)
+        self.join_resolver = JoinResolver(db_schema, self.table_configs)
 
     def _generate_table_config(self, db):
         tables = get_args(Level)

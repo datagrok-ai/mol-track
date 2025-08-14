@@ -13,7 +13,7 @@ from app.utils import enums
 
 
 def create_alias(table: Level) -> str:
-    if table != "assay_runs":
+    if table != enums.SearchEntityType.ASSAY_RUNS.value:
         name_parts = table.split("_")
         if len(name_parts) == 2:
             # Since the table name is in the format "table_name", we can use the first letter of the first part and the

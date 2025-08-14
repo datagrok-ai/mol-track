@@ -6,7 +6,7 @@ from app.services.search.query_builder import QueryBuilder, QueryBuildError
 from sqlalchemy import text
 from app.setup.database import DB_SCHEMA
 from app.services.search.operators import SearchOperators
-from app.services.search.utils.utils import sanitize_field_name, prepare_search_output
+from app.services.search.utils.helper_functions import sanitize_field_name, prepare_search_output
 from app.models import Level
 
 
