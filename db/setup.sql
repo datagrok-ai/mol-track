@@ -23,8 +23,8 @@ VALUES
 
 INSERT INTO moltrack.settings (name, value, description)
 VALUES
-    ('molregno_sequence_start', '1', 'Starting value for the molregno sequence'),
-    ('batchregno_sequence_start', '1', 'Starting value for the batchregno sequence');
+    ('compound_sequence_start', '1', 'Starting value for the molregno sequence'),
+    ('batch_sequence_start', '1', 'Starting value for the batchregno sequence');
 
 with ADMIN AS (
   SELECT id FROM moltrack.users WHERE email = 'admin@datagrok.ai'

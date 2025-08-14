@@ -476,11 +476,11 @@ def update_settings(
         return update_compound_matching_rule(rule_enum, db)
 
     setting_handlers = {
-        enums.SettingName.MOLREGNO_SEQUENCE_START: lambda v: set_molregno_sequence_start(
-            parse_int(v, "MOLREGNO sequence start"), db
+        enums.SettingName.COMPOUND_SEQUENCE_START: lambda v: set_molregno_sequence_start(
+            parse_int(v, "Compound sequence start"), db
         ),
-        enums.SettingName.BATCHREGNO_SEQUENCE_START: lambda v: set_batchregno_sequence_start(
-            parse_int(v, "BACTHREGNO sequence start"), db
+        enums.SettingName.BATCH_SEQUENCE_START: lambda v: set_batchregno_sequence_start(
+            parse_int(v, "Batch sequence start"), db
         ),
         enums.SettingName.CORPORATE_COMPOUND_ID_PATTERN: lambda v: update_institution_id_pattern(
             enums.EntityTypeReduced.COMPOUND, v, db
@@ -592,7 +592,7 @@ def seq_start_update(start_value: int, seq_name, db: Session):
         )
 
     try:
-        setting_name = "molregno_sequence_start" if "molregno" in seq_name else "batchregno_sequence_start"
+        setting_name = "compound_sequence_start" if "molregno" in seq_name else "batch_sequence_start"
         db.execute(
             text("UPDATE moltrack.settings SET value = :start_value WHERE name = :setting_name"),
             {"start_value": str(start_value), "setting_name": setting_name},
