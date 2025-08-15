@@ -2,6 +2,7 @@ from typing import Any, Dict, List
 from app.services.search.field_resolver import FieldResolutionError, FieldResolver
 from app.services.search.operators import SearchOperators
 import app.models as models
+from app.services.search.utils.aggregation_operators import AggregationOperators
 from app.services.search.utils.helper_functions import sanitize_field_name
 from app.services.search.utils.join_tools import JoinOrderingTool
 
@@ -18,7 +19,7 @@ class QueryBuilder:
     def __init__(self, field_resolver: FieldResolver):
         self.field_resolver = field_resolver
         self.operators = SearchOperators()
-
+        self.dynamic_query_parts = {}
         self.parameter_counter = 0
 
     def build_query(self, request: models.SearchRequest) -> Dict[str, Any]:
@@ -43,7 +44,7 @@ class QueryBuilder:
 
         # Build SQL parts for base query
         base_query_joins = JoinOrderingTool()
-        output_info = self.build_base_sql_parts(request.output, level, base_query_joins)
+        output_info = self.build_base_sql_parts(request.output, request.aggregations, level, base_query_joins)
 
         base_select_clause = output_info["select_clause"]
         group_by = output_info["group_by"]
@@ -52,7 +53,7 @@ class QueryBuilder:
         has_dynamic = output_info["has_dynamic"]
 
         if (group_by and f"{table}.id" not in request.output) or (not group_by and has_dynamic):
-            group_by = [f"{alias}{alias}.id"] + group_by
+            group_by = [f"{sanitize_field_name(table + '.id')}"] + group_by
 
         group_by_sql = f"GROUP BY {' ,'.join(group_by)} " if group_by else ""
 
@@ -78,20 +79,30 @@ class QueryBuilder:
             f" {table_config['alias']}.", f" {table_config['alias']}{table_config['alias']}."
         )
 
+        select_clause = [x for x in group_by]
+        select_clause.extend(self._create_select_for_dynamic_fields())
+
         # Build main query
-        complete_sql = (
-            f"SELECT {base_select_clause} "
-            f"FROM {base_from_clause} "
-            f"{base_joins} "
-            f"{filter_sql} "
-            f"{group_by_sql} "
-            f"ORDER BY {table_config['alias']}{table_config['alias']}.id "
-        )
+        base_sql = f"WITH base AS (SELECT {base_select_clause} FROM {base_from_clause} {base_joins} {filter_sql} ) "
+        complete_sql = f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} ORDER BY {group_by[0]} "
 
         return {"sql": complete_sql.strip(), "params": query_params}
 
+    def _create_select_for_dynamic_fields(self):
+        select_clause = []
+        for alias, details in self.dynamic_query_parts.items():
+            operation = details["operation"]
+            statement = AggregationOperators.get_sql_expression(operation, details["column_value"])
+            statement = statement + f" FILTER (WHERE {details['sql']}) AS {alias}"
+            select_clause.append(statement)
+        return select_clause
+
     def build_base_sql_parts(
-        self, output_list: List[str], search_level: str, all_joins: JoinOrderingTool
+        self,
+        output_list: List[str],
+        aggregations: List[models.Aggregation],
+        search_level: str,
+        all_joins: JoinOrderingTool,
     ) -> Dict[str, Any]:
         """
         Generate SQL query parts for base query.
@@ -99,36 +110,41 @@ class QueryBuilder:
         Returns:
             Dict with SQL components: select clause, where clause, group by
         """
-        select_fields, list_of_aliases, conditions, group_by = [], [], [], []
+        select_fields, list_of_aliases, group_by, dynamic_columns = [], [], [], []
         # has_dynamic is True if any of the output fields are dynamic
         has_dynamic = False
 
-        for field_path in output_list:
+        field_collection = {sanitize_field_name(field): (field, None) for field in output_list}
+        field_collection.update(
+            {
+                sanitize_field_name(agg.field, agg.operation.value): (agg.field, agg.operation.value)
+                for agg in aggregations
+            }
+        )
+        for _, (field_path, operation) in field_collection.items():
             resolved = self.field_resolver.resolve_field(field_path, search_level, all_joins)
-
             # Create alias for the field
-            field_alias = sanitize_field_name(field_path)
-
-            select_fields.append(f"{resolved['sql_expression']} AS {field_alias}")
-
-            if resolved["is_dynamic"]:
-                has_dynamic = True
-            else:
+            field_alias = sanitize_field_name(field_path, operation) if operation else sanitize_field_name(field_path)
+            if not resolved["is_dynamic"]:
+                select_fields.append(f"{resolved['sql_expression']} AS {field_alias}")
                 list_of_aliases.append(field_alias)
-
-            property_filters = resolved.get("property_filter", None)
-            if not resolved["is_dynamic"] and property_filters:
-                conditions.append(property_filters)
-
-        # Combine conditions with operator
-        operator = " AND "
-        combined_sql = operator.join(conditions)
+            else:
+                has_dynamic = True
+                if resolved["table_alias"] not in dynamic_columns:
+                    select_fields.append(f"{resolved['sql_expression']} AS {resolved['table_alias']}_value")
+                    select_fields.append(f"{resolved['property_name']} AS {resolved['property_alias']}")
+                    dynamic_columns.append(resolved["table_alias"])
+                self.dynamic_query_parts[field_alias] = {
+                    "sql": resolved["property_filter"],
+                    "operation": operation,
+                    "column_value": f"{resolved['table_alias']}_value",
+                }
 
         if has_dynamic:
             group_by = list_of_aliases
+
         return {
             "select_clause": ", ".join(select_fields),
-            "conditions": combined_sql,
             "group_by": group_by,
             "has_dynamic": has_dynamic,
         }

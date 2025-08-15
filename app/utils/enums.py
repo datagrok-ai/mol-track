@@ -136,9 +136,30 @@ class SettingName(str, enum.Enum):
     CORPORATE_BATCH_ID_PATTERN = "CORPORATE_BATCH_ID_PATTERN"
 
 
-class AggregationOp(str, enum.Enum):
-    COUNT = "COUNT"
-    AVG = "AVG"
-    MAX = "MAX"
+class AggregationNumericOp(str, enum.Enum):
+    FIRST = "FIRST"
+    TOTAL_COUNT = ("COUNT",)
+    VALUE_COUNT = ("VALUES",)
+    UNIQUE_COUNT = ("UNIQUE",)
+    MISSING_VALUE_COUNT = "NULLS"
     MIN = "MIN"
+    MAX = "MAX"
     SUM = "SUM"
+    MED = "MED"
+    AVG = "AVG"
+    STDEV = "STDEV"
+    VARIANCE = "VARIANCE"
+    SKEW = "SKEW"
+    KURT = "KURT"
+    Q1 = "Q1"
+    Q2 = "Q2"
+    Q3 = "Q3"
+
+
+class AggregationStringOp(str, enum.Enum):
+    CONCAT_ALL = "CONCAT ALL"
+    CONCAT_UNIQUE = "CONCAT UNIQUE"
+    LONGEST = "LONGEST"
+    SHORTEST = "STORTEST"
+    MOST_FREQUENT = "MOST FREQUENT"
+    CONCAT_COUNTS = "CONCAT COUNTS"

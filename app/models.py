@@ -692,9 +692,12 @@ Filter = Union[AtomicCondition, LogicalNode]
 Level = Literal["compounds", "batches", "assay_results", "assay_runs", "assays"]
 
 
+AggregationOp = Union[enums.AggregationNumericOp, enums.AggregationStringOp]
+
+
 class Aggregation(SQLModel):
     field: str
-    operation: enums.AggregationOp
+    operation: AggregationOp
 
     @field_validator("field")
     def validate_field_format(cls, v):

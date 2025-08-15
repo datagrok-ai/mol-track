@@ -46,13 +46,16 @@ def get_table_columns(table_name: str, session: Session) -> list:
     return columns
 
 
-def sanitize_field_name(field_name: str) -> str:
+def sanitize_field_name(field_name: str, agg_op: str = None) -> str:
     """Sanitize field name for use in SQL aliases"""
     # Replace dots and special characters with underscores
     sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", field_name)
     # Ensure it doesn't start with a number
     if sanitized and sanitized[0].isdigit():
         sanitized = f"field_{sanitized}"
+    if agg_op:
+        agg_op = agg_op.replace(" ", "_")
+        sanitized = f"{agg_op.lower()}_{sanitized}"
     return sanitized
 
 

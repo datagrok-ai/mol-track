@@ -43,11 +43,21 @@ class SearchEngine:
                 raise SearchEngineError(f"Request validation failed: {'; '.join(validation_errors)}")
 
             # Extract column names from output fields
+            if f"{request.level}.id" not in request.output:
+                request.output.insert(0, f"{request.level}.id")
             columns = [field.lower() for field in request.output]
             self.output_aliases = {sanitize_field_name(field): field for field in columns}
+            self.output_aliases.update(
+                {
+                    sanitize_field_name(agg.field, agg.operation): f"{agg.operation.value}({agg.field})"
+                    for agg in request.aggregations
+                }
+            )
 
             # Build the SQL query
             query_info = self.query_builder.build_query(request)
+
+            print(query_info["sql"])
 
             # Execute main query
             results, headers = self._execute_main_query(query_info["sql"], query_info["params"])
@@ -71,6 +81,12 @@ class SearchEngine:
         # Validate output fields
         for field_path in request.output:
             if not self.field_resolver.validate_field_path(field_path, request.level):
+                errors.append(f"Invalid output field: {field_path}")
+
+        # Validate output fields
+        for aggregation in request.aggregations:
+            field_path = aggregation.field
+            if not self.field_resolver.validate_field_path(field_path):
                 errors.append(f"Invalid output field: {field_path}")
 
         # Validate filter conditions if present
