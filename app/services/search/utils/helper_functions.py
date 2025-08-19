@@ -56,6 +56,7 @@ def sanitize_field_name(field_name: str, agg_op: str = None) -> str:
     if agg_op:
         agg_op = agg_op.replace(" ", "_")
         sanitized = f"{agg_op.lower()}_{sanitized}"
+        sanitized = sanitized.lower()
     return sanitized
 
 

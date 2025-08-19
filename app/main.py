@@ -621,7 +621,7 @@ def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)
 @router.post("/search/compounds")
 def search_compounds_advanced(
     output: List[str] = Body(...),
-    aggregations: Optional[models.Aggregation] = None,
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -644,7 +644,7 @@ def search_compounds_advanced(
 @router.post("/search/batches")
 def search_batches_advanced(
     output: List[str] = Body(...),
-    aggregations: Optional[List[models.Aggregation]] = None,
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -667,7 +667,7 @@ def search_batches_advanced(
 @router.post("/search/assay-results")
 def search_assay_results_advanced(
     output: List[str] = Body(...),
-    aggregations: Optional[models.Aggregation] = None,
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -690,7 +690,7 @@ def search_assay_results_advanced(
 @router.post("/search/assays")
 def search_assays_advanced(
     output: List[str] = Body(...),
-    aggregations: Optional[models.Aggregation] = None,
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -713,7 +713,7 @@ def search_assays_advanced(
 @router.post("/search/assay-runs")
 def search_assay_runs_advanced(
     output: List[str] = Body(...),
-    aggregations: Optional[models.Aggregation] = None,
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),

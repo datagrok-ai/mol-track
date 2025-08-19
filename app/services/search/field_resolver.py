@@ -177,13 +177,12 @@ class FieldResolver:
             "is_dynamic": True,
             "property_name": f"{property_alias}.name",
             "property_alias": f"{property_alias}_name",
-            "property_info": {"name": property_name, "table": table},
             "table_alias": alias,
-            "value_column": "dynamic",
             "property_filter": f"LOWER({property_alias}_name) = LOWER('{property_name}')",
             "subquery": {
                 "sql": subquery_sql,
                 "alias": subquery_alias if subquery else "",
+                "property_filter": f"LOWER({property_alias}.name) = LOWER('{property_name}')",
             },
         }
 
@@ -213,9 +212,7 @@ class FieldResolver:
             ),
             "sql_field": "",
             "is_dynamic": False,
-            "property_info": None,
             "table_alias": table_config["alias"],
-            "value_column": table_config["direct_fields"][property_name],
             "property_filter": None,
             "subquery": {
                 "sql": subquery_sql,

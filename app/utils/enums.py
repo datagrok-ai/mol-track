@@ -138,9 +138,9 @@ class SettingName(str, enum.Enum):
 
 class AggregationNumericOp(str, enum.Enum):
     FIRST = "FIRST"
-    TOTAL_COUNT = ("COUNT",)
-    VALUE_COUNT = ("VALUES",)
-    UNIQUE_COUNT = ("UNIQUE",)
+    TOTAL_COUNT = "COUNT"
+    VALUE_COUNT = "VALUES"
+    UNIQUE_COUNT = "UNIQUE"
     MISSING_VALUE_COUNT = "NULLS"
     MIN = "MIN"
     MAX = "MAX"
@@ -160,6 +160,6 @@ class AggregationStringOp(str, enum.Enum):
     CONCAT_ALL = "CONCAT ALL"
     CONCAT_UNIQUE = "CONCAT UNIQUE"
     LONGEST = "LONGEST"
-    SHORTEST = "STORTEST"
+    SHORTEST = "SHORTEST"
     MOST_FREQUENT = "MOST FREQUENT"
     CONCAT_COUNTS = "CONCAT COUNTS"

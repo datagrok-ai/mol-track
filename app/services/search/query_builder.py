@@ -5,6 +5,7 @@ import app.models as models
 from app.services.search.utils.aggregation_operators import AggregationOperators
 from app.services.search.utils.helper_functions import sanitize_field_name
 from app.services.search.utils.join_tools import JoinOrderingTool
+from app.utils.enums import AggregationStringOp
 
 
 class QueryBuildError(Exception):
@@ -47,6 +48,7 @@ class QueryBuilder:
         output_info = self.build_base_sql_parts(request.output, request.aggregations, level, base_query_joins)
 
         base_select_clause = output_info["select_clause"]
+        select_direct_parts = output_info["select_direct_parts"]
         group_by = output_info["group_by"]
         table = table_config["table"]
         alias = table_config["alias"]
@@ -79,12 +81,14 @@ class QueryBuilder:
             f" {table_config['alias']}.", f" {table_config['alias']}{table_config['alias']}."
         )
 
-        select_clause = [x for x in group_by]
+        select_clause = [x for x in group_by] if group_by else select_direct_parts
         select_clause.extend(self._create_select_for_dynamic_fields())
 
         # Build main query
         base_sql = f"WITH base AS (SELECT {base_select_clause} FROM {base_from_clause} {base_joins} {filter_sql} ) "
-        complete_sql = f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} ORDER BY {group_by[0]} "
+        complete_sql = (
+            f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} ORDER BY {select_direct_parts[0]} "
+        )
 
         return {"sql": complete_sql.strip(), "params": query_params}
 
@@ -92,8 +96,10 @@ class QueryBuilder:
         select_clause = []
         for alias, details in self.dynamic_query_parts.items():
             operation = details["operation"]
-            statement = AggregationOperators.get_sql_expression(operation, details["column_value"])
-            statement = statement + f" FILTER (WHERE {details['sql']}) AS {alias}"
+            statement = AggregationOperators.get_sql_expression(operation, details["column_value"], details["sql"])
+            if operation != AggregationStringOp.LONGEST.value and operation != AggregationStringOp.SHORTEST.value:
+                statement = statement + f" FILTER (WHERE {details['sql']})"
+            statement = statement + f" AS {alias} "
             select_clause.append(statement)
         return select_clause
 
@@ -145,6 +151,7 @@ class QueryBuilder:
 
         return {
             "select_clause": ", ".join(select_fields),
+            "select_direct_parts": list_of_aliases,
             "group_by": group_by,
             "has_dynamic": has_dynamic,
         }
@@ -267,7 +274,7 @@ class QueryBuilder:
             f"{field_info['subquery']['sql']} "
             f"WHERE {field_info['subquery']['alias']}.{key}="
             f"{field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
-            f"AND {field_info['property_filter']}"
+            f"AND {field_info['subquery']['property_filter']}"
             f"AND {value_sql_expr})  "
         )
         return {"sql": where, "params": value_params}

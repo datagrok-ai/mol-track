@@ -44,6 +44,6 @@ SCHEMA_GENERATING_RULES = {
             "property_mapping": ["assay", "assay_run_details", "batch_details"],
             "property_type": [ValueType.string, ValueType.datetime, ValueType.string],
         },
-        "alias": "assay_results",
+        "alias": "assay_result_details",
     },
 }
