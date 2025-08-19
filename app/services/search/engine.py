@@ -42,22 +42,11 @@ class SearchEngine:
             if validation_errors:
                 raise SearchEngineError(f"Request validation failed: {'; '.join(validation_errors)}")
 
-            # Extract column names from output fields
-            if f"{request.level}.id" not in request.output:
-                request.output.insert(0, f"{request.level}.id")
-            columns = [field.lower() for field in request.output]
-            self.output_aliases = {sanitize_field_name(field): field for field in columns}
-            self.output_aliases.update(
-                {
-                    sanitize_field_name(agg.field, agg.operation): f"{agg.operation.value}({agg.field})"
-                    for agg in request.aggregations
-                }
-            )
+            # Prepare output fields
+            self.prepare_output_fields(request)
 
             # Build the SQL query
             query_info = self.query_builder.build_query(request)
-
-            print(query_info["sql"])
 
             # Execute main query
             results, headers = self._execute_main_query(query_info["sql"], query_info["params"])
@@ -95,6 +84,24 @@ class SearchEngine:
             errors.extend(filter_errors)
 
         return errors
+
+    def prepare_output_fields(self, request: models.SearchRequest):
+        """
+        Prepares output fields by resolving aliases and ensuring valid field paths
+        """
+        if not request.output:
+            raise SearchEngineError("Output fields cannot be empty")
+
+        if f"{request.level}.id" not in request.output:
+            request.output.insert(0, f"{request.level}.id")
+        columns = [field.lower() for field in request.output]
+        self.output_aliases = {sanitize_field_name(field): field for field in columns}
+        self.output_aliases.update(
+            {
+                sanitize_field_name(agg.field, agg.operation): f"{agg.operation.value}({agg.field})"
+                for agg in request.aggregations
+            }
+        )
 
     def _validate_filter(self, filter_obj: models.Filter, level: Level, path: str = "filter") -> List[str]:
         """Recursively validate filter conditions"""

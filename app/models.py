@@ -629,6 +629,24 @@ class UpdateCheckResult(NamedTuple):
     update_data: Optional[Dict[str, Any]] = None
 
 
+def validate_field(v: str) -> str:
+    # Basic field format validation
+    if not v or not isinstance(v, str):
+        raise ValueError("Field must be a non-empty string")
+
+    # Check for valid field format (table.field or table.details.property)
+    parts = v.split(".")
+    if len(parts) < 2 or len(parts) > 3 or (len(parts) == 3 and parts[1] != "details"):
+        raise ValueError("Field must be in format 'table.field' or 'table.details.property'")
+
+    valid_tables = get_args(Level)
+    if parts[0] not in valid_tables:
+        allowed = ", ".join(valid_tables)
+        raise ValueError(f"Invalid table: {parts[0]}. Must be one of {allowed}")
+
+    return v
+
+
 # Advanced Search Models - New Recursive Structure
 class AtomicCondition(SQLModel):
     """Individual atomic search condition with field, operator, and value"""
@@ -639,22 +657,8 @@ class AtomicCondition(SQLModel):
     threshold: Optional[float] = None  # For similarity searches (e.g., molecular similarity)
 
     @field_validator("field")
-    def validate_field(cls, v):
-        # Basic field format validation
-        if not v or not isinstance(v, str):
-            raise ValueError("Field must be a non-empty string")
-
-        # Check for valid field format (table.field or table.details.property)
-        parts = v.split(".")
-        if len(parts) < 2 or len(parts) > 3:
-            raise ValueError("Field must be in format 'table.field' or 'table.details.property'")
-
-        valid_tables = get_args(Level)
-        if parts[0] not in valid_tables:
-            allowed = ", ".join(valid_tables)
-            raise ValueError(f"Invalid table: {parts[0]}. Must be one of {allowed}")
-
-        return v
+    def validate_field_format(cls, v):
+        return validate_field(v)
 
     @model_validator(mode="before")
     def validate_threshold(cls, values):
@@ -699,12 +703,9 @@ class Aggregation(SQLModel):
     field: str
     operation: AggregationOp
 
-    @field_validator("field")
+    @field_validator("field", mode="after")
     def validate_field_format(cls, v):
-        parts = v.split(".")
-        if len(parts) < 2 or len(parts) > 3:
-            raise ValueError("Aggregation field must be in format 'table.field' or 'table.details.property'")
-        return v
+        return validate_field(v)
 
 
 class SearchRequest(SQLModel):
@@ -712,7 +713,7 @@ class SearchRequest(SQLModel):
 
     level: Level
     output: List[str]  # Columns to return
-    aggregations: Optional[List[Aggregation]] = None
+    aggregations: Optional[List[Aggregation]] = Field(default_factory=list)
     filter: Optional[Filter] = None
     output_format: enums.SearchOutputFormat
 
