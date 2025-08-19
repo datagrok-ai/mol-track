@@ -87,6 +87,10 @@ class LogicOp(str, enum.Enum):
     AND = "AND"
     OR = "OR"
 
+    @classmethod
+    def _missing_(cls, value):
+        return lowercase_enum_values(cls, value)
+
 
 class CompareOp(str, enum.Enum):
     """Comparison operators for atomic conditions"""
@@ -116,6 +120,10 @@ class CompareOp(str, enum.Enum):
     IS_SIMILAR = "IS SIMILAR"
     IS_SUBSTRUCTURE_OF = "IS SUBSTRUCTURE OF"
     HAS_SUBSTRUCTURE = "HAS SUBSTRUCTURE"
+
+    @classmethod
+    def _missing_(cls, value):
+        return lowercase_enum_values(cls, value)
 
 
 class OperatorType(enum.Enum):
@@ -155,6 +163,10 @@ class AggregationNumericOp(str, enum.Enum):
     Q2 = "Q2"
     Q3 = "Q3"
 
+    @classmethod
+    def _missing_(cls, value):
+        return lowercase_enum_values(cls, value)
+
 
 class AggregationStringOp(str, enum.Enum):
     CONCAT_ALL = "CONCAT ALL"
@@ -163,3 +175,16 @@ class AggregationStringOp(str, enum.Enum):
     SHORTEST = "SHORTEST"
     MOST_FREQUENT = "MOST FREQUENT"
     CONCAT_COUNTS = "CONCAT COUNTS"
+
+    @classmethod
+    def _missing_(cls, value):
+        return lowercase_enum_values(cls, value)
+
+
+def lowercase_enum_values(enum_class, value):
+    if isinstance(value, str):
+        v_norm = value.strip().upper()
+        for member in enum_class:
+            if member.value == v_norm:
+                return member
+    return None

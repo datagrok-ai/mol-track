@@ -1,12 +1,14 @@
 # Search
-The search functionality allows users to query compounds, batches, and assay results using flexible filters and field selection. Users can define which fields to return, apply precise conditions using logical operators, and build simple or complex queries. This functionality and be accessed through emdpoints ```/v1/search/compounds```, ```/v1/search/batches``` and ```/v1/search/assay_results```. This document explains how to structure search requests and use the available options effectively. 
+The search functionality allows users to query compounds, batches, and assay results using flexible filters and field selection. Users can define which fields to return, apply precise conditions using logical operators, and build simple or complex queries. This functionality and be accessed through emdpoints ```/v1/search/compounds```, ```/v1/search/batches``` and ```/v1/search/assay_results```. This document explains how to structure search requests and use the available options effectively.
 # Search request
 Format of the search filter is as follows:
 ```json
 {
   "level": <level>,
   "output": <output_list>,
-  "filter": <filter>
+  "aggregations": <aggregation_list>,
+  "filter": <filter>,
+  "output_format": <format>
 }
 ```
 * `<level>` - Specifies the main entity to search over.
@@ -18,11 +20,17 @@ Format of the search filter is as follows:
   * *batches*
 
   * *assay_results*
-  
-  This field is automatically populated based on the called endpoind. 
+
+  * *assay_runs*
+
+  * *assays*
+
+  This field is automatically populated based on the called endpoind.
 
 * `<output>` - A list of wanted output fields (all fields in this list must be related to the specified `<level>` and must follow the format rules described in [next section](#fields))
+* `<aggregation_list>` - List of aggregated values. It's exact format is described in [this section](#aggregations).
 * `<filter>` - Filter represents the filter criteria and it's exact format is described in [this section](#filter).
+* `<format>` - Format in which the results will be returned. Possible formats are *JSON*, *CSV*, and *Parquet*, with default value *JSON*.
 ## Fields
 Field names follow a specific notation, depending on whether a standard field or a dynamic property is referenced:
 * `<table>.<field>`
@@ -44,6 +52,21 @@ Field names follow a specific notation, depending on whether a standard field or
   *Example*: `compounds.details.MolLogP`
 
 This notation applies when writing filter expressions and stating output fields.
+## Aggregations
+Aggregations are defined through a list of objects with following structure:
+  ```json
+  {
+    "field": <field_name>,
+    "operation": <operations>,
+  }
+```
+ Field descriptions:
+- ***field*** - the name of the field to apply aggregation operation on (as describes in [this section](#fields))
+- ***operation*** - specifies the aggregation function that should be  applied to the to ***field***  (as described in [this section](#supported-aggregation-operations))
+### Supported aggregation operations
+Following operations are supported for aggregations:
+* String: `CONCAT ALL`, `CONCAT UNIQUE`, `LONGEST`, `SHORTEST`, `MOST FREQUENT`
+* Numeric: `FIRST`, `COUNT`, `VALUES`, `UNIQUE`, `NULLS`, `MIN`, `MAX`, `SUM`, `MED`, `AVG`, `STDEV`, `VARIANCE`, `Q1`, `Q2`, `Q3`
 ## Filter
 The filter defines the search criteria based on fields, values, and logical operators.
 
@@ -53,14 +76,14 @@ Filter supports:
 ### Supported operators
 The search functionality supports the following operators based on the data type:
 * String: `=`, `!=`, `IN`, `STARTS WITH`, `ENDS WITH`, `LIKE`, `CONTAINS`
-* Number: 
+* Number:
   * `=`, `!=`, `<`, `>`, `<=`, `>=`
-  * `RANGE (min, max)` 
+  * `RANGE (min, max)`
 * Datetime: `BEFORE`, `AFTER`, `ON`
 * Bool: `=`, `!=`
 * Molecule (uses RDKit cartridge operator)
   * `HAS SUBSTRUCTURE (value: string)`
-  * `IS SUBSTRUCTURE OF (value: string)` 
+  * `IS SUBSTRUCTURE OF (value: string)`
   * `IS SIMILAR (value: string, threshold: number)`
 
 **Note:** Molecule operations can be applied only to field ```compounds.structure```
@@ -147,7 +170,7 @@ Field descriptions:
 ```
 ## Search query parser
 ### Overview
-Users can use the `/vi/search/generate-filter` endpoint to create structured filters from a human-readable expression. 
+Users can use the `/vi/search/generate-filter` endpoint to create structured filters from a human-readable expression.
 This makes building complex search filters easier and more intuitive.
 ### Expression Format
 Users can use:
