@@ -12,6 +12,8 @@ from app.utils.logging_utils import logger
 from app.services import property_service
 from app import models
 
+from rdkit import Chem
+
 
 class BaseRegistrar(ABC):
     def __init__(self, db, mapping: Optional[str], error_handling: str):
@@ -78,6 +80,102 @@ class BaseRegistrar(ABC):
 
         if chunk:
             yield chunk
+
+    # TODO: Decide whether to use RDKit approach or the manual processing one by one
+    # def process_sdf(self, file_obj, chunk_size=5000) -> Iterator[List[Dict[str, Any]]]:
+    #     file_obj.seek(0)
+
+    #     if isinstance(file_obj, io.BytesIO) or isinstance(file_obj, io.BufferedIOBase):
+    #         supplier = Chem.ForwardSDMolSupplier(file_obj)
+    #     else:
+    #         supplier = Chem.ForwardSDMolSupplier(io.BytesIO(file_obj.read()))
+
+    #     chunk: List[Dict[str, Any]] = []
+
+    #     for mol in supplier:
+    #         if mol is None:
+    #             continue
+
+    #         row: Dict[str, Any] = {}
+
+    #         for prop_name in mol.GetPropNames():
+    #             row[prop_name] = mol.GetProp(prop_name)
+
+    #         row["smiles"] = Chem.MolToSmiles(mol)
+    #         row["original_molfile"] = Chem.MolToMolBlock(mol)
+
+    #         if self.user_mapping:
+    #             mapped_row = {self.normalized_mapping.get(k, k): v for k, v in row.items()}
+    #             chunk.append(mapped_row)
+    #         else:
+    #             chunk.append(row)
+
+    #         if len(chunk) >= chunk_size:
+    #             yield chunk
+    #             chunk = []
+    #     if chunk:
+    #         yield chunk
+
+    def process_sdf(self, file_stream: io.TextIOBase, chunk_size=5000) -> Iterator[List[Dict[str, Any]]]:
+        chunk: List[Dict[str, Any]] = []
+        current_mol_lines: List[str] = []
+        current_props: Dict[str, str] = {}
+        prop_name: str | None = None
+        mapping_initialized = False
+
+        for line in file_stream:
+            line = line.rstrip("\n")
+
+            if line == "$$$$":
+                row = dict(current_props)
+                molfile_str = "\n".join(current_mol_lines)
+                row["original_molfile"] = molfile_str
+
+                # Get smiles
+                mol = Chem.MolFromMolBlock(molfile_str)
+                if mol is not None:
+                    smiles = Chem.MolToSmiles(mol)
+                else:
+                    smiles = None
+                row["smiles"] = smiles
+
+                if not mapping_initialized:
+                    if self.user_mapping:
+                        self.normalized_mapping = self.user_mapping
+                    else:
+                        self.normalized_mapping = {k: self._assign_column(k) for k in row.keys()}
+                    mapping_initialized = True
+
+                chunk.append(row)
+
+                if len(chunk) >= chunk_size:
+                    yield chunk
+                    chunk = []
+
+                current_mol_lines = []
+                current_props = {}
+                prop_name = None
+                continue
+
+            if line.startswith(">  <") and line.endswith(">"):
+                prop_name = line[4:-1].strip()
+                current_props[prop_name] = ""
+                continue
+
+            if prop_name:
+                if current_props[prop_name]:
+                    current_props[prop_name] += "\n" + line
+                else:
+                    current_props[prop_name] = line
+                continue
+
+            current_mol_lines.append(line)
+
+        if chunk:
+            yield chunk
+
+        if not chunk and not current_mol_lines and not current_props:
+            raise HTTPException(status_code=400, detail="SDF file is empty or invalid")
 
     def _assign_column(self, col: str) -> str:
         if col in self.property_records_map:

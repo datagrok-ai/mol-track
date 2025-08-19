@@ -132,6 +132,7 @@ def process_registration(
     mapping: Optional[str],
     error_handling,
     output_format,
+    extension,
     db: Session,
 ):
     registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling)
@@ -140,10 +141,12 @@ def process_registration(
     shutil.copyfileobj(csv_file.file, tmp)
     tmp.seek(0)
 
+    processor = registrar.process_csv if extension == "csv" else registrar.process_sdf
+
     def row_generator():
         try:
             with io.TextIOWrapper(tmp, encoding="utf-8", newline="") as text_stream:
-                for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
+                for chunk_rows in processor(text_stream, chunk_size=5000):
                     registrar.register_all(chunk_rows)
                     yield registrar.output_rows.copy()
                     registrar.cleanup_chunk()
@@ -161,18 +164,23 @@ def process_registration(
 
 @router.post("/compounds/")
 def register_compounds(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
+    ext = file.filename.split(".")[-1].lower()
+    if ext not in ["csv", "sdf"]:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Only CSV or SDF allowed.")
+
     return process_registration(
         CompoundRegistrar,
-        csv_file,
+        file,
         mapping,
         error_handling,
         output_format,
+        ext,
         db,
     )
 
