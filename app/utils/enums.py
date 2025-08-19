@@ -67,6 +67,7 @@ class ErrorHandlingOptions(str, enum.Enum):
 class OutputFormat(str, enum.Enum):
     json = "json"
     csv = "csv"
+    sdf = "sdf"
 
 
 class SearchOutputFormat(str, enum.Enum):

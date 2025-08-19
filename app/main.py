@@ -154,10 +154,16 @@ def process_registration(
             tmp.close()
             registrar.cleanup()
 
+    media_type_map = {
+        "csv": "text/csv",
+        "json": "application/json",
+        "sdf": "chemical/x-mdl-sdfile",
+    }
+
     result_writer = StreamingResultWriter(output_format.value)
     return StreamingResponse(
         result_writer.stream_rows(row_generator()),
-        media_type="text/csv" if output_format.value == enums.OutputFormat.csv.value else "application/json",
+        media_type=media_type_map.get(output_format.value, "application/octet-stream"),
         headers={"Content-Disposition": f"attachment; filename=registration_result.{output_format.value}"},
     )
 
