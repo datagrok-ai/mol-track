@@ -86,7 +86,7 @@ def get_schema(db: Session = Depends(get_db)):
     return crud.get_entities_by_entity_type(db)
 
 
-@router.get("/static-fields/")
+@router.get("/schema-direct/")
 def get_static_fields():
     return [get_table_fields(table_name.value) for table_name in enums.SearchEntityType]
 
@@ -128,17 +128,20 @@ def get_schema_batch_synonyms(db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-virtual-compounds
 def process_registration(
     registrar_class: Type,
-    csv_file: UploadFile,
+    file: UploadFile,
     mapping: Optional[str],
     error_handling,
     output_format,
-    extension,
     db: Session,
 ):
+    extension = file.filename.split(".")[-1].lower()
+    if extension not in ["csv", "sdf"]:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Only CSV or SDF allowed.")
+
     registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling)
 
     tmp = tempfile.SpooledTemporaryFile(mode="w+b", max_size=50 * 1024 * 1024)
-    shutil.copyfileobj(csv_file.file, tmp)
+    shutil.copyfileobj(file.file, tmp)
     tmp.seek(0)
 
     processor = registrar.process_csv if extension == "csv" else registrar.process_sdf
@@ -176,17 +179,12 @@ def register_compounds(
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    ext = file.filename.split(".")[-1].lower()
-    if ext not in ["csv", "sdf"]:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Only CSV or SDF allowed.")
-
     return process_registration(
         CompoundRegistrar,
         file,
         mapping,
         error_handling,
         output_format,
-        ext,
         db,
     )
 
@@ -297,13 +295,13 @@ def delete_addition(addition_id: int, db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-batches
 @router.post("/batches/")
 def register_batches_v1(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(BatchRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(BatchRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.get("/batches/", response_model=List[models.BatchResponse])
@@ -406,13 +404,13 @@ def get_assay_by_id(assay_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_runs/")
 def create_assay_runs(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(AssayRunRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.get("/assay_runs/", response_model=list[models.AssayRunResponse])
@@ -431,13 +429,13 @@ def get_assay_run_by_id(assay_run_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_results/")
 def create_assay_results(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(AssayResultsRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.patch("/admin/update-standardization-config")

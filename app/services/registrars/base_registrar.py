@@ -81,41 +81,6 @@ class BaseRegistrar(ABC):
         if chunk:
             yield chunk
 
-    # TODO: Decide whether to use RDKit approach or the manual processing one by one
-    # def process_sdf(self, file_obj, chunk_size=5000) -> Iterator[List[Dict[str, Any]]]:
-    #     file_obj.seek(0)
-
-    #     if isinstance(file_obj, io.BytesIO) or isinstance(file_obj, io.BufferedIOBase):
-    #         supplier = Chem.ForwardSDMolSupplier(file_obj)
-    #     else:
-    #         supplier = Chem.ForwardSDMolSupplier(io.BytesIO(file_obj.read()))
-
-    #     chunk: List[Dict[str, Any]] = []
-
-    #     for mol in supplier:
-    #         if mol is None:
-    #             continue
-
-    #         row: Dict[str, Any] = {}
-
-    #         for prop_name in mol.GetPropNames():
-    #             row[prop_name] = mol.GetProp(prop_name)
-
-    #         row["smiles"] = Chem.MolToSmiles(mol)
-    #         row["original_molfile"] = Chem.MolToMolBlock(mol)
-
-    #         if self.user_mapping:
-    #             mapped_row = {self.normalized_mapping.get(k, k): v for k, v in row.items()}
-    #             chunk.append(mapped_row)
-    #         else:
-    #             chunk.append(row)
-
-    #         if len(chunk) >= chunk_size:
-    #             yield chunk
-    #             chunk = []
-    #     if chunk:
-    #         yield chunk
-
     def process_sdf(self, file_stream: io.TextIOBase, chunk_size=5000) -> Iterator[List[Dict[str, Any]]]:
         chunk: List[Dict[str, Any]] = []
         current_mol_lines: List[str] = []
