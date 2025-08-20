@@ -1,7 +1,15 @@
 {
    "smiles": "smiles",
-   "Chemical": "compound_details.common_name",
-   "CAS #": "compound_details.cas",
-   "epa_batch_id": "batch_details.epa_batch_id",
-   "epa_compound_id": "compound_details.epa_compound_id"
+   "Common Name": "compound_details.common_name",
+   "CAS": "compound_details.CAS",
+   "EPA Compound ID": "compound_details.EPA Compound ID",
+   "EPA Batch ID": "batch_details.EPA Batch ID",
+   "Source": "batch_details.Source",
+   "Source Batch Code": "batch_details.Source Batch Code",
+   "Acquired Date": "batch_details.Acquired Date",
+   "Synthesized Date": "batch_details.Synthesized Date",
+   "Responsible Party": "batch_details.Responsible Party",
+   "ELN Reference": "batch_details.ELN Reference",
+   "Purity": "batch_details.Purity",
+   "Project": "batch_details.Project"
 }

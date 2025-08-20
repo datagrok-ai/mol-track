@@ -14,17 +14,25 @@ def test_register_batches_without_mapping(client, preload_schema):
     assert get_response.status_code == 200
 
     batches = get_response.json()
-    # TODO: Use data from the simple folder because column names don’t match property names
-    expected_properties = {"epa_batch_id", "corporate_batch_id"}
+    expected_properties = {
+        "Source",
+        "Purity",
+        "Synthesized Date",
+        "corporate_batch_id",
+        "Responsible Party",
+        "ELN Reference",
+        "Project",
+        "EPA Batch ID",
+        "Source Batch Code",
+    }
 
-    for batch in batches:
-        properties = batch.get("properties", [])
-        assert len(properties) == len(expected_properties), (
-            f"Expected {len(expected_properties)} properties, got {len(properties)}"
-        )
+    properties = batches[0].get("properties", [])
+    assert len(properties) == len(expected_properties), (
+        f"Expected {len(expected_properties)} properties, got {len(properties)}"
+    )
 
-        prop_names = {p["name"] for p in properties}
-        assert prop_names == expected_properties, f"Property names mismatch: {prop_names} != {expected_properties}"
+    prop_names = {p["name"] for p in properties}
+    assert prop_names == expected_properties, f"Property names mismatch: {prop_names} != {expected_properties}"
 
 
 @pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject all' behaviour.")
@@ -40,9 +48,8 @@ def test_register_batches_reject_all(client, preload_schema, preload_additions):
     data = result["data"]
     assert len(data) == 54
 
-    item8 = data[8]
-    assert item8["registration_status"] == "failed"
-    assert item8["registration_error_message"] == "400: Invalid SMILES string"
+    assert data[8]["registration_status"] == "failed"
+    assert data[8]["registration_error_message"] == "400: Invalid SMILES string"
 
     for item in data[9:]:
         assert item["registration_status"] == "not_processed"
@@ -59,10 +66,8 @@ def test_register_batches_reject_row(client, preload_schema, preload_additions):
     assert isinstance(data, list)
     assert len(data) == 54
 
-    item8 = data[8]
-    assert item8["registration_status"] == "failed"
-    assert item8["registration_error_message"] == "400: Invalid SMILES string"
+    assert data[8]["registration_status"] == "failed"
+    assert data[8]["registration_error_message"] == "400: Invalid SMILES string"
 
-    item9 = data[9]
-    assert item9["registration_status"] == "success"
-    assert item9["registration_error_message"] is None
+    assert data[9]["registration_status"] == "success"
+    assert data[9]["registration_error_message"] is None

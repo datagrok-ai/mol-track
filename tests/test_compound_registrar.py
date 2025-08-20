@@ -65,8 +65,12 @@ def test_register_compounds_without_mapping(client, preload_schema):
         names = {p["name"] for p in properties}
         assert names == expected_props, f"[Compound {index}] Property names mismatch: {names} != {expected_props}"
 
-    assert_properties(compounds[0], {"epa_compound_id", "corporate_compound_id", "MolLogP"}, index=0)
-    assert_properties(compounds[8], {"epa_compound_id", "corporate_compound_id"}, index=8)
+    assert_properties(
+        compounds[0], {"EPA Compound ID", "corporate_compound_id", "MolLogP", "Source Compound Code", "CAS"}, index=0
+    )
+    assert_properties(
+        compounds[8], {"EPA Compound ID", "corporate_compound_id", "Source Compound Code", "CAS"}, index=8
+    )
 
 
 @pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject all' behaviour.")
@@ -124,8 +128,8 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     assert first["inchikey"] == "QQVIHTHCMHWDBS-UHFFFAOYSA-N"
 
     props = {p["name"]: p for p in first["properties"]}
-    assert props["epa_compound_id"]["value_string"] == "EPA-001"
-    assert props["cas"]["value_string"] == "121-91-5"
+    assert props["EPA Compound ID"]["value_string"] == "EPA-001"
+    assert props["CAS"]["value_string"] == "121-91-5"
     assert props["common_name"]["value_string"].strip() == "1,3-Benzenedicarboxylic acid"
     assert abs(props["MolLogP"]["value_num"] - 1.083) < 1e-3
 
@@ -146,7 +150,7 @@ def test_get_compound_by_id(client, preload_schema, preload_compounds):
 
     props = {p["name"]: p for p in result["properties"]}
 
-    assert props["epa_compound_id"]["value_string"] == "EPA-002"
-    assert props["cas"]["value_string"] == "1478-61-1"
+    assert props["EPA Compound ID"]["value_string"] == "EPA-002"
+    assert props["CAS"]["value_string"] == "1478-61-1"
     assert props["common_name"]["value_string"].strip() == "Bisphenol AF"
     assert abs(props["MolLogP"]["value_num"] - 4.5085) < 1e-3
