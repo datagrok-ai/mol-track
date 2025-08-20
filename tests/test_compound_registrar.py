@@ -66,10 +66,12 @@ def test_register_compounds_without_mapping(client, preload_schema):
         assert names == expected_props, f"[Compound {index}] Property names mismatch: {names} != {expected_props}"
 
     assert_properties(
-        compounds[0], {"EPA Compound ID", "corporate_compound_id", "MolLogP", "Source Compound Code", "CAS"}, index=0
+        compounds[0],
+        {"EPA Compound ID", "corporate_compound_id", "MolLogP", "Source Compound Code", "CAS", "Source"},
+        index=0,
     )
     assert_properties(
-        compounds[8], {"EPA Compound ID", "corporate_compound_id", "Source Compound Code", "CAS"}, index=8
+        compounds[8], {"EPA Compound ID", "corporate_compound_id", "Source Compound Code", "CAS", "Source"}, index=8
     )
 
 

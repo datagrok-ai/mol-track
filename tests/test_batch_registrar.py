@@ -15,7 +15,6 @@ def test_register_batches_without_mapping(client, preload_schema):
 
     batches = get_response.json()
     expected_properties = {
-        "Source",
         "Purity",
         "Synthesized Date",
         "corporate_batch_id",
