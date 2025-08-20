@@ -1,6 +1,6 @@
 import pytest
 from app.utils import enums
-from tests.conftest import BLACK_DIR, read_json, _preload_compounds
+from tests.conftest import BLACK_DIR, preload_entity, read_json, _preload_compounds
 
 
 def extract_name_entity_type(items):
@@ -156,3 +156,52 @@ def test_get_compound_by_id(client, preload_schema, preload_compounds):
     assert props["CAS"]["value_string"] == "1478-61-1"
     assert props["common_name"]["value_string"].strip() == "Bisphenol AF"
     assert abs(props["MolLogP"]["value_num"] - 4.5085) < 1e-3
+
+
+def test_compounds_input_sdf(client):
+    sdf_path = BLACK_DIR / "compounds.sdf"
+    response = preload_entity(
+        client,
+        "/v1/compounds/",
+        sdf_path,
+        mapping_path=None,
+        error_handling=enums.ErrorHandlingOptions.reject_row,
+        mime_type="chemical/x-mdl-sdfile",
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 54
+
+    first = data[0]
+    expected = {
+        "Common Name": "1,3-Benzenedicarboxylic acid",
+        "CAS": "121-91-5",
+        "EPA Compound ID": "EPA-001",
+        "MolLogP": "1.082999945",
+        "Source": "EPA",
+        "Source Compound Code": "EPA-001",
+        "registration_status": "success",
+        "registration_error_message": "",
+    }
+
+    for k, v in expected.items():
+        actual = first.get(k)
+        assert actual.strip() == v.strip(), f"Mismatch in field {k}: expected {v!r}, got {actual!r}"
+
+
+def test_compounds_output_sdf(client):
+    csv_path = BLACK_DIR / "compounds.csv"
+    response = preload_entity(
+        client,
+        "/v1/compounds/",
+        csv_path,
+        mapping_path=None,
+        error_handling=enums.ErrorHandlingOptions.reject_row,
+        output_format=enums.OutputFormat.sdf,
+    )
+
+    assert response.status_code == 200
+    assert "sdf" in response.headers["content-type"].lower()
+    assert "$$$$" in response.text

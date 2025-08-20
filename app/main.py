@@ -26,6 +26,7 @@ from sqlalchemy.sql import text
 from app.utils.logging_utils import logger
 from app.utils.admin_utils import admin
 from app.utils.chemistry_utils import get_molecule_standardization_config
+from app.utils.sql_utils import get_table_fields
 
 
 # Handle both package imports and direct execution
@@ -85,6 +86,11 @@ def get_schema(db: Session = Depends(get_db)):
     return crud.get_entities_by_entity_type(db)
 
 
+@router.get("/schema-direct/")
+def get_static_fields():
+    return [get_table_fields(table_name.value) for table_name in enums.SearchEntityType]
+
+
 @router.get("/schema/compounds", response_model=List[models.PropertyBase])
 def get_schema_compounds(db: Session = Depends(get_db)):
     return crud.get_entities_by_entity_type(db, enums.EntityType.COMPOUND)
@@ -122,22 +128,28 @@ def get_schema_batch_synonyms(db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-virtual-compounds
 def process_registration(
     registrar_class: Type,
-    csv_file: UploadFile,
+    file: UploadFile,
     mapping: Optional[str],
     error_handling,
     output_format,
     db: Session,
 ):
+    extension = file.filename.split(".")[-1].lower()
+    if extension not in ["csv", "sdf"]:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Only CSV or SDF allowed.")
+
     registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling)
 
     tmp = tempfile.SpooledTemporaryFile(mode="w+b", max_size=50 * 1024 * 1024)
-    shutil.copyfileobj(csv_file.file, tmp)
+    shutil.copyfileobj(file.file, tmp)
     tmp.seek(0)
+
+    processor = registrar.process_csv if extension == "csv" else registrar.process_sdf
 
     def row_generator():
         try:
             with io.TextIOWrapper(tmp, encoding="utf-8", newline="") as text_stream:
-                for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
+                for chunk_rows in processor(text_stream, chunk_size=5000):
                     registrar.register_all(chunk_rows)
                     yield registrar.output_rows.copy()
                     registrar.cleanup_chunk()
@@ -145,17 +157,23 @@ def process_registration(
             tmp.close()
             registrar.cleanup()
 
+    media_type_map = {
+        "csv": "text/csv",
+        "json": "application/json",
+        "sdf": "chemical/x-mdl-sdfile",
+    }
+
     result_writer = StreamingResultWriter(output_format.value)
     return StreamingResponse(
         result_writer.stream_rows(row_generator()),
-        media_type="text/csv" if output_format.value == enums.OutputFormat.csv.value else "application/json",
+        media_type=media_type_map.get(output_format.value, "application/octet-stream"),
         headers={"Content-Disposition": f"attachment; filename=registration_result.{output_format.value}"},
     )
 
 
 @router.post("/compounds/")
 def register_compounds(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
@@ -163,7 +181,7 @@ def register_compounds(
 ):
     return process_registration(
         CompoundRegistrar,
-        csv_file,
+        file,
         mapping,
         error_handling,
         output_format,
@@ -277,13 +295,13 @@ def delete_addition(addition_id: int, db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-batches
 @router.post("/batches/")
 def register_batches_v1(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(BatchRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(BatchRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.get("/batches/", response_model=List[models.BatchResponse])
@@ -386,13 +404,13 @@ def get_assay_by_id(assay_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_runs/")
 def create_assay_runs(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(AssayRunRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.get("/assay_runs/", response_model=list[models.AssayRunResponse])
@@ -411,13 +429,13 @@ def get_assay_run_by_id(assay_run_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_results/")
 def create_assay_results(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(AssayResultsRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.patch("/admin/update-standardization-config")

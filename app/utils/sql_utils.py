@@ -1,5 +1,6 @@
 from typing import List, Dict, Any
 from psycopg2.extensions import adapt
+from sqlmodel import SQLModel
 
 column_types = {
     "value_datetime": "timestamptz",
@@ -46,3 +47,16 @@ def generate_sql(*sql_parts: str, terminate_with_select: bool = True) -> str:
 def chunked(lst, size):
     for i in range(0, len(lst), size):
         yield lst[i : i + size]
+
+
+def get_table_fields(table_name: str) -> list[dict[str, Any]] | None:
+    table = SQLModel.metadata.tables.get(f"moltrack.{table_name}")
+    return [
+        {
+            "entity_type": table_name,
+            "name": col.name,
+            "type": str(col.type),
+            "default": col.default.arg if col.default is not None else None,
+        }
+        for col in table.columns
+    ]
