@@ -59,18 +59,17 @@ class BatchRegistrar(CompoundRegistrar):
 
     def get_additional_records(self, grouped, molregno):
         batch_record = self._build_batch_record(molregno)
-        self.batches_to_insert.append(batch_record)
-
         inserted, updated = self.property_service.build_details_records(
             models.BatchDetail,
             grouped.get("batch_details", {}),
             {"batch_regno": batch_record["batch_regno"]},
             enums.EntityType.BATCH,
         )
+        additions = self._build_batch_addition_record(grouped.get("batch_additions", {}), batch_record["batch_regno"])
+
+        self.batches_to_insert.append(batch_record)
         self.batch_details.extend(inserted)
-        self.batch_additions.extend(
-            self._build_batch_addition_record(grouped.get("batch_additions", {}), batch_record["batch_regno"])
-        )
+        self.batch_additions.extend(additions)
 
     def get_additional_cte(self):
         if not self.batches_to_insert:

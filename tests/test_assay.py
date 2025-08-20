@@ -57,9 +57,9 @@ def test_get_assay_run_by_id(client, preload_schema, preload_assays, preload_ass
     assert isinstance(details, list)
     assert len(details) == 3
 
-    detail_12 = next((d for d in details if d["property_id"] == 12), None)
-    assert detail_12 is not None
-    assert detail_12["value_string"] == "Human"
+    detail_22 = next((d for d in details if d["property_id"] == 22), None)
+    assert detail_22 is not None
+    assert detail_22["value_string"] == "Human"
 
     props = data.get("properties")
     assert isinstance(props, list)

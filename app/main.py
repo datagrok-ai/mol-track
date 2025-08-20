@@ -581,7 +581,7 @@ def update_institution_id_pattern(
         db.commit()
         return {
             "status": "success",
-            "message": f"Corporate ID pattern for {entity_type} updated to {pattern}, ids will be looking like {pattern.format(1)}",
+            "message": f"Corporate ID pattern for {entity_type.value} updated to {pattern}, ids will be looking like {pattern.format(1)}",
         }
     except Exception as e:
         db.rollback()

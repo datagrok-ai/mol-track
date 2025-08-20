@@ -145,7 +145,6 @@ class CompoundRegistrar(BaseRegistrar):
                 grouped = self._group_data(row)
                 compound_data = grouped.get("compound", {})
                 compound = self._build_compound_record(compound_data)
-                self.compounds_to_insert[compound["hash_mol"]] = compound
 
                 inserted, updated = self.property_service.build_details_records(
                     models.CompoundDetail,
@@ -155,11 +154,13 @@ class CompoundRegistrar(BaseRegistrar):
                     True,
                     self._compound_update_checker,
                 )
+                self.get_additional_records(grouped, compound["molregno"])
 
+                # Only add the resulting data after it has been fully processed
+                # to ensure that no partial or invalid data from this row gets registered.
+                self.compounds_to_insert[compound["hash_mol"]] = compound
                 details_to_insert.extend(inserted)
                 details_to_update.extend(updated)
-
-                self.get_additional_records(grouped, compound["molregno"])
                 self._add_output_row(row, "success")
             except Exception as e:
                 self.handle_row_error(row, e, idx, rows)

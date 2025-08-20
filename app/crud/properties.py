@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import List, Optional
-from sqlalchemy import insert
+from sqlalchemy import insert, tuple_
 from app import models
 from app.utils.admin_utils import admin
 
@@ -46,13 +46,25 @@ def bulk_create_if_not_exists(
         List[Dict[str, Any]]: List of inserted records.
     """
     reserved_names = ["smiles"]
-    input_names = [getattr(item, name_attr) for item in items]
-    existing_names = {
-        name
-        for (name,) in db.query(getattr(model_cls, name_attr))
-        .filter(getattr(model_cls, name_attr).in_(input_names))
-        .all()
-    }
+    has_entity_type = hasattr(model_cls, "entity_type")
+
+    def get_key(item):
+        if has_entity_type:
+            return (getattr(item, name_attr), getattr(item, "entity_type"))
+        return getattr(item, name_attr)
+
+    input_keys = [get_key(item) for item in items]
+
+    if has_entity_type:
+        existing_entities = set(
+            db.query(getattr(model_cls, name_attr), getattr(model_cls, "entity_type"))
+            .filter(tuple_(getattr(model_cls, name_attr), getattr(model_cls, "entity_type")).in_(input_keys))
+            .all()
+        )
+    else:
+        existing_entities = set(
+            db.query(getattr(model_cls, name_attr)).filter(getattr(model_cls, name_attr).in_(input_keys)).all()
+        )
 
     to_insert = []
     inserted_input_items = []
@@ -60,6 +72,7 @@ def bulk_create_if_not_exists(
 
     for item in items:
         item_name = getattr(item, name_attr)
+        item_key = get_key(item)
 
         if item_name in reserved_names:
             result.append(
@@ -67,7 +80,7 @@ def bulk_create_if_not_exists(
             )
             continue
 
-        if item_name in existing_names:
+        if item_key in existing_entities:
             result.append(item.model_dump() | {"status": "Skipped: already exists"})
             continue
 

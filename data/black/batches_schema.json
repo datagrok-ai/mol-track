@@ -1,18 +1,73 @@
 {
     "properties": [
         {
-            "name": "acquired_date",
+            "name": "Acquired Date",
             "entity_type": "batch",
             "property_class": "measured",
             "value_type": "datetime",
             "unit": ""
+        },
+        {
+            "name": "Source",
+            "entity_type": "batch",
+            "property_class": "declared",
+            "value_type": "string",
+            "unit": "",
+            "description": "The source of the batch, e.g. 'Enamine', 'E-Molecule', 'Sigma-Aldrich', 'ACME'"
+        },
+        {
+            "name": "Purity",
+            "entity_type": "batch",
+            "property_class": "measured",
+            "value_type": "double",
+            "unit": "%",
+            "description": "The purity of the batch, e.g. 99.9%"
+        },
+        {
+            "name": "Synthesized Date",
+            "entity_type": "batch",
+            "property_class": "declared",
+            "value_type": "datetime",
+            "unit": "",
+            "description": "The date the batch was synthesized, e.g. '2025-01-01'"
+        },
+        {
+            "name": "Responsible Party",
+            "entity_type": "batch",
+            "property_class": "declared",
+            "value_type": "string",
+            "unit": "",
+            "description": "The responsible party for the batch, e.g. 'chemist1', 'Sue Leader', 'Brad Buyer'"
+        },
+        {
+            "name": "ELN Reference",
+            "entity_type": "batch",
+            "property_class": "declared",
+            "value_type": "string",
+            "unit": "",
+            "description": "The ELN reference for the batch, e.g. 'cchemist-789-1'"
+        },
+        {
+            "name": "Project",
+            "entity_type": "batch",
+            "property_class": "declared",
+            "value_type": "string",
+            "unit": "",
+            "description": "The project the batch is part of, e.g. 'Project 1', 'Project 2'"
         }
     ],
     "synonym_types": [
         {
-            "name": "epa_batch_id",
+            "name": "EPA Batch ID",
             "entity_type": "batch",
-            "pattern": ""
+            "pattern": "",
+            "description": "The EPA assigned batch ID of the batch, e.g. '1234567890'"
+        },
+        {
+            "name": "Source Batch Code",
+            "entity_type": "batch",
+            "pattern": "",
+            "description": "The source batch code, e.g. '1234567890'"
         }
     ]
 }
