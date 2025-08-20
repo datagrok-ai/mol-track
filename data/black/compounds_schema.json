@@ -6,18 +6,28 @@
             "property_class": "calculated",
             "value_type": "double",
             "unit": ""
+        },
+        {
+            "name": "Source",
+            "entity_type": "compound",
+            "property_class": "declared",
+            "value_type": "string",
+            "unit": "",
+            "description": "The source of the compound, e.g. 'Enamine', 'E-Molecule', 'Sigma-Aldrich', 'ACME'"
         }
     ],
     "synonym_types": [
         {
-            "name": "epa_compound_id",
+            "name": "EPA Compound ID",
             "entity_type": "compound",
-            "pattern": ""
+            "pattern": "",
+            "description": "The EPA assignedcompound ID of the compound, e.g. '1234567890'"
         },
         {
-            "name": "cas",
+            "name": "CAS",
             "entity_type": "compound",
-            "pattern": "\\b[1-9]{1}[0-9]{1,6}-\\d{2}-\\d\\b"
+            "pattern": "\\b[1-9]{1}[0-9]{1,6}-\\d{2}-\\d\\b",
+            "description": "The CAS Registry Number of the compound, e.g. '1234567890'"
         },
         {
             "name": "common_name",
@@ -27,7 +37,20 @@
         {
             "name": "USAN",
             "entity_type": "compound",
-            "pattern": ""
+            "pattern": "",
+            "description": "The USAN name of the compound, e.g. '1-Methyl-4-phenylpyridinium chloride'"
+        },
+        {
+            "name": "Source Compound Code",
+            "entity_type": "compound",
+            "pattern": "",
+            "description": "The source compound code, e.g. '1234567890'"
+        },
+        {
+            "name": "IUPAC Name",
+            "entity_type": "compound",
+            "pattern": "",
+            "description": "The IUPAC name of the compound, e.g. '1-Methyl-4-phenylpyridinium chloride'"
         }
     ]
 }
