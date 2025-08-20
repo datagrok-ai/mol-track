@@ -17,7 +17,7 @@ from app import models
 from app import crud
 from app.services.registrars.writer import StreamingResultWriter
 from app.utils import enums
-from app.services.property_service import PropertyService
+from app.services.property_service.property_service import PropertyService
 from app.services.search.engine import SearchEngine
 from app.services.search.search_filter_builder import SearchFilterBuilder
 

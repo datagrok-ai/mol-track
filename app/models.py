@@ -416,6 +416,11 @@ class Property(PropertyResponse, table=True):
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
+    min: Optional[float] = Field(default=None)
+    max: Optional[float] = Field(default=None)
+    choices: Optional[str] = Field(default=None)
+    validators: Optional[str] = Field(default=None)
+
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
 

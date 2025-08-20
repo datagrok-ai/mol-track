@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy import inspect
+from app.services.property_service.property_validator import PropertyValidator
 from app.utils import type_casting_utils
 from app.utils.admin_utils import admin
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
@@ -61,6 +62,8 @@ class PropertyService:
             cast_fn = prop_info["cast_fn"]
             field_name = prop_info["field_name"]
             prop_id = getattr(prop, "id")
+
+            PropertyValidator.validate_value(value, prop)
 
             if prop_name in self.institution_synonym_dict.values() and not value:
                 value = prop.pattern.format(next(iter(entity_ids.values())))

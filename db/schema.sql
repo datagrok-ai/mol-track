@@ -46,6 +46,10 @@ CREATE TABLE moltrack.properties (
   unit text,
   entity_type text check (entity_type in ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_RUN', 'ASSAY_RESULT', 'SYSTEM')) NOT NULL,
   pattern text, -- regex for validating string value_type properties, e.g., identifier: CHEMBL.*
+  min float, -- minimum value for numeric properties
+  max float, -- maximum value for numeric properties
+  choices text, -- JSON-encoded list of choices. Applicable to string properties only
+  validators text, -- JSON-encoded list of validators. Applicable to string properties only
   UNIQUE(name, entity_type) -- Ensure unique property names within each entity_type
 );
 
