@@ -44,7 +44,6 @@ class AssayRunRegistrar(BaseRegistrar):
                 grouped = self._group_data(row, "assay")
                 assay_data = grouped.get("assay", {})
                 assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
-                self.assay_runs_to_insert.append(assay_run)
 
                 inserted, updated = self.property_service.build_details_records(
                     models.AssayRunDetail,
@@ -53,6 +52,8 @@ class AssayRunRegistrar(BaseRegistrar):
                     enums.EntityType.ASSAY_RUN,
                     False,
                 )
+
+                self.assay_runs_to_insert.append(assay_run)
                 details.extend(inserted)
                 self._add_output_row(row, "success")
             except Exception as e:

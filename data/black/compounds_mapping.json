@@ -3,5 +3,7 @@
    "MolLogP": "compound_details.MolLogP",
    "EPA Compound ID": "compound_details.EPA Compound ID",
    "CAS": "compound_details.CAS",
-   "Common Name": "compound_details.common_name"
+   "Common Name": "compound_details.common_name",
+   "Source": "compound_details.Source",
+   "Source Compound Code": "compound_details.Source Compound Code"
 }

@@ -135,7 +135,6 @@ class AssayResultsRegistrar(BaseRegistrar):
                 batch_id = getattr(batch_record, "id")
                 assay_run_id = getattr(assay_run_record, "id")
                 assay_result = self._build_assay_result_record(batch_id, assay_run_id)
-                self.assay_results_to_insert.append(assay_result)
 
                 inserted, updated = self.property_service.build_details_records(
                     models.AssayResultDetail,
@@ -144,6 +143,8 @@ class AssayResultsRegistrar(BaseRegistrar):
                     enums.EntityType.ASSAY_RESULT,
                     False,
                 )
+
+                self.assay_results_to_insert.append(assay_result)
                 details.extend(inserted)
                 self._add_output_row(row, "success")
             except Exception as e:
