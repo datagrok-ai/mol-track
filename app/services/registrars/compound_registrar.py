@@ -148,16 +148,20 @@ class CompoundRegistrar(BaseRegistrar):
                 grouped = self._group_data(row)
                 compound_data = grouped.get("compound", {})
                 compound = self._build_compound_record(compound_data)
+                molregno = compound["molregno"]
 
+                # This step is performed here specifically to attach corporate IDs to the output row
+                self.inject_corporate_property(row, grouped, molregno, enums.EntityType.COMPOUND)
                 inserted, updated = self.property_service.build_details_records(
                     models.CompoundDetail,
                     grouped.get("compound_details", {}),
-                    {"molregno": compound["molregno"]},
+                    {"molregno": molregno},
                     enums.EntityType.COMPOUND,
                     True,
                     self._compound_update_checker,
                 )
-                self.get_additional_records(grouped, compound["molregno"])
+
+                self.get_additional_records(row, grouped, molregno)
 
                 # Only add the resulting data after it has been fully processed
                 # to ensure that no partial or invalid data from this row gets registered.
@@ -261,11 +265,21 @@ class CompoundRegistrar(BaseRegistrar):
                 JOIN available_compounds ic ON d.molregno = ic.molregno
             )"""
 
-    def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
-        grouped = super()._group_data(row, entity_name)
-        value = self.property_service.institution_synonym_dict["compound_details"]
-        grouped.setdefault("compound_details", {})[value] = None
-        return grouped
+    def inject_corporate_property(
+        self, row: dict[str, Any], grouped: dict[str, Any], entity_value: str, entity_type: enums.EntityType
+    ):
+        entity_type_lower = entity_type.value.lower()
+        prop_name = f"corporate_{entity_type_lower}_id"
+        props = self.property_records_map.get(prop_name, [])
+
+        prop = next((p for p in props if p.entity_type == entity_type), None)
+        if not prop:
+            return
+
+        value = prop.pattern.format(entity_value)
+        row[prop_name] = value
+        details_key = f"{entity_type_lower}_details"
+        grouped.setdefault(details_key, {})[prop_name] = value
 
     def cleanup_chunk(self):
         super().cleanup_chunk()
@@ -281,5 +295,5 @@ class CompoundRegistrar(BaseRegistrar):
     def get_additional_cte(self):
         pass
 
-    def get_additional_records(self, grouped, molregno):
+    def get_additional_records(self, row, grouped, molregno):
         pass

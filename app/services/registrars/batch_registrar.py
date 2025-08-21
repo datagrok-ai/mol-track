@@ -59,15 +59,18 @@ class BatchRegistrar(CompoundRegistrar):
             )
         return records
 
-    def get_additional_records(self, grouped, molregno):
+    def get_additional_records(self, row, grouped, molregno):
         batch_record = self._build_batch_record(molregno)
+        batch_regno = batch_record["batch_regno"]
+
+        self.inject_corporate_property(row, grouped, batch_regno, enums.EntityType.BATCH)
         inserted, updated = self.property_service.build_details_records(
             models.BatchDetail,
             grouped.get("batch_details", {}),
-            {"batch_regno": batch_record["batch_regno"]},
+            {"batch_regno": batch_regno},
             enums.EntityType.BATCH,
         )
-        additions = self._build_batch_addition_record(grouped.get("batch_additions", {}), batch_record["batch_regno"])
+        additions = self._build_batch_addition_record(grouped.get("batch_additions", {}), batch_regno)
 
         self.batches_to_insert.append(batch_record)
         self.batch_details.extend(inserted)
@@ -118,12 +121,6 @@ class BatchRegistrar(CompoundRegistrar):
                 FROM (VALUES {values_sql}) AS ba(batch_regno, {", ".join(cols_without_key)})
                 JOIN inserted_batches ib ON ba.batch_regno = ib.batch_regno
             )"""
-
-    def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
-        grouped = super()._group_data(row, entity_name)
-        value = self.property_service.institution_synonym_dict["batch_details"]
-        grouped.setdefault("batch_details", {})[value] = None
-        return grouped
 
     def cleanup_chunk(self):
         super().cleanup_chunk()

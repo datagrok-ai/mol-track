@@ -8,13 +8,6 @@ from typing import Callable, Dict, Any, List, Optional, Tuple, Type
 class PropertyService:
     def __init__(self, property_records_map: Dict[str, Any]):
         self.property_records_map = property_records_map
-        self.institution_synonym_dict = self._load_institution_synonym_dict()
-
-    def _load_institution_synonym_dict(self) -> Dict[str, Any]:
-        return {
-            "compound_details": "corporate_compound_id",
-            "batch_details": "corporate_batch_id",
-        }
 
     def get_property_info(self, prop_name: str, entity_type: enums.EntityType) -> Dict[str, Any]:
         props = self.property_records_map.get(prop_name)
@@ -63,10 +56,6 @@ class PropertyService:
             cast_fn = prop_info["cast_fn"]
             field_name = prop_info["field_name"]
             prop_id = getattr(prop, "id")
-
-            if prop_name in self.institution_synonym_dict.values() and not value:
-                value = prop.pattern.format(next(iter(entity_ids.values())))
-                properties[prop_name] = value
 
             if value in ("", "none", None):
                 continue
