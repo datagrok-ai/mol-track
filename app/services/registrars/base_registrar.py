@@ -32,10 +32,12 @@ class BaseRegistrar(ABC):
         self.user_mapping = self._load_mapping(mapping)
         self.output_rows = []
 
+        self.entity_type = None
+
     @property
     def property_records_map(self):
         if self._property_records_map is None:
-            self._property_records_map = self._load_reference_map(models.Property, "name")
+            self._property_records_map = self._load_reference_map(models.Property, "name", allow_list=True)
         return self._property_records_map
 
     @property
@@ -143,18 +145,23 @@ class BaseRegistrar(ABC):
             raise HTTPException(status_code=400, detail="SDF file is empty or invalid")
 
     def _assign_column(self, col: str) -> str:
-        if col in self.property_records_map:
-            entity_type = getattr(self.property_records_map[col], "entity_type", None)
-            prefix = {
-                enums.EntityType.COMPOUND: "compound_details",
-                enums.EntityType.BATCH: "batch_details",
-                enums.EntityType.ASSAY_RUN: "assay_run_details",
-                enums.EntityType.ASSAY_RESULT: "assay_result_details",
-            }.get(entity_type)
+        prefix_base = {
+            enums.EntityType.COMPOUND: "compound_details",
+            enums.EntityType.BATCH: "batch_details",
+            enums.EntityType.ASSAY_RUN: "assay_run_details",
+            enums.EntityType.ASSAY_RESULT: "assay_result_details",
+        }
+
+        records = self.property_records_map.get(col)
+        if records:
+            entity_types = {r.entity_type for r in records}
+            prefix_key = self.entity_type if self.entity_type in entity_types else next(iter(entity_types), None)
+            prefix = prefix_base.get(prefix_key)
             return f"{prefix}.{col}" if prefix else col
 
         if col in self.addition_records_map:
             return f"batch_additions.{col}"
+
         return col
 
     def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
@@ -171,9 +178,16 @@ class BaseRegistrar(ABC):
 
     # === Reference loading methods ===
 
-    def _load_reference_map(self, model, key: str = "id"):
+    def _load_reference_map(self, model, key: str = "id", allow_list: bool = False):
         result = self.db.execute(select(model)).scalars().all()
-        return {getattr(row, key): row for row in result}
+        if allow_list:
+            reference_map = {}
+            for row in result:
+                k = getattr(row, key)
+                reference_map.setdefault(k, []).append(row)
+            return reference_map
+        else:
+            return {getattr(row, key): row for row in result}
 
     def model_to_dict(self, obj):
         return {c.key: getattr(obj, c.key) for c in obj.__table__.columns}

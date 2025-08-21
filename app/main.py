@@ -345,7 +345,9 @@ def delete_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#assay-data-domain
 @router.post("/assays")
 def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(get_db)):
-    all_properties = {p.name: p for p in crud.get_properties(db)}
+    all_properties = {}
+    for p in crud.get_properties(db):
+        all_properties.setdefault(p.name, []).append(p)
     property_service = PropertyService(all_properties)
 
     assays_to_insert = [

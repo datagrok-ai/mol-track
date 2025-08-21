@@ -23,6 +23,7 @@ def test_register_batches_without_mapping(client, preload_schema):
         "Project",
         "EPA Batch ID",
         "Source Batch Code",
+        "Source",
     }
 
     properties = batches[0].get("properties", [])

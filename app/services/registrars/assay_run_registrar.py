@@ -14,6 +14,7 @@ class AssayRunRegistrar(BaseRegistrar):
         super().__init__(db, mapping, error_handling)
         self._assay_records_map = None
         self.assay_runs_to_insert = []
+        self.entity_type = enums.EntityType.ASSAY_RUN
 
     @property
     def assay_records_map(self):

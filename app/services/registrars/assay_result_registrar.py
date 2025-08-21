@@ -14,6 +14,7 @@ class AssayResultsRegistrar(BaseRegistrar):
     def __init__(self, db: Session, mapping: Optional[Dict[str, str]], error_handling: str):
         super().__init__(db, mapping, error_handling)
         self.assay_results_to_insert = []
+        self.entity_type = enums.EntityType.ASSAY_RESULT
 
     def _check_single_result(self, results: list, error_context: str):
         if len(results) == 0:

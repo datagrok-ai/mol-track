@@ -18,6 +18,8 @@ class BatchRegistrar(CompoundRegistrar):
         self.batch_details = []
         self.batch_additions = []
 
+        self.entity_type = enums.EntityType.BATCH
+
     @property
     def additions_map(self):
         if self._additions_map is None:

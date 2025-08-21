@@ -25,6 +25,8 @@ class CompoundRegistrar(BaseRegistrar):
         self.matching_setting = self._load_matching_setting()
         self.normalized_mapping = {}
 
+        self.entity_type = enums.EntityType.COMPOUND
+
     @property
     def compound_records_map(self) -> Dict[str, models.Compound]:
         if self._compound_records_map is None:

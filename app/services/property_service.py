@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy import inspect
-from app.utils import type_casting_utils
+from app.utils import type_casting_utils, enums
 from app.utils.admin_utils import admin
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
 
@@ -16,19 +16,21 @@ class PropertyService:
             "batch_details": "corporate_batch_id",
         }
 
-    def get_property_info(self, prop_name: str, entity_type: str) -> Dict[str, Any]:
-        prop = self.property_records_map.get(prop_name)
-        if prop is None:
+    def get_property_info(self, prop_name: str, entity_type: enums.EntityType) -> Dict[str, Any]:
+        props = self.property_records_map.get(prop_name)
+        if not props:
             raise HTTPException(status_code=400, detail=f"Unknown property: {prop_name}")
 
-        retieved_entity_type = getattr(prop, "entity_type", None)
-        if retieved_entity_type != entity_type:
+        matching_prop = next((p for p in props if getattr(p, "entity_type", None) == entity_type), None)
+
+        if not matching_prop:
+            existing_types = [getattr(p, "entity_type", None) for p in props]
             raise HTTPException(
                 status_code=400,
-                detail=f"Property '{prop_name}' has entity_type '{retieved_entity_type}', expected '{entity_type}'",
+                detail=f"Property '{prop_name}' has entity_type(s) {existing_types}, expected '{entity_type.value}'",
             )
 
-        value_type = getattr(prop, "value_type", None)
+        value_type = getattr(matching_prop, "value_type", None)
         if (
             value_type not in type_casting_utils.value_type_to_field
             or value_type not in type_casting_utils.value_type_cast_map
@@ -36,7 +38,7 @@ class PropertyService:
             raise HTTPException(status_code=400, detail=f"Unsupported or unknown value type for property: {prop_name}")
 
         return {
-            "property": prop,
+            "property": matching_prop,
             "value_type": value_type,
             "field_name": type_casting_utils.value_type_to_field[value_type],
             "cast_fn": type_casting_utils.value_type_cast_map[value_type],
@@ -48,7 +50,7 @@ class PropertyService:
         model: Type,
         properties: Dict[str, Any],
         entity_ids: Dict[str, Any],
-        entity_type: str,
+        entity_type: enums.EntityType,
         include_user_fields: bool = True,
         update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
