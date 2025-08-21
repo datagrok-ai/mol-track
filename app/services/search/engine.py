@@ -6,7 +6,7 @@ from app.services.search.query_builder import QueryBuilder, QueryBuildError
 from sqlalchemy import text
 from app.setup.database import DB_SCHEMA
 from app.services.search.operators import SearchOperators
-from app.services.search.utils.helper_functions import sanitize_field_name, prepare_search_output
+from app.services.search.utils.helper_functions import create_alias_mapping, prepare_search_output
 from app.models import Level
 
 
@@ -46,7 +46,7 @@ class SearchEngine:
             self.prepare_output_fields(request)
 
             # Build the SQL query
-            query_info = self.query_builder.build_query(request)
+            query_info = self.query_builder.build_query(request, self.output_aliases)
 
             # Execute main query
             results, headers = self._execute_main_query(query_info["sql"], query_info["params"])
@@ -92,16 +92,8 @@ class SearchEngine:
         if not request.output:
             raise SearchEngineError("Output fields cannot be empty")
 
-        if f"{request.level}.id" not in request.output:
-            request.output.insert(0, f"{request.level}.id")
         columns = [field.lower() for field in request.output]
-        self.output_aliases = {sanitize_field_name(field): field for field in columns}
-        self.output_aliases.update(
-            {
-                sanitize_field_name(agg.field, agg.operation): f"{agg.operation.value}({agg.field})"
-                for agg in request.aggregations
-            }
-        )
+        self.output_aliases = create_alias_mapping(columns, request.aggregations)
 
     def _validate_filter(self, filter_obj: models.Filter, level: Level, path: str = "filter") -> List[str]:
         """Recursively validate filter conditions"""
@@ -141,7 +133,7 @@ class SearchEngine:
 
             # Get column names from result
             if result.returns_rows:
-                headers = [self.output_aliases[item] for item in list(result.keys())]
+                headers = [self.output_aliases[item][0] for item in list(result.keys())]
                 rows = result.fetchall()
                 return rows, headers
             else:

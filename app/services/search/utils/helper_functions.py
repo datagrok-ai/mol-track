@@ -3,13 +3,27 @@ from datetime import datetime
 from io import BytesIO, StringIO
 import json
 import re
-from typing import Any, List
+from typing import Any, Dict, List
 from fastapi import Response
 import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.models import Level
+from app.models import Level, Aggregation
 from app.utils import enums
+
+
+def create_alias_mapping(columns: List[str], aggregations: List[Aggregation]) -> Dict[str, str]:
+    output_aliases = {sanitize_field_name(field): (field, (field, None)) for field in columns}
+    output_aliases.update(
+        {
+            sanitize_field_name(agg.field, agg.operation): (
+                f"{agg.operation.value}({agg.field})",
+                (agg.field, agg.operation.value),
+            )
+            for agg in aggregations
+        }
+    )
+    return output_aliases
 
 
 def create_alias(table: Level) -> str:
