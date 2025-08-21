@@ -32,6 +32,7 @@ class BaseRegistrar(ABC):
         self.user_mapping = self._load_mapping(mapping)
         self.output_rows = []
 
+        self.stop_registration = False
         self.entity_type = None
 
     @property
@@ -213,6 +214,16 @@ class BaseRegistrar(ABC):
                 logger.error(f"An exception occurred: {e}")
                 self.db.rollback()
 
+    def _process_row(self, row: Dict[str, Any], process_func):
+        if self.stop_registration:
+            self._add_output_row(row, "not_processed")
+
+        try:
+            process_func(row)
+            self._add_output_row(row, "success")
+        except Exception as e:
+            self.handle_row_error(row, e)
+
     # === Output formatting methods ===
 
     def _add_output_row(self, row, status, error_msg=None):
@@ -233,9 +244,7 @@ class BaseRegistrar(ABC):
 
     # === Error handling methods ===
 
-    def handle_row_error(self, row, exception, global_idx, all_rows):
+    def handle_row_error(self, row, exception):
         self._add_output_row(row, "failed", str(exception))
         if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
-            for remaining_row in all_rows[global_idx + 1 :]:
-                self._add_output_row(remaining_row, "not_processed")
-            raise HTTPException(status_code=400, detail="Registration failed. See the output file for details.")
+            self.stop_registration = True

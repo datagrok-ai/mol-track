@@ -143,7 +143,8 @@ class CompoundRegistrar(BaseRegistrar):
         details_to_insert, details_to_update = [], []
 
         for idx, row in enumerate(rows):
-            try:
+
+            def process_row(row):
                 grouped = self._group_data(row)
                 compound_data = grouped.get("compound", {})
                 compound = self._build_compound_record(compound_data)
@@ -163,9 +164,8 @@ class CompoundRegistrar(BaseRegistrar):
                 self.compounds_to_insert[compound["hash_mol"]] = compound
                 details_to_insert.extend(inserted)
                 details_to_update.extend(updated)
-                self._add_output_row(row, "success")
-            except Exception as e:
-                self.handle_row_error(row, e, idx, rows)
+
+            self._process_row(row, process_row)
 
         extra_sql = self.get_additional_cte()
         all_compounds_list = list(self.compounds_to_insert.values())

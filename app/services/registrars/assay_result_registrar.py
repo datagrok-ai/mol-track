@@ -126,7 +126,8 @@ class AssayResultsRegistrar(BaseRegistrar):
         details = []
 
         for idx, row in enumerate(rows):
-            try:
+
+            def process_row(row):
                 grouped = self._group_data(row, "assay")
                 batch_record = self._lookup_batch_by_details(grouped.get("batch_details"))
                 assay_run_record = self._lookup_assay_run_by_details(
@@ -147,9 +148,8 @@ class AssayResultsRegistrar(BaseRegistrar):
 
                 self.assay_results_to_insert.append(assay_result)
                 details.extend(inserted)
-                self._add_output_row(row, "success")
-            except Exception as e:
-                self.handle_row_error(row, e, idx, rows)
+
+            self._process_row(row, process_row)
 
         if self.assay_results_to_insert:
             batch_sql = self.generate_sql(self.assay_results_to_insert, details)
