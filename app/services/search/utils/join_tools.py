@@ -19,7 +19,7 @@ class JoinOrderingTool:
 
     def add(self, joins: List[str], keys: List[str]) -> bool:
         for i in range(len(joins)):
-            if keys[i] not in self.keys:
+            if keys[i] not in self.keys or (keys[i] == "properties" and joins[i] not in self.joins):
                 self.keys.append(keys[i])
                 self.joins.append(joins[i])
 

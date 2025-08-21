@@ -88,6 +88,10 @@ class LogicOp(str, enum.Enum):
     AND = "AND"
     OR = "OR"
 
+    @classmethod
+    def _missing_(cls, value):
+        return lowercase_enum_values(cls, value)
+
 
 class CompareOp(str, enum.Enum):
     """Comparison operators for atomic conditions"""
@@ -118,6 +122,10 @@ class CompareOp(str, enum.Enum):
     IS_SUBSTRUCTURE_OF = "IS SUBSTRUCTURE OF"
     HAS_SUBSTRUCTURE = "HAS SUBSTRUCTURE"
 
+    @classmethod
+    def _missing_(cls, value):
+        return lowercase_enum_values(cls, value)
+
 
 class OperatorType(enum.Enum):
     """Types of operators for different data types"""
@@ -135,3 +143,49 @@ class SettingName(str, enum.Enum):
     BATCH_SEQUENCE_START = "BATCH_SEQUENCE_START"
     CORPORATE_COMPOUND_ID_PATTERN = "CORPORATE_COMPOUND_ID_PATTERN"
     CORPORATE_BATCH_ID_PATTERN = "CORPORATE_BATCH_ID_PATTERN"
+
+
+class AggregationNumericOp(str, enum.Enum):
+    FIRST = "FIRST"
+    TOTAL_COUNT = "COUNT"
+    VALUE_COUNT = "VALUES"
+    UNIQUE_COUNT = "UNIQUE"
+    MISSING_VALUE_COUNT = "NULLS"
+    MIN = "MIN"
+    MAX = "MAX"
+    SUM = "SUM"
+    MED = "MED"
+    AVG = "AVG"
+    STDEV = "STDEV"
+    VARIANCE = "VARIANCE"
+    SKEW = "SKEW"
+    KURT = "KURT"
+    Q1 = "Q1"
+    Q2 = "Q2"
+    Q3 = "Q3"
+
+    @classmethod
+    def _missing_(cls, value):
+        return lowercase_enum_values(cls, value)
+
+
+class AggregationStringOp(str, enum.Enum):
+    CONCAT_ALL = "CONCAT ALL"
+    CONCAT_UNIQUE = "CONCAT UNIQUE"
+    LONGEST = "LONGEST"
+    SHORTEST = "SHORTEST"
+    MOST_FREQUENT = "MOST FREQUENT"
+    CONCAT_COUNTS = "CONCAT COUNTS"
+
+    @classmethod
+    def _missing_(cls, value):
+        return lowercase_enum_values(cls, value)
+
+
+def lowercase_enum_values(enum_class, value):
+    if isinstance(value, str):
+        v_norm = value.strip().upper()
+        for member in enum_class:
+            if member.value == v_norm:
+                return member
+    return None

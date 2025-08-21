@@ -171,20 +171,18 @@ class FieldResolver:
             subquery_sql = f"SELECT 1 FROM {self.db_schema}.{cross_from} {subquery_alias} {joins_sql} "
 
         sql_expression = self.get_details_sql(table_config["table"], property_alias, alias)
-        sql_agg_expression = (
-            f"MAX({sql_expression}) FILTER (WHERE LOWER({property_alias}.name) = LOWER('{property_name}'))"
-        )
         return {
-            "sql_expression": sql_agg_expression,
+            "sql_expression": sql_expression,
             "sql_field": sql_expression,
             "is_dynamic": True,
-            "property_info": {"name": property_name, "table": table},
+            "property_name": f"{property_alias}.name",
+            "property_alias": f"{property_alias}_name",
             "table_alias": alias,
-            "value_column": "dynamic",
-            "property_filter": f"LOWER({property_alias}.name) = LOWER('{property_name}')",
+            "property_filter": f"LOWER({property_alias}_name) = LOWER('{property_name}')",
             "subquery": {
                 "sql": subquery_sql,
                 "alias": subquery_alias if subquery else "",
+                "property_filter": f"LOWER({property_alias}.name) = LOWER('{property_name}')",
             },
         }
 
@@ -214,9 +212,7 @@ class FieldResolver:
             ),
             "sql_field": "",
             "is_dynamic": False,
-            "property_info": None,
             "table_alias": table_config["alias"],
-            "value_column": table_config["direct_fields"][property_name],
             "property_filter": None,
             "subquery": {
                 "sql": subquery_sql,

@@ -25,6 +25,10 @@ valid_filter = {
 
 valid_output_compounds = ["compounds.molregno", "compounds.details.corporate_compound_id"]
 valid_output_batches = ["batches.batch_regno", "batches.details.corporate_batch_id"]
+valid_aggregations = [
+    {"field": "assay_results.details.ic50", "operation": "AVG"},
+    {"field": "assay_results.details.ic50", "operation": "COUNT"},
+]
 
 
 @pytest.mark.usefixtures("preload_simple_data")
@@ -33,6 +37,7 @@ def test_valid_json_compounds(client):
         "v1/search/compounds",
         json={
             "output": valid_output_compounds,
+            "aggregations": valid_aggregations,
             "filter": valid_filter,
             "output_format": enums.SearchOutputFormat.json.value,
         },
@@ -45,7 +50,14 @@ def test_valid_json_compounds(client):
     content = json.loads(content)
 
     assert content["total_count"] == 2
-    assert content["columns"] == valid_output_compounds
+
+    for column in valid_output_compounds:
+        assert column in content["columns"], f"Column {column} not found in response"
+
+    for aggregation in valid_aggregations:
+        op = aggregation["operation"]
+        field = aggregation["field"]
+        assert f"{op}({field})" in content["columns"], f"Aggregation field {aggregation['field']} not found in response"
 
     details = [
         content["data"][0]["compounds.details.corporate_compound_id"],
