@@ -1,7 +1,7 @@
 import json
 from typing import Any
 from app import models
-from app.services.property_service.numeric_matcher import NumericMatcher
+from app.services.property_service.simple_validator import SimpleValidator
 
 
 class PropertyValidator:
@@ -36,7 +36,7 @@ class PropertyValidator:
 
         validators = json.loads(property.validators.replace("'", '"'))
         for validator in validators:
-            matcher = NumericMatcher.parse(validator)
+            matcher = SimpleValidator.parse(validator)
             if matcher:
                 if not matcher.match(coerced_value):
                     raise ValueError(f"Value '{coerced_value}' does not satisfy the validator: {validator}")

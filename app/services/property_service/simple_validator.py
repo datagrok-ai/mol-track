@@ -2,7 +2,7 @@ import re
 from typing import List, Optional, Union
 
 
-class NumericMatcher:
+class SimpleValidator:
     # Operators
     NONE = "none"
     EQUALS = "="
@@ -36,44 +36,44 @@ class NumericMatcher:
         self.values = values or []
 
     @staticmethod
-    def parse(query: str) -> Optional["NumericMatcher"]:
+    def parse(query: str) -> Optional["SimpleValidator"]:
         query = query.strip()
         if not query:
-            return NumericMatcher(NumericMatcher.NONE)
+            return SimpleValidator(SimpleValidator.NONE)
 
         # Simple numeric → equals
         try:
             x = float(query)
-            return NumericMatcher(NumericMatcher.EQUALS, x)
+            return SimpleValidator(SimpleValidator.EQUALS, x)
         except ValueError:
             pass
 
         # Unary operators (=, !=, >, <, etc.)
-        match = NumericMatcher.unaryRegex.search(query)
+        match = SimpleValidator.unaryRegex.search(query)
         if match:
             op = match.group(1)
             rest = query[match.end() :].strip()
 
-            if op in (NumericMatcher.IN, NumericMatcher.NOT_IN):
-                match_values = NumericMatcher.inRegex.search(rest)
+            if op in (SimpleValidator.IN, SimpleValidator.NOT_IN):
+                match_values = SimpleValidator.inRegex.search(rest)
                 if match_values:
                     values = [float(s.strip()) for s in match_values.group(1).split(",")]
-                    return NumericMatcher(op, values=values)
+                    return SimpleValidator(op, values=values)
             else:
-                match_value = NumericMatcher.numRegex.match(rest)
+                match_value = SimpleValidator.numRegex.match(rest)
                 if match_value:
                     v1 = float(match_value.group(0))
-                    return NumericMatcher(op, v1=v1)
+                    return SimpleValidator(op, v1=v1)
 
         # Range like 5-10
-        range_match = NumericMatcher.rangeRegex.search(query)
+        range_match = SimpleValidator.rangeRegex.search(query)
         if range_match:
-            return NumericMatcher(NumericMatcher.RANGE, float(range_match.group(1)), float(range_match.group(2)))
+            return SimpleValidator(SimpleValidator.RANGE, float(range_match.group(1)), float(range_match.group(2)))
 
         # Null check
-        null_match = NumericMatcher.isNullRegex.match(query.lower())
+        null_match = SimpleValidator.isNullRegex.match(query.lower())
         if null_match:
-            return NumericMatcher(null_match.group(1))
+            return SimpleValidator(null_match.group(1))
 
         return None
 
