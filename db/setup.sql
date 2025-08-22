@@ -32,7 +32,7 @@ with ADMIN AS (
 STYPE AS (
   SELECT id FROM moltrack.semantic_types WHERE name = 'Synonym'
 )
-INSERT INTO moltrack.properties (created_by, updated_by, name, description, value_type, semantic_type_id, property_class, entity_type, pattern)
+INSERT INTO moltrack.properties (created_by, updated_by, name, description, value_type, semantic_type_id, property_class, entity_type, pattern, friendly_name)
 VALUES (
   (SELECT id FROM ADMIN),
   (SELECT id FROM ADMIN),
@@ -40,7 +40,8 @@ VALUES (
   'string', 
   (SELECT id FROM STYPE), 
   'DECLARED', 'COMPOUND',
-  (SELECT value FROM moltrack.settings WHERE name = 'corporate_compound_id_pattern')
+  (SELECT value FROM moltrack.settings WHERE name = 'corporate_compound_id_pattern'),
+  'Grok ID'
 ), (
   (SELECT id FROM ADMIN),
   (SELECT id FROM ADMIN),
@@ -48,7 +49,8 @@ VALUES (
   'string', 
   (SELECT id FROM STYPE), 
   'DECLARED', 'BATCH',
-  (SELECT value FROM moltrack.settings WHERE name = 'corporate_batch_id_pattern')
+  (SELECT value FROM moltrack.settings WHERE name = 'corporate_batch_id_pattern'),
+  'Grok Batch ID'
 );
 
 INSERT INTO moltrack.settings (name, value, description)

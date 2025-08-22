@@ -227,6 +227,7 @@ class PropertyBase(SQLModel):
     entity_type: enums.EntityType = Field(sa_column=Column(Enum(enums.EntityType), nullable=False))
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
     pattern: Optional[str] = Field(default=None)
+    friendly_name: Optional[str] = Field(default=None)
 
 
 class PropertyWithValue(PropertyBase):

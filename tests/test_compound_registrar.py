@@ -67,11 +67,13 @@ def test_register_compounds_without_mapping(client, preload_schema):
 
     assert_properties(
         compounds[0],
-        {"EPA Compound ID", "corporate_compound_id", "MolLogP", "Source Compound Code", "CAS", "Source"},
+        {"EPA Compound ID", "corporate_compound_id", "MolLogP", "Source Compound Code", "CAS", "Source", "Common Name"},
         index=0,
     )
     assert_properties(
-        compounds[8], {"EPA Compound ID", "corporate_compound_id", "Source Compound Code", "CAS", "Source"}, index=8
+        compounds[8],
+        {"EPA Compound ID", "corporate_compound_id", "Source Compound Code", "CAS", "Source", "Common Name"},
+        index=8,
     )
 
 
@@ -132,7 +134,7 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     props = {p["name"]: p for p in first["properties"]}
     assert props["EPA Compound ID"]["value_string"] == "EPA-001"
     assert props["CAS"]["value_string"] == "121-91-5"
-    assert props["common_name"]["value_string"].strip() == "1,3-Benzenedicarboxylic acid"
+    assert props["Common Name"]["value_string"].strip() == "1,3-Benzenedicarboxylic acid"
     assert abs(props["MolLogP"]["value_num"] - 1.083) < 1e-3
 
 
@@ -154,7 +156,7 @@ def test_get_compound_by_id(client, preload_schema, preload_compounds):
 
     assert props["EPA Compound ID"]["value_string"] == "EPA-002"
     assert props["CAS"]["value_string"] == "1478-61-1"
-    assert props["common_name"]["value_string"].strip() == "Bisphenol AF"
+    assert props["Common Name"]["value_string"].strip() == "Bisphenol AF"
     assert abs(props["MolLogP"]["value_num"] - 4.5085) < 1e-3
 
 
