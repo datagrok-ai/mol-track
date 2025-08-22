@@ -1,0 +1,92 @@
+from datetime import datetime
+from typing import Mapping, List, Any
+from cel import evaluate, Context
+import re
+
+
+class ComplexValidationError(ValueError):
+    """Raised when a record does not satisfy a validation expression."""
+
+
+class ComplexValidator:
+    """
+    Validates entire records (multi-field objects) using CEL expressions.
+    Rules can use placeholders like ${field}, ${field}.length, is null, etc.
+    """
+
+    @classmethod
+    def validate_record(cls, record: Mapping[str, Any], rules: List[str] = None) -> None:
+        """
+        Validate a record against a list of CEL rules.
+        Raises RecordValidationError if any rule fails.
+        """
+        if not rules:
+            return
+            # rules = ["matches(${COMPOUND_detail_name_2}, r'^mock') && ${BATCH_detail_name_2} > 600"]
+            # rules = ["(${val_string} == 'danica' && ${val_int} == 2) || (${val_string} == 'danikia' && ${val_int} == 3)"]
+        safe_ctx = cls._sanitize_context(record)
+        ctx = cls._build_context(safe_ctx)
+
+        for raw_expr in rules:
+            expr = cls._preprocess(raw_expr)
+            try:
+                result = evaluate(expr, ctx)
+            except Exception as e:
+                raise ComplexValidationError(
+                    f"Error while evaluating rule '{raw_expr}' (translated to '{expr}'): {e}"
+                ) from e
+
+            if not bool(result):
+                raise ComplexValidationError(f"Record does not satisfy rule: {raw_expr}")
+
+    # ------------------------
+    # Internal helpers
+    # ------------------------
+    @staticmethod
+    def _sanitize_context(record: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Convert record values into JSON-serializable primitives."""
+        safe_ctx = {}
+        for k, v in record.items():
+            if isinstance(v, (str, int, float, bool)) or v is None:
+                safe_ctx[k] = v
+            else:
+                safe_ctx[k] = str(v)
+        return safe_ctx
+
+    @staticmethod
+    def _build_context(record: Mapping[str, Any]) -> Context:
+        """
+        Build a CEL Context with custom functions.
+        """
+        ctx = Context(record)
+
+        # size(value) → length of string or list
+        ctx.add_function("size", lambda x: len(x) if x is not None else 0)
+
+        # matches(value, pattern) → regex match
+        ctx.add_function("matches", lambda val, pat: re.match(pat, val) is not None)
+
+        # today() → current date as ISO string
+        ctx.add_function("today", lambda: datetime.today().date().isoformat())
+
+        # date(str) → convert string to date object
+        ctx.add_function("date", lambda s: datetime.fromisoformat(s).date())
+
+        return ctx
+
+    @staticmethod
+    def _preprocess(expr: str) -> str:
+        """Translate DSL-style expressions into CEL syntax."""
+        # ${field} → field
+        expr = re.sub(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}", r"\1", expr)
+
+        # ${field}.length → size(field)
+        expr = re.sub(r"([a-zA-Z_][a-zA-Z0-9_]*)\.length", r"size(\1)", expr)
+
+        # is null → == null
+        expr = re.sub(r"([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+null", r"\1 == null", expr)
+
+        # is not null → != null
+        expr = re.sub(r"([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+not\s+null", r"\1 != null", expr)
+
+        return expr.strip()

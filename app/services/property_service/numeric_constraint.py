@@ -2,7 +2,7 @@ import re
 from typing import List, Optional, Union
 
 
-class SimpleValidator:
+class NumericConstraint:
     # Operators
     NONE = "none"
     EQUALS = "="
@@ -36,48 +36,48 @@ class SimpleValidator:
         self.values = values or []
 
     @staticmethod
-    def parse(query: str) -> Optional["SimpleValidator"]:
+    def parse(query: str) -> Optional["NumericConstraint"]:
         query = query.strip()
         if not query:
-            return SimpleValidator(SimpleValidator.NONE)
+            return NumericConstraint(NumericConstraint.NONE)
 
         # Simple numeric → equals
         try:
             x = float(query)
-            return SimpleValidator(SimpleValidator.EQUALS, x)
+            return NumericConstraint(NumericConstraint.EQUALS, x)
         except ValueError:
             pass
 
         # Unary operators (=, !=, >, <, etc.)
-        match = SimpleValidator.unaryRegex.search(query)
+        match = NumericConstraint.unaryRegex.search(query)
         if match:
             op = match.group(1)
             rest = query[match.end() :].strip()
 
-            if op in (SimpleValidator.IN, SimpleValidator.NOT_IN):
-                match_values = SimpleValidator.inRegex.search(rest)
+            if op in (NumericConstraint.IN, NumericConstraint.NOT_IN):
+                match_values = NumericConstraint.inRegex.search(rest)
                 if match_values:
                     values = [float(s.strip()) for s in match_values.group(1).split(",")]
-                    return SimpleValidator(op, values=values)
+                    return NumericConstraint(op, values=values)
             else:
-                match_value = SimpleValidator.numRegex.match(rest)
+                match_value = NumericConstraint.numRegex.match(rest)
                 if match_value:
                     v1 = float(match_value.group(0))
-                    return SimpleValidator(op, v1=v1)
+                    return NumericConstraint(op, v1=v1)
 
         # Range like 5-10
-        range_match = SimpleValidator.rangeRegex.search(query)
+        range_match = NumericConstraint.rangeRegex.search(query)
         if range_match:
-            return SimpleValidator(SimpleValidator.RANGE, float(range_match.group(1)), float(range_match.group(2)))
+            return NumericConstraint(NumericConstraint.RANGE, float(range_match.group(1)), float(range_match.group(2)))
 
         # Null check
-        null_match = SimpleValidator.isNullRegex.match(query.lower())
+        null_match = NumericConstraint.isNullRegex.match(query.lower())
         if null_match:
-            return SimpleValidator(null_match.group(1))
+            return NumericConstraint(null_match.group(1))
 
         return None
 
-    def match(self, x: Optional[Union[int, float]]) -> bool:
+    def is_satisfied_for(self, x: Optional[Union[int, float]]) -> bool:
         if x is None:
             return self.op in (self.NONE, self.IS_NULL)
 

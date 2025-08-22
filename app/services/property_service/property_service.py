@@ -1,5 +1,8 @@
 from fastapi import HTTPException
 from sqlalchemy import inspect
+from sqlmodel import Session
+from app.models import Validator
+from app.services.property_service.complex_validator import ComplexValidator
 from app.services.property_service.property_validator import PropertyValidator
 from app.utils import type_casting_utils
 from app.utils.admin_utils import admin
@@ -7,9 +10,14 @@ from typing import Callable, Dict, Any, List, Optional, Tuple, Type
 
 
 class PropertyService:
-    def __init__(self, property_records_map: Dict[str, Any]):
+    def __init__(self, property_records_map: Dict[str, Any], db: Session, entity: str):
         self.property_records_map = property_records_map
         self.institution_synonym_dict = self._load_institution_synonym_dict()
+        self.validators = self._load_validators(db, entity)
+
+    def _load_validators(self, db, entity: str) -> List[str]:
+        results = db.query(Validator.expression).filter(Validator.entity_type == entity).all()
+        return [expr for (expr,) in results]
 
     def _load_institution_synonym_dict(self) -> Dict[str, Any]:
         return {
@@ -54,6 +62,7 @@ class PropertyService:
         update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         records_to_insert, records_to_update = [], []
+        records_to_validate = {}
 
         for prop_name, value in properties.items():
             prop_info = self.get_property_info(prop_name, entity_type)
@@ -97,6 +106,8 @@ class PropertyService:
                 field_name: casted_value,
             }
 
+            records_to_validate.update({prop_name: casted_value})
+
             # TODO: Refactor to generically handle all value_* fields without hardcoding model-specific attributes
             mapper = inspect(model)
             value_columns = [
@@ -130,5 +141,6 @@ class PropertyService:
                     pass
 
             records_to_insert.append(detail)
-
+        if self.validators and records_to_validate:
+            ComplexValidator.validate_record(records_to_validate, self.validators)
         return records_to_insert, records_to_update

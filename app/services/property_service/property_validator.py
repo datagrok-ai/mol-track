@@ -1,7 +1,7 @@
 import json
 from typing import Any
 from app import models
-from app.services.property_service.simple_validator import SimpleValidator
+from app.services.property_service.numeric_constraint import NumericConstraint
 
 
 class PropertyValidator:
@@ -29,6 +29,7 @@ class PropertyValidator:
         """
         Check if the value passes all validators defined for the property.
         """
+
         try:
             coerced_value = float(value) if property.value_type == "double" else int(value)
         except (ValueError, TypeError):
@@ -36,9 +37,9 @@ class PropertyValidator:
 
         validators = json.loads(property.validators.replace("'", '"'))
         for validator in validators:
-            matcher = SimpleValidator.parse(validator)
-            if matcher:
-                if not matcher.match(coerced_value):
+            constraint = NumericConstraint.parse(validator)
+            if constraint:
+                if not constraint.is_satisfied_for(coerced_value):
                     raise ValueError(f"Value '{coerced_value}' does not satisfy the validator: {validator}")
 
     @classmethod

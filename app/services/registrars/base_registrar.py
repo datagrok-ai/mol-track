@@ -25,8 +25,10 @@ class BaseRegistrar(ABC):
         self.error_handling = error_handling
         self._property_records_map = None
         self._addition_records_map = None
+        # TODO: Move to util or solve it another way
+        entity = type(self).__name__.replace("Registrar", "").upper()
 
-        self.property_service = property_service.PropertyService(self.property_records_map)
+        self.property_service = property_service.PropertyService(self.property_records_map, db, entity)
         self.user_mapping = self._load_mapping(mapping)
         self.output_rows = []
 

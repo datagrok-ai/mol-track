@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal, get_args
 from pydantic import ConfigDict, field_validator, model_validator
-from sqlalchemy import Column, DateTime, Enum, CheckConstraint
+from sqlalchemy import Column, DateTime, Enum, CheckConstraint, Text
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
 from app.utils import enums
@@ -437,6 +437,25 @@ class Property(PropertyResponse, table=True):
     batches: List["Batch"] = Relationship(
         back_populates="properties", link_model=BatchDetail, sa_relationship_kwargs={"viewonly": True}
     )
+
+
+class Validator(SQLModel, table=True):
+    __tablename__ = "validators"
+    __table_args__ = (
+        CheckConstraint(
+            "entity_type IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULT', 'SYSTEM')",
+            name="validators_entity_type_check",
+        ),
+        {"schema": DB_SCHEMA},
+    )  # since table is in schema moltrack
+    id: int = Field(primary_key=True, index=True)
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    name: str = Field(Text, unique=True, nullable=False)
+    description: str = Field(Text)
+    entity_type: str = Field(Text, nullable=False)
+    expression: str = Field(Text, nullable=False)
 
 
 class AssayResultBase(SQLModel):
