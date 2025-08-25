@@ -4,6 +4,7 @@ from io import BytesIO, StringIO
 import json
 import re
 from typing import Any, Dict, List
+import uuid
 from fastapi import Response
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -82,12 +83,16 @@ def convert_datetime(obj):
 
 def prepare_search_output(results: List[Any], headers: List[str], output_format: enums.SearchOutputFormat):
     match output_format:
+        # UUID objects are not JSON serializable, so convert to str to prevent circular reference errors
         case enums.SearchOutputFormat.json:
             return_obj = {
                 "status": "success",
                 "total_count": len(results),
                 "columns": headers,
-                "data": [dict(zip(headers, row)) for row in results],
+                "data": [
+                    dict(zip(headers, (str(cell) if isinstance(cell, uuid.UUID) else cell for cell in row)))
+                    for row in results
+                ],
             }
             json_output = json.dumps(return_obj, default=convert_datetime)
             return Response(
