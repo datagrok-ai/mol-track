@@ -78,14 +78,14 @@ class QueryBuilder:
             f" {table_config['alias']}.", f" {table_config['alias']}{table_config['alias']}."
         )
 
-        select_clause = select_direct_parts
+        # Create a copy of select_direct_parts to avoid mutating the original, which could break the query syntax
+        select_clause = list(select_direct_parts)
         select_clause.extend(self._create_select_for_dynamic_fields())
 
         # Build main query
         base_sql = f"WITH base AS (SELECT {base_select_clause} FROM {base_from_clause} {base_joins} {filter_sql} ) "
-        complete_sql = (
-            f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} ORDER BY {select_direct_parts[0]} "
-        )
+        order_by_sql = f"ORDER BY {select_direct_parts[0]}" if select_direct_parts else ""
+        complete_sql = f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} {order_by_sql} "
 
         return {"sql": complete_sql.strip(), "params": query_params}
 
