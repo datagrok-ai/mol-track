@@ -77,3 +77,7 @@ def get_table_fields(table_name: str) -> list[dict[str, Any]] | None:
         }
         for col in table.columns
     ]
+
+
+def get_direct_fields():
+    return [field for table_name in enums.SearchEntityType for field in get_table_fields(table_name.value)]

@@ -6,7 +6,7 @@ from app import models
 from app.utils.admin_utils import admin
 
 from typing import Type, Dict, Any
-from app.utils import enums
+from app.utils import enums, sql_utils
 
 
 def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:
@@ -45,7 +45,8 @@ def bulk_create_if_not_exists(
     Returns:
         List[Dict[str, Any]]: List of inserted records.
     """
-    reserved_names = ["smiles"]
+    reserved_names = [field["name"] for field in sql_utils.get_direct_fields()]
+    reserved_names.append("smiles")
     has_entity_type = hasattr(model_cls, "entity_type")
 
     def get_key(item):

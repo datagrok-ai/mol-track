@@ -26,7 +26,7 @@ from sqlalchemy.sql import text
 from app.utils.logging_utils import logger
 from app.utils.admin_utils import admin
 from app.utils.chemistry_utils import get_molecule_standardization_config
-from app.utils.sql_utils import get_table_fields
+from app.utils.sql_utils import get_direct_fields
 
 
 # Handle both package imports and direct execution
@@ -87,8 +87,8 @@ def get_schema(db: Session = Depends(get_db)):
 
 
 @router.get("/schema-direct/")
-def get_static_fields():
-    return [get_table_fields(table_name.value) for table_name in enums.SearchEntityType]
+def get_schema_direct():
+    return get_direct_fields()
 
 
 @router.get("/schema/compounds", response_model=List[models.PropertyBase])
