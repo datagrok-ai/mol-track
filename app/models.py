@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal, get_args
 from pydantic import ConfigDict, field_validator, model_validator
-from sqlalchemy import Column, DateTime, Enum, CheckConstraint, Text
+from sqlalchemy import Column, DateTime, Enum, CheckConstraint
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
 from app.utils import enums
@@ -227,6 +227,10 @@ class PropertyBase(SQLModel):
     entity_type: enums.EntityType = Field(sa_column=Column(Enum(enums.EntityType), nullable=False))
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
     pattern: Optional[str] = Field(default=None)
+    min: Optional[float] = Field(default=None)
+    max: Optional[float] = Field(default=None)
+    choices: Optional[str] = Field(default=None)
+    validators: Optional[str] = Field(default=None)
 
 
 class PropertyWithValue(PropertyBase):
@@ -452,10 +456,10 @@ class Validator(SQLModel, table=True):
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    name: str = Field(Text, unique=True, nullable=False)
-    description: str = Field(Text)
-    entity_type: str = Field(Text, nullable=False)
-    expression: str = Field(Text, nullable=False)
+    name: str = Field(unique=True, nullable=False)
+    description: str = Field(default=None)
+    entity_type: str = Field(nullable=False)
+    expression: str = Field(nullable=False)
 
 
 class AssayResultBase(SQLModel):

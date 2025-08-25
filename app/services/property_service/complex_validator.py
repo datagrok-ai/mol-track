@@ -15,7 +15,7 @@ class ComplexValidator:
     """
 
     @classmethod
-    def validate_record(cls, record: Mapping[str, Any], rules: List[str] = None) -> None:
+    def validate_record(cls, record: Mapping[str, Any], rules: List[str] = None, validate_rule=False) -> None:
         """
         Validate a record against a list of CEL rules.
         Raises RecordValidationError if any rule fails.
@@ -36,8 +36,25 @@ class ComplexValidator:
                     f"Error while evaluating rule '{raw_expr}' (translated to '{expr}'): {e}"
                 ) from e
 
-            if not bool(result):
+            if not validate_rule and not bool(result):
                 raise ComplexValidationError(f"Record does not satisfy rule: {raw_expr}")
+
+    @classmethod
+    def validate_rule(cls, expr: str, properties: List[str]) -> bool:
+        """
+        Validate a single CEL rule against a list of property names.
+        Creates a mock context where each property is set to a non-null value.
+        Returns True if the rule compiles, False otherwise.
+        """
+
+        variables = cls._extract_variables(expr)
+        for var in variables:
+            if var not in properties.keys():
+                raise ComplexValidationError(f"Unknown property '{var}' in rule: {expr}")
+
+        mock_record = cls._create_mock_record(variables, properties)
+
+        cls.validate_record(mock_record, [expr], validate_rule=True)
 
     # ------------------------
     # Internal helpers
@@ -90,3 +107,36 @@ class ComplexValidator:
         expr = re.sub(r"([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+not\s+null", r"\1 != null", expr)
 
         return expr.strip()
+
+    @staticmethod
+    def _extract_variables(expr: str) -> list[str]:
+        """
+        Extract all variables from an expression.
+        """
+
+        pattern = re.compile(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
+        vars = pattern.findall(expr)
+        vars_cel = {re.sub(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}", r"\1", v) for v in vars}
+        return list(vars_cel)
+
+    @staticmethod
+    def _create_mock_record(variables, properties) -> dict[str, Any]:
+        """
+        Create a mock record with sample values for testing.
+        """
+
+        mock_values = {
+            "string": "mock",
+            "int": 2,
+            "double": 2.0,
+            "bool": True,
+            "datetime": datetime.now().isoformat(),
+            "uuid": "123e4567-e89b-12d3-a456-426614174000",
+        }
+
+        record = {}
+        for var in variables:
+            value = mock_values.get(properties.get(var, "string"), "mock")
+            record[var] = value
+
+        return record

@@ -328,7 +328,7 @@ def delete_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
 @router.post("/assays")
 def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(get_db)):
     all_properties = {p.name: p for p in crud.get_properties(db)}
-    property_service = PropertyService(all_properties)
+    property_service = PropertyService(all_properties, db, enums.EntityType.ASSAY.value)
 
     assays_to_insert = [
         {"name": assay.name, "created_by": admin.admin_user_id, "updated_by": admin.admin_user_id} for assay in payload
@@ -418,6 +418,27 @@ def create_assay_results(
     db: Session = Depends(get_db),
 ):
     return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
+
+
+@router.get("/validators/")
+def get_validators(entity: enums.EntityType, db: Session = Depends(get_db)):
+    return crud.get_validators_for_entity(db, entity)
+
+
+@router.post("/validators/")
+def register_validators(
+    entity: enums.EntityType = Form(enums.EntityType.COMPOUND),
+    name: str = Form(..., embed=True),
+    description: str = Form("", embed=True),
+    expression: str = Form(..., embed=True),
+    db: Session = Depends(get_db),
+):
+    return crud.create_validator(db, entity, name, description, expression)
+
+
+@router.delete("/validators/{validator_name}")
+def delete_validator_by_name(validator_name: str, db: Session = Depends(get_db)):
+    return crud.delete_validator_by_name(db, validator_name)
 
 
 @router.patch("/admin/update-standardization-config")
