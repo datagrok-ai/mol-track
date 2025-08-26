@@ -47,7 +47,7 @@ class AssayRunRegistrar(BaseRegistrar):
                 assay_data = grouped.get("assay", {})
                 assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
 
-                inserted, updated = self.property_service.build_details_records(
+                inserted = self.property_service.build_details_records(
                     models.AssayRunDetail,
                     grouped.get("assay_run_details", {}),
                     {"rn": idx + 1},

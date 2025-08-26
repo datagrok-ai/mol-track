@@ -29,6 +29,9 @@ class BatchRegistrar(CompoundRegistrar):
     def _next_batch_regno(self) -> int:
         return self.db.execute(text("SELECT nextval('moltrack.batch_regno_seq');")).scalar()
 
+    def check_existing_compound(self, hash_mol: str, new_details: dict):
+        return self._check_existing_compound(hash_mol, new_details, True)
+
     def _build_batch_record(self, inchikey: str) -> Dict[str, Any]:
         return {
             "inchikey": inchikey,
@@ -64,7 +67,7 @@ class BatchRegistrar(CompoundRegistrar):
         batch_regno = batch_record["batch_regno"]
 
         self.inject_corporate_property(row, grouped, batch_regno, enums.EntityType.BATCH)
-        inserted, updated = self.property_service.build_details_records(
+        inserted = self.property_service.build_details_records(
             models.BatchDetail,
             grouped.get("batch_details", {}),
             {"batch_regno": batch_regno},

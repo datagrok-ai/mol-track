@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from app.utils import type_casting_utils, enums
 from app.utils.admin_utils import admin
-from typing import Callable, Dict, Any, List, Optional, Tuple, Type
+from typing import Dict, Any, List, Tuple, Type
 
 
 class PropertyService:
@@ -37,7 +37,6 @@ class PropertyService:
             "cast_fn": type_casting_utils.value_type_cast_map[value_type],
         }
 
-    # TODO: Design a more robust and efficient approach for handling updates to compound details
     def build_details_records(
         self,
         model: Type,
@@ -45,9 +44,8 @@ class PropertyService:
         entity_ids: Dict[str, Any],
         entity_type: enums.EntityType,
         include_user_fields: bool = True,
-        update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        records_to_insert, records_to_update = [], []
+        records_to_insert = []
 
         for prop_name, value in properties.items():
             prop_info = self.get_property_info(prop_name, entity_type)
@@ -107,16 +105,6 @@ class PropertyService:
                 detail["created_by"] = admin.admin_user_id
                 detail["updated_by"] = admin.admin_user_id
 
-            if update_checker:
-                result = update_checker(entity_ids, detail, field_name, casted_value)
-                if result.action == "skip":
-                    continue
-                elif result.action == "update":
-                    records_to_update.append(result.update_data)
-                    continue
-                elif result.action == "insert":
-                    pass
-
             records_to_insert.append(detail)
 
-        return records_to_insert, records_to_update
+        return records_to_insert

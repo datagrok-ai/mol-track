@@ -138,7 +138,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                 assay_run_id = getattr(assay_run_record, "id")
                 assay_result = self._build_assay_result_record(batch_id, assay_run_id)
 
-                inserted, updated = self.property_service.build_details_records(
+                inserted = self.property_service.build_details_records(
                     models.AssayResultDetail,
                     grouped.get("assay_result_details", {}),
                     {"rn": idx + 1},
