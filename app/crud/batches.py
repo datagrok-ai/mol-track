@@ -1,6 +1,7 @@
 from fastapi import HTTPException
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 from app.crud.properties import enrich_properties
 from app import models
 
@@ -9,15 +10,21 @@ def enrich_batch(batch: models.Batch) -> models.BatchResponse:
     return models.BatchResponse(**batch.dict(), properties=enrich_properties(batch, "batch_details", "batch_id"))
 
 
-def get_batch(db: Session, batch_id: int):
+def get_batch(db: Session, corporate_batch_id: str):
     batch = (
         db.query(models.Batch)
-        .options(selectinload(models.Batch.properties).selectinload(models.Property.batch_details))
-        .filter(models.Batch.id == batch_id)
+        .join(models.Batch.batch_details)
+        .join(models.BatchDetail.property)
+        .options(joinedload(models.Batch.batch_details).joinedload(models.BatchDetail.property))
+        .filter(
+            and_(models.Property.name == "corporate_batch_id", models.BatchDetail.value_string == corporate_batch_id)
+        )
         .first()
     )
+
     if not batch:
         return None
+
     return enrich_batch(batch)
 
 
