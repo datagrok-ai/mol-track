@@ -644,6 +644,7 @@ def search_compounds_advanced(
     aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    limit: Optional[int] = Body(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -657,6 +658,7 @@ def search_compounds_advanced(
         filter=filter,
         output_format=output_format,
         aggregations=aggregations,
+        limit=limit,
     )
     return advanced_search(request, db)
 

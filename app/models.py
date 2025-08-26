@@ -717,6 +717,7 @@ class SearchRequest(SQLModel):
     aggregations: Optional[List[Aggregation]] = Field(default_factory=list)
     filter: Optional[Filter] = None
     output_format: enums.SearchOutputFormat
+    limit: Optional[int] = None
 
     @field_validator("output")
     def validate_output(cls, v):

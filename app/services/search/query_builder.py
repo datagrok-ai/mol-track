@@ -85,7 +85,10 @@ class QueryBuilder:
         # Build main query
         base_sql = f"WITH base AS (SELECT {base_select_clause} FROM {base_from_clause} {base_joins} {filter_sql} ) "
         order_by_sql = f"ORDER BY {select_direct_parts[0]}" if select_direct_parts else ""
-        complete_sql = f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} {order_by_sql} "
+        limit_sql = f"LIMIT {request.limit}" if request.limit else ""
+        complete_sql = (
+            f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} {order_by_sql} {limit_sql}"
+        )
 
         return {"sql": complete_sql.strip(), "params": query_params}
 
