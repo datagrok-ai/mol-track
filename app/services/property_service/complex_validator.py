@@ -27,7 +27,15 @@ class ComplexValidator:
         safe_ctx = cls._sanitize_context(record)
         ctx = cls._build_context(safe_ctx)
 
+        evaluate_rule = True
         for raw_expr in rules:
+            variables = cls._extract_variables(raw_expr)
+            for var in variables:
+                if var not in record.keys():
+                    evaluate_rule = False
+                    break
+            if not evaluate_rule:
+                continue
             expr = cls._preprocess(raw_expr)
             try:
                 result = evaluate(expr, ctx)

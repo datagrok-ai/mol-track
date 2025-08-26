@@ -12,7 +12,7 @@ from app.services.registrars.base_registrar import BaseRegistrar
 
 class AssayResultsRegistrar(BaseRegistrar):
     def __init__(self, db: Session, mapping: Optional[Dict[str, str]], error_handling: str):
-        super().__init__(db, mapping, error_handling)
+        super().__init__(db, mapping, error_handling, enums.EntityType.ASSAY_RESULT)
         self.assay_results_to_insert = []
 
     def _check_single_result(self, results: list, error_context: str):

@@ -14,7 +14,7 @@ from app import models
 
 
 class BaseRegistrar(ABC):
-    def __init__(self, db, mapping: Optional[str], error_handling: str):
+    def __init__(self, db, mapping: Optional[str], error_handling: str, entity_type: enums.EntityType):
         """
         Base class for processing and registering data to a database.
         :param db: SQLAlchemy database session.
@@ -25,10 +25,8 @@ class BaseRegistrar(ABC):
         self.error_handling = error_handling
         self._property_records_map = None
         self._addition_records_map = None
-        # TODO: Move to util or solve it another way
-        entity = type(self).__name__.replace("Registrar", "").upper()
 
-        self.property_service = property_service.PropertyService(self.property_records_map, db, entity)
+        self.property_service = property_service.PropertyService(self.property_records_map, db, entity_type.value)
         self.user_mapping = self._load_mapping(mapping)
         self.output_rows = []
 

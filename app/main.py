@@ -339,17 +339,24 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
 
     detail_records = []
     property_records = []
+    detail_logs = []
 
     for assay_id, assay in zip(inserted_ids, payload):
-        entity_ids = {"assay_id": assay_id}
-        inserted, updated = property_service.build_details_records(
-            models.AssayDetail,
-            properties=assay.extra_fields,
-            entity_ids=entity_ids,
-            entity_type=enums.EntityType.ASSAY,
-            include_user_fields=False,
-        )
-        detail_records.extend(inserted)
+        try:
+            entity_ids = {"assay_id": assay_id}
+            inserted, updated = property_service.build_details_records(
+                models.AssayDetail,
+                properties=assay.extra_fields,
+                entity_ids=entity_ids,
+                entity_type=enums.EntityType.ASSAY,
+                include_user_fields=False,
+            )
+            detail_records.extend(inserted)
+            detail_logs.append({"status": "success", **assay.extra_fields, "registration_error": ""})
+        except Exception as e:
+            detail_logs.append(
+                {"status": "failed", **assay.extra_fields, "registration_error": f"Error processing details: {e}"}
+            )
 
         for prop_data in assay.assay_result_properties:
             prop_info = property_service.get_property_info(prop_data.name, enums.EntityType.ASSAY_RESULT)
@@ -367,7 +374,7 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
         db.execute(insert(models.AssayProperty).values(property_records))
 
     db.commit()
-    return {"status": "success", "created": assays_to_insert}
+    return {"status": "success", "created": assays_to_insert, "details": detail_logs}
 
 
 @router.get("/assays/", response_model=list[models.AssayResponse])

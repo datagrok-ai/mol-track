@@ -11,7 +11,7 @@ from sqlalchemy.sql import text
 
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
-        super().__init__(db, mapping, error_handling)
+        super().__init__(db, mapping, error_handling, enums.EntityType.BATCH)
         self._additions_map = None
 
         self.batches_to_insert = []
