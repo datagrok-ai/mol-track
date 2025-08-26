@@ -38,7 +38,6 @@ class FieldResolver:
                 "details_fk": f"{singular_name}_id",
                 "direct_fields": {column: f"{alias}.{column}" for column in get_table_columns(table, db)},
             }
-        self.table_configs["compounds"]["direct_fields"]["structure"] = "c.canonical_smiles"
 
     def validate_field_path(self, field_path: str, level: Level = None) -> bool:
         """

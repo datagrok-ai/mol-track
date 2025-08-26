@@ -141,11 +141,11 @@ class SearchOperators:
     def validate_operands(cls, operator: str, field: str):
         """Validate that operand is appropriate for operation"""
         if operator in ["IS SIMILAR", "HAS SUBSTRUCTURE", "IS SUBSTRUCTURE OF"]:
-            if not field.endswith(".structure"):
-                raise ValueError("Molecular operators can only be applied to compounds.structure")
+            if not field.endswith(".canonical_smiles"):
+                raise ValueError("Molecular operators can only be applied to compounds.canonical_smiles")
         else:
-            if field.endswith(".structure"):
-                raise ValueError("Only molecular operators can be applied to compounds.structure")
+            if field.endswith(".canonical_smiles"):
+                raise ValueError("Only molecular operators can be applied to compounds.canonical_smiles")
 
     @classmethod
     def get_sql_expression(
