@@ -5,7 +5,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 from app.crud.properties import enrich_properties
-from app import models
+from app import crud, models
 from app.utils.admin_utils import admin
 from app.utils import type_casting_utils
 
@@ -110,6 +110,10 @@ def delete_compound(db: Session, corporate_compound_id: str):
     db_compound = get_compound_by_corporate_id(db, corporate_compound_id=corporate_compound_id, enrich_compound=False)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
+
+    batches = crud.get_batches_by_compound(db, compound_id=db_compound.id)
+    if batches:
+        raise HTTPException(status_code=400, detail="Compound has dependent batches")
 
     db.delete(db_compound)
     db.commit()

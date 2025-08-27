@@ -201,8 +201,12 @@ class Batch(BatchResponseBase, table=True):
 
     compound: "Compound" = Relationship(back_populates="batches")
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
-    batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
-    batch_additions: List["BatchAddition"] = Relationship(back_populates="batch")
+    batch_details: List["BatchDetail"] = Relationship(
+        back_populates="batch", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    batch_additions: List["BatchAddition"] = Relationship(
+        back_populates="batch", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
     properties: List["Property"] = Relationship(
         back_populates="batches", link_model=BatchDetail, sa_relationship_kwargs={"viewonly": True}
     )

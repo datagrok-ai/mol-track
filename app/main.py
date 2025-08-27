@@ -225,9 +225,6 @@ def update_compound_by_id(
 
 @router.delete("/compounds/{corporate_compound_id}", response_model=models.Compound)
 def delete_compound_by_id(corporate_compound_id: str, db: Session = Depends(get_db)):
-    # batches = crud.get_batches_by_compound(db, compound_id=compound_id)
-    # if batches:
-    #     raise HTTPException(status_code=400, detail="Compound has dependent batches")
     return crud.delete_compound(db, corporate_compound_id=corporate_compound_id)
 
 
@@ -339,12 +336,9 @@ def read_batch_additions_v1(corporate_batch_id: str, db: Session = Depends(get_d
     return batch.batch_additions
 
 
-@router.delete("/batches/{batch_id}", response_model=models.Batch)
-def delete_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
-    assay_results = crud.get_all_assay_results_for_batch(db, batch_id)
-    if assay_results:
-        raise HTTPException(status_code=400, detail="Batch has dependent assay results")
-    return crud.delete_batch(db, batch_id)
+@router.delete("/batches/{corporate_batch_id}", response_model=models.Batch)
+def delete_batch_by_id(corporate_batch_id: str, db: Session = Depends(get_db)):
+    return crud.delete_batch(db, corporate_batch_id)
 
 
 # === Assay data endpoints ===
