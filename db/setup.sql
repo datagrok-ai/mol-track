@@ -23,6 +23,11 @@ VALUES
 
 INSERT INTO moltrack.settings (name, value, description)
 VALUES
+    ('corporate_compound_id_friendly_name', 'Grok ID', 'Friendly name for corporate compound IDs'),
+    ('corporate_batch_id_friendly_name', 'Grok Batch ID', 'Friendly name for corporate batch IDs');
+
+INSERT INTO moltrack.settings (name, value, description)
+VALUES
     ('compound_sequence_start', '1', 'Starting value for the molregno sequence'),
     ('batch_sequence_start', '1', 'Starting value for the batchregno sequence');
 
@@ -41,7 +46,7 @@ VALUES (
   (SELECT id FROM STYPE), 
   'DECLARED', 'COMPOUND',
   (SELECT value FROM moltrack.settings WHERE name = 'corporate_compound_id_pattern'),
-  'Grok ID'
+  (SELECT value FROM moltrack.settings WHERE name = 'corporate_compound_id_friendly_name')
 ), (
   (SELECT id FROM ADMIN),
   (SELECT id FROM ADMIN),
@@ -50,7 +55,7 @@ VALUES (
   (SELECT id FROM STYPE), 
   'DECLARED', 'BATCH',
   (SELECT value FROM moltrack.settings WHERE name = 'corporate_batch_id_pattern'),
-  'Grok Batch ID'
+  (SELECT value FROM moltrack.settings WHERE name = 'corporate_batch_id_friendly_name')
 );
 
 INSERT INTO moltrack.settings (name, value, description)

@@ -508,6 +508,12 @@ def update_settings(
         enums.SettingName.CORPORATE_BATCH_ID_PATTERN: lambda v: update_institution_id_pattern(
             enums.EntityTypeReduced.BATCH, v, db
         ),
+        enums.SettingName.CORPORATE_COMPOUND_ID_FRIENDLY_NAME: lambda v: update_institution_id_friendly_name(
+            enums.EntityTypeReduced.COMPOUND, v, db
+        ),
+        enums.SettingName.CORPORATE_BATCH_ID_FRIENDLY_NAME: lambda v: update_institution_id_friendly_name(
+            enums.EntityTypeReduced.BATCH, v, db
+        ),
     }
 
     handler = setting_handlers.get(name)
@@ -537,6 +543,42 @@ def update_compound_matching_rule(rule: enums.CompoundMatchingRule, db: Session 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
+
+
+def update_institution_id_friendly_name(
+    entity_type: enums.EntityTypeReduced,
+    friendly_name: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Update the friendly name for corporate compound or batch IDs.
+    """
+
+    if not friendly_name:
+        raise HTTPException(status_code=400, detail="Friendly name cannot be empty.")
+
+    property_name = "corporate_batch_id" if entity_type == enums.EntityTypeReduced.BATCH else "corporate_compound_id"
+    setting_name = (
+        "corporate_batch_id_friendly_name"
+        if entity_type == enums.EntityTypeReduced.BATCH
+        else "corporate_compound_id_friendly_name"
+    )
+
+    try:
+        db.execute(
+            text("UPDATE moltrack.properties SET friendly_name = :name WHERE name = :property"),
+            {"property": property_name, "name": friendly_name},
+        )
+
+        db.execute(
+            text("UPDATE moltrack.settings SET value = :name WHERE name = :setting"),
+            {"setting": setting_name, "name": friendly_name},
+        )
+        db.commit()
+        return {"status": "success", "message": f"Friendly name for {entity_type.value} updated to '{friendly_name}'"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating friendly name: {str(e)}")
 
 
 def update_institution_id_pattern(
