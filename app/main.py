@@ -57,10 +57,11 @@ def get_db():
         db.close()
 
 
-def get_or_raise_exception(get_func, db, id, not_found_msg):
-    item = get_func(db, id)
+def get_or_raise_exception(get_func, db, *args, not_found_msg=None, **kwargs):
+    item = get_func(db, *args, **kwargs)
     if not item:
-        raise HTTPException(status_code=404, detail=not_found_msg)
+        msg = not_found_msg or "Item not found"
+        raise HTTPException(status_code=404, detail=msg)
     return item
 
 
@@ -195,37 +196,44 @@ def get_compounds(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     return compounds
 
 
-@router.get("/compounds/{corporate_compound_id}", response_model=models.CompoundResponse)
-def get_compound_by_corporate_id(corporate_compound_id: str, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found")
+@router.get("/compounds", response_model=models.CompoundResponse)
+def get_compound_by_any_synonym(
+    property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)
+):
+    return get_or_raise_exception(
+        crud.get_compound_by_synonym, db, property_value, property_name, not_found_msg="Compound not found"
+    )
 
 
-@router.get("/compounds/{corporate_compound_id}/synonyms", response_model=List[models.PropertyWithValue])
-def get_compound_synonyms(corporate_compound_id: str, db: Session = Depends(get_db)):
+@router.get("/compounds/synonyms", response_model=List[models.PropertyWithValue])
+def get_compound_synonyms(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(
-        crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found"
+        crud.get_compound_by_synonym, db, property_value, property_name, not_found_msg="Compound not found"
     )
     return [prop for prop in compound.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/compounds/{corporate_compound_id}/properties", response_model=List[models.PropertyWithValue])
-def get_compound_properties(corporate_compound_id: str, db: Session = Depends(get_db)):
+@router.get("/compounds/properties", response_model=List[models.PropertyWithValue])
+def get_compound_properties(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(
-        crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found"
+        crud.get_compound_by_synonym, db, property_value, property_name, not_found_msg="Compound not found"
     )
     return compound.properties
 
 
-@router.put("/compounds/{corporate_compound_id}", response_model=models.CompoundResponse)
+@router.put("/compounds/", response_model=models.CompoundResponse)
 def update_compound_by_id(
-    corporate_compound_id: str, update_data: models.CompoundUpdate, db: Session = Depends(get_db)
+    property_value: str,
+    update_data: models.CompoundUpdate,
+    property_name: Optional[str] = None,
+    db: Session = Depends(get_db),
 ):
-    return crud.update_compound(db, corporate_compound_id, update_data)
+    return crud.update_compound(db, property_value, property_name, update_data)
 
 
-@router.delete("/compounds/{corporate_compound_id}", response_model=models.Compound)
-def delete_compound_by_id(corporate_compound_id: str, db: Session = Depends(get_db)):
-    return crud.delete_compound(db, corporate_compound_id=corporate_compound_id)
+@router.delete("/compounds/", response_model=models.Compound)
+def delete_compound_by_id(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    return crud.delete_compound(db, property_value, property_name)
 
 
 # TODO: Create the utils module and move there

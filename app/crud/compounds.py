@@ -31,29 +31,32 @@ def read_compounds(db: Session, skip: int = 0, limit: int = 100):
     return [enrich_compound(c) for c in compounds]
 
 
-def get_compound_by_corporate_id(db: Session, corporate_compound_id: str, enrich_compound: bool = True):
+def get_compound_by_synonym(db: Session, property_value: str, property_name: str = None, enrich: bool = True):
+    if not property_value:
+        return None
+
+    filters = [models.Property.semantic_type_id == 1, models.CompoundDetail.value_string == property_value]
+
+    if property_name:
+        filters.append(models.Property.name == property_name)
+
     compound = (
         db.query(models.Compound)
         .join(models.Compound.compound_details)
         .join(models.CompoundDetail.property)
         .options(joinedload(models.Compound.compound_details).joinedload(models.CompoundDetail.property))
-        .filter(
-            and_(
-                models.Property.name == "corporate_compound_id",
-                models.CompoundDetail.value_string == corporate_compound_id,
-            )
-        )
+        .filter(and_(*filters))
         .first()
     )
 
     if not compound:
         return None
 
-    return enrich_compound(compound) if enrich_compound else compound
+    return enrich_compound(compound) if enrich else compound
 
 
-def update_compound(db: Session, corporate_compound_id: str, update_data: models.CompoundUpdate):
-    db_compound = get_compound_by_corporate_id(db, corporate_compound_id=corporate_compound_id, enrich_compound=False)
+def update_compound(db: Session, property_value: str, property_name: str, update_data: models.CompoundUpdate):
+    db_compound = get_compound_by_synonym(db, property_value=property_value, property_name=property_name, enrich=False)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
 
@@ -106,8 +109,8 @@ def update_compound(db: Session, corporate_compound_id: str, update_data: models
     return db_compound
 
 
-def delete_compound(db: Session, corporate_compound_id: str):
-    db_compound = get_compound_by_corporate_id(db, corporate_compound_id=corporate_compound_id, enrich_compound=False)
+def delete_compound(db: Session, property_value: str, property_name: str):
+    db_compound = get_compound_by_synonym(db, property_value=property_value, property_name=property_name, enrich=False)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
 
