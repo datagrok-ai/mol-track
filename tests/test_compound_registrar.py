@@ -138,8 +138,18 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     assert abs(props["MolLogP"]["value_num"] - 1.083) < 1e-3
 
 
-def test_get_compound_by_id(client, preload_schema, preload_compounds):
-    response = client.get("/v1/compounds/2")
+def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds):
+    response = client.get("/v1/compounds/")
+    assert response.status_code == 200
+    compounds = response.json()
+    first_compound = compounds[1]
+
+    corporate_compound_prop = next(
+        (p for p in first_compound["properties"] if p["name"] == "corporate_compound_id"), None
+    )
+    assert corporate_compound_prop is not None, "No Corporate Compound ID found"
+    corporate_id = corporate_compound_prop["value_string"]
+    response = client.get(f"/v1/compounds/{corporate_id}")
     assert response.status_code == 200
 
     result = response.json()

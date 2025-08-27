@@ -195,20 +195,24 @@ def get_compounds(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     return compounds
 
 
-@router.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
-def get_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
+@router.get("/compounds/{corporate_compound_id}", response_model=models.CompoundResponse)
+def get_compound_by_corporate_id(corporate_compound_id: str, db: Session = Depends(get_db)):
+    return get_or_raise_exception(crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found")
 
 
-@router.get("/compounds/{compound_id}/synonyms", response_model=List[models.PropertyWithValue])
-def get_compound_synonyms(compound_id: int, db: Session = Depends(get_db)):
-    compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
+@router.get("/compounds/{corporate_compound_id}/synonyms", response_model=List[models.PropertyWithValue])
+def get_compound_synonyms(corporate_compound_id: str, db: Session = Depends(get_db)):
+    compound = get_or_raise_exception(
+        crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found"
+    )
     return [prop for prop in compound.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/compounds/{compound_id}/properties", response_model=List[models.PropertyWithValue])
-def get_compound_properties(compound_id: int, db: Session = Depends(get_db)):
-    compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
+@router.get("/compounds/{corporate_compound_id}/properties", response_model=List[models.PropertyWithValue])
+def get_compound_properties(corporate_compound_id: str, db: Session = Depends(get_db)):
+    compound = get_or_raise_exception(
+        crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found"
+    )
     return compound.properties
 
 
@@ -310,26 +314,26 @@ def read_batches_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
     return batches
 
 
-@router.get("/batches/{batch_id}", response_model=models.BatchResponse)
-def read_batch_v1(batch_id: int, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+@router.get("/batches/{corporate_batch_id}", response_model=models.BatchResponse)
+def read_batch_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
+    return get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
 
 
-@router.get("/batches/{batch_id}/properties", response_model=List[models.PropertyWithValue])
-def read_batch_properties_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+@router.get("/batches/{corporate_batch_id}/properties", response_model=List[models.PropertyWithValue])
+def read_batch_properties_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
     return batch.properties
 
 
-@router.get("/batches/{batch_id}/synonyms", response_model=List[models.PropertyWithValue])
-def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+@router.get("/batches/{corporate_batch_id}/synonyms", response_model=List[models.PropertyWithValue])
+def read_batch_synonyms_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
     return [prop for prop in batch.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/batches/{batch_id}/additions", response_model=List[models.BatchAddition])
-def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+@router.get("/batches/{corporate_batch_id}/additions", response_model=List[models.BatchAddition])
+def read_batch_additions_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
     return batch.batch_additions
 
 
