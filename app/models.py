@@ -216,6 +216,7 @@ class SemanticType(SemanticTypeBase, table=True):
     __table_args__ = {"schema": DB_SCHEMA}
 
     id: int = Field(primary_key=True, nullable=False)
+    properties: List["Property"] = Relationship(back_populates="semantic_type")
 
 
 class PropertyBase(SQLModel):
@@ -228,6 +229,10 @@ class PropertyBase(SQLModel):
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
     pattern: Optional[str] = Field(default=None)
     friendly_name: Optional[str] = Field(default=None)
+
+
+class PropertyRetrieve(PropertyBase):
+    semantic_type: Optional[SemanticTypeBase] = None
 
 
 class PropertyWithValue(PropertyBase):
@@ -416,6 +421,8 @@ class Property(PropertyResponse, table=True):
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+
+    semantic_type: "SemanticType" = Relationship(back_populates="properties")
 
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")

@@ -13,7 +13,9 @@ INSERT INTO moltrack.users (
 );
 
 INSERT INTO moltrack.semantic_types (name, description) 
-VALUES ('Synonym', 'A semantic type representing a synonym or alternative identifier')
+VALUES
+    ('Synonym', 'A semantic type representing a synonym or alternative identifier'),
+    ('Molecule', 'A semantic type that represents the chemical structure of a compound')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO moltrack.settings (name, value, description)

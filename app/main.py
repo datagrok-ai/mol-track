@@ -81,7 +81,7 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
         return {"status": "failed", "error": str(e)}
 
 
-@router.get("/schema/")
+@router.get("/schema/", response_model=List[models.PropertyRetrieve])
 def get_schema(db: Session = Depends(get_db)):
     return crud.get_entities_by_entity_type(db)
 
