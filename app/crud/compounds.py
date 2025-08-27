@@ -31,7 +31,7 @@ def read_compounds(db: Session, skip: int = 0, limit: int = 100):
     return [enrich_compound(c) for c in compounds]
 
 
-def get_compound_by_corporate_id(db: Session, corporate_compound_id: str):
+def get_compound_by_corporate_id(db: Session, corporate_compound_id: str, enrich_compound: bool = True):
     compound = (
         db.query(models.Compound)
         .join(models.Compound.compound_details)
@@ -49,11 +49,11 @@ def get_compound_by_corporate_id(db: Session, corporate_compound_id: str):
     if not compound:
         return None
 
-    return enrich_compound(compound)
+    return enrich_compound(compound) if enrich_compound else compound
 
 
-def update_compound(db: Session, compound_id: int, update_data: models.CompoundUpdate):
-    db_compound = db.get(models.Compound, compound_id)
+def update_compound(db: Session, corporate_compound_id: str, update_data: models.CompoundUpdate):
+    db_compound = get_compound_by_corporate_id(db, corporate_compound_id=corporate_compound_id, enrich_compound=False)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
 
@@ -106,14 +106,10 @@ def update_compound(db: Session, compound_id: int, update_data: models.CompoundU
     return db_compound
 
 
-def delete_compound(db: Session, compound_id: int):
-    db_compound = db.get(models.Compound, compound_id)
+def delete_compound(db: Session, corporate_compound_id: str):
+    db_compound = get_compound_by_corporate_id(db, corporate_compound_id=corporate_compound_id, enrich_compound=False)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
-
-    db.query(models.CompoundDetail).filter(models.CompoundDetail.compound_id == compound_id).delete(
-        synchronize_session=False
-    )
 
     db.delete(db_compound)
     db.commit()

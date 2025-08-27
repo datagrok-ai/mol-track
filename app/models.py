@@ -127,7 +127,9 @@ class Compound(CompoundResponseBase, table=True):
     deleted_by: Optional[uuid.UUID] = Field(default=None)
 
     batches: List["Batch"] = Relationship(back_populates="compound")
-    compound_details: List["CompoundDetail"] = Relationship(back_populates="compound")
+    compound_details: List["CompoundDetail"] = Relationship(
+        back_populates="compound", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
     properties: List["Property"] = Relationship(
         back_populates="compounds", link_model=CompoundDetail, sa_relationship_kwargs={"viewonly": True}
     )
