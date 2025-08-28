@@ -9,7 +9,13 @@ from typing import Type, Dict, Any
 from app.utils import enums, sql_utils
 
 
-def create_properties(db: Session, properties: list[models.PropertyBase]) -> list[dict]:
+def create_properties(db: Session, properties: list[models.PropertyInput]) -> list[dict]:
+    for prop in properties:
+        if prop.semantic_type_name:
+            semantic_type = db.query(models.SemanticType).filter_by(name=prop.semantic_type_name).first()
+            prop.semantic_type_id = semantic_type.id
+            delattr(prop, "semantic_type_name")
+
     return bulk_create_if_not_exists(db, models.Property, models.PropertyBase, properties)
 
 

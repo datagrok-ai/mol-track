@@ -237,6 +237,10 @@ class PropertyBase(SQLModel):
     friendly_name: Optional[str] = Field(default=None)
 
 
+class PropertyInput(PropertyBase):
+    semantic_type_name: Optional[str] = Field(default=None)
+
+
 class PropertyRetrieve(PropertyBase):
     semantic_type: Optional[SemanticTypeBase] = None
 
@@ -248,8 +252,8 @@ class PropertyWithValue(PropertyBase):
     value_string: Optional[str] = None
 
 
-class SynonymTypeBase(PropertyBase):
-    """A specialized type of PropertyBase for synonyms with fixed constraints"""
+class SynonymTypeBase(PropertyInput):
+    """A specialized type of PropertyInput for synonyms with fixed constraints"""
 
     value_type: enums.ValueType = Field(default=enums.ValueType.string)
     property_class: enums.PropertyClass = Field(default=enums.PropertyClass.DECLARED)
@@ -589,7 +593,7 @@ class BatchAddition(BatchAdditionBase, table=True):
 
 
 class SchemaPayload(SQLModel):
-    properties: List["PropertyBase"] = Field(default_factory=list)
+    properties: List["PropertyInput"] = Field(default_factory=list)
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
 
 
