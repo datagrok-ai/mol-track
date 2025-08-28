@@ -457,8 +457,8 @@ class Validator(SQLModel, table=True):
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     name: str = Field(unique=True, nullable=False)
-    description: str = Field(default=None)
-    entity_type: str = Field(nullable=False)
+    description: Optional[str] = Field(default=None)
+    entity_type: enums.EntityType = Field(sa_column=Column(Enum(enums.EntityType), nullable=False))
     expression: str = Field(nullable=False)
 
 

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Mapping, List, Any
+from typing import Dict, Mapping, List, Any
 from cel import evaluate, Context
 import re
 
@@ -25,8 +25,8 @@ class ComplexValidator:
         safe_ctx = cls._sanitize_context(record)
         ctx = cls._build_context(safe_ctx)
 
-        evaluate_rule = True
         for raw_expr in rules:
+            evaluate_rule = True
             variables = cls._extract_variables(raw_expr)
             for var in variables:
                 if var not in record.keys():
@@ -46,9 +46,9 @@ class ComplexValidator:
                 raise ComplexValidationError(f"Record does not satisfy rule: {raw_expr}")
 
     @classmethod
-    def validate_rule(cls, expr: str, properties: List[str]) -> bool:
+    def validate_rule(cls, expr: str, properties: Dict[str, str]) -> bool:
         """
-        Validate a single CEL rule against a list of property names.
+        Validate a single CEL rule against a dictionary of properties.
         Creates a mock context where each property is set to a non-null value.
         Returns True if the rule compiles, False otherwise.
         """

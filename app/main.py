@@ -436,11 +436,11 @@ def get_validators(entity: enums.EntityType, db: Session = Depends(get_db)):
 def register_validators(
     entity: enums.EntityType = Form(enums.EntityType.COMPOUND),
     name: str = Form(..., embed=True),
-    description: str = Form("", embed=True),
+    description: Optional[str] = Form(None, embed=True),
     expression: str = Form(..., embed=True),
     db: Session = Depends(get_db),
 ):
-    return crud.create_validator(db, entity, name, description, expression)
+    return crud.create_validator(db, entity, name, expression, description)
 
 
 @router.delete("/validators/{validator_name}")

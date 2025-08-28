@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from typing import List
+from typing import List, Optional
 from pytest import Session
 from sqlalchemy import insert
 
@@ -24,7 +24,7 @@ def delete_validator_by_name(db: Session, name: str) -> None:
 
 
 def create_validator(
-    db: Session, entity: enums.EntityType, name: str, description: str = "", expression: str = ""
+    db: Session, entity: enums.EntityType, name: str, expression: str, description: Optional[str] = None
 ) -> models.Validator:
     if not expression:
         raise HTTPException(status_code=400, detail="Validator is not provided")
@@ -34,15 +34,11 @@ def create_validator(
     )
     properties = {name: val_type.value for (name, val_type) in properties}
 
-    error = ""
     try:
         ComplexValidator.validate_rule(expression, properties)
     except Exception as e:
-        error = f"Invalid validator rule: {e}"
-
-    if error:
         raise HTTPException(
-            status_code=400, detail={"status": "failed", "message": f"Error adding validators: {str(error)}"}
+            status_code=400, detail={"status": "failed", "message": f"Error adding validators: {str(e)}"}
         )
 
     try:
