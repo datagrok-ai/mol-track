@@ -70,6 +70,7 @@ class ComplexValidator:
         """Convert record values into JSON-serializable primitives."""
         safe_ctx = {}
         for k, v in record.items():
+            k = k.replace(" ", "_")
             if isinstance(v, (str, int, float, bool)) or v is None:
                 safe_ctx[k] = v
             else:
@@ -112,6 +113,9 @@ class ComplexValidator:
         # is not null → != null
         expr = re.sub(r"([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+not\s+null", r"\1 != null", expr)
 
+        # replaces white spaces inside ${...} with underscores
+        expr = re.sub(r"\$\{([^}]+)\}", lambda m: re.sub(r"[^a-zA-Z0-9_]", "_", m.group(1)), expr)
+
         return expr.strip()
 
     @staticmethod
@@ -120,7 +124,7 @@ class ComplexValidator:
         Extract all variables from an expression.
         """
 
-        pattern = re.compile(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
+        pattern = re.compile(r"\$\{([^}]+)\}")
         vars = pattern.findall(expr)
         vars_cel = {re.sub(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}", r"\1", v) for v in vars}
         return list(vars_cel)
