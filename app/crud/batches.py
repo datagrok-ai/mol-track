@@ -10,22 +10,28 @@ def enrich_batch(batch: models.Batch) -> models.BatchResponse:
     return models.BatchResponse(**batch.dict(), properties=enrich_properties(batch, "batch_details", "batch_id"))
 
 
-def get_batch(db: Session, corporate_batch_id: str, enrich_batch: bool = True):
+def get_batch_by_synonym(db: Session, property_value: str, property_name: str = None, enrich: bool = True):
+    if not property_value:
+        return None
+
+    filters = [models.Property.semantic_type_id == 1, models.BatchDetail.value_string == property_value]
+
+    if property_name:
+        filters.append(models.Property.name == property_name)
+
     batch = (
         db.query(models.Batch)
         .join(models.Batch.batch_details)
         .join(models.BatchDetail.property)
         .options(joinedload(models.Batch.batch_details).joinedload(models.BatchDetail.property))
-        .filter(
-            and_(models.Property.name == "corporate_batch_id", models.BatchDetail.value_string == corporate_batch_id)
-        )
+        .filter(and_(*filters))
         .first()
     )
 
     if not batch:
         return None
 
-    return enrich_batch(batch) if enrich_batch else batch
+    return enrich_batch(batch) if enrich else batch
 
 
 def get_batches(db: Session, skip: int = 0, limit: int = 100):
@@ -37,8 +43,12 @@ def get_batches_by_compound(db: Session, compound_id: int, skip: int = 0, limit:
     return db.query(models.Batch).filter(models.Batch.compound_id == compound_id).offset(skip).limit(limit).all()
 
 
-def delete_batch(db: Session, corporate_batch_id: str):
-    db_batch = get_batch(db, corporate_batch_id=corporate_batch_id, enrich_batch=False)
+def delete_batch_by_synonym(
+    db: Session,
+    property_value: str,
+    property_name: str,
+):
+    db_batch = get_batch_by_synonym(db, property_value, property_name, False)
     if db_batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")
 

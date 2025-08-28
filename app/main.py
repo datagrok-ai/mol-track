@@ -305,7 +305,7 @@ def delete_addition(addition_id: int, db: Session = Depends(get_db)):
 # === Batches endpoints ===
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-batches
 @router.post("/batches/")
-def register_batches_v1(
+def register_batches(
     file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
@@ -316,37 +316,45 @@ def register_batches_v1(
 
 
 @router.get("/batches/", response_model=List[models.BatchResponse])
-def read_batches_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_batches(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     batches = crud.get_batches(db, skip=skip, limit=limit)
     return batches
 
 
-@router.get("/batches/{corporate_batch_id}", response_model=models.BatchResponse)
-def read_batch_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
+@router.get("/batches", response_model=models.BatchResponse)
+def get_batch_by_any_synonym(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    return get_or_raise_exception(
+        crud.get_batch_by_synonym, db, property_value, property_name, not_found_msg="Batch not found"
+    )
 
 
-@router.get("/batches/{corporate_batch_id}/properties", response_model=List[models.PropertyWithValue])
-def read_batch_properties_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
+@router.get("/batches/properties", response_model=List[models.PropertyWithValue])
+def get_batch_properties(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(
+        crud.get_batch_by_synonym, db, property_value, property_name, not_found_msg="Batch not found"
+    )
     return batch.properties
 
 
-@router.get("/batches/{corporate_batch_id}/synonyms", response_model=List[models.PropertyWithValue])
-def read_batch_synonyms_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
+@router.get("/batches/synonyms", response_model=List[models.PropertyWithValue])
+def get_batch_synonyms(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(
+        crud.get_batch_by_synonym, db, property_value, property_name, not_found_msg="Batch not found"
+    )
     return [prop for prop in batch.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/batches/{corporate_batch_id}/additions", response_model=List[models.BatchAddition])
-def read_batch_additions_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
+@router.get("/batches/additions", response_model=List[models.BatchAddition])
+def get_batch_additions(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(
+        crud.get_batch_by_synonym, db, property_value, property_name, not_found_msg="Batch not found"
+    )
     return batch.batch_additions
 
 
-@router.delete("/batches/{corporate_batch_id}", response_model=models.Batch)
-def delete_batch_by_id(corporate_batch_id: str, db: Session = Depends(get_db)):
-    return crud.delete_batch(db, corporate_batch_id)
+@router.delete("/batches/", response_model=models.Batch)
+def delete_batch_by_any_synonym(property_value: str, property_name: str = None, db: Session = Depends(get_db)):
+    return crud.delete_batch_by_synonym(db, property_value, property_name)
 
 
 # === Assay data endpoints ===
