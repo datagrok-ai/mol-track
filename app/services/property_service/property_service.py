@@ -72,14 +72,14 @@ class PropertyService:
             field_name = prop_info["field_name"]
             prop_id = getattr(prop, "id")
 
-            PropertyValidator.validate_value(value, prop)
-
             if prop_name in self.institution_synonym_dict.values() and not value:
                 value = prop.pattern.format(next(iter(entity_ids.values())))
                 properties[prop_name] = value
 
             if value in ("", "none", None):
                 continue
+
+            PropertyValidator.validate_value(value, prop)
 
             #  Detect and parse value qualifiers
             value_qualifier = 0
