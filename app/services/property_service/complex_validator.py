@@ -22,8 +22,6 @@ class ComplexValidator:
         """
         if not rules:
             return
-            # rules = ["matches(${COMPOUND_detail_name_2}, r'^mock') && ${BATCH_detail_name_2} > 600"]
-            # rules = ["(${val_string} == 'danica' && ${val_int} == 2) || (${val_string} == 'danikia' && ${val_int} == 3)"]
         safe_ctx = cls._sanitize_context(record)
         ctx = cls._build_context(safe_ctx)
 
