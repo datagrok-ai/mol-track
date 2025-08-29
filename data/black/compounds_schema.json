@@ -30,7 +30,7 @@
             "description": "The CAS Registry Number of the compound, e.g. '1234567890'"
         },
         {
-            "name": "common_name",
+            "name": "Common Name",
             "entity_type": "compound",
             "pattern": ""
         },

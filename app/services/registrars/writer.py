@@ -12,8 +12,10 @@ class StreamingResultWriter:
     def stream_rows(self, rows_iter):
         if self.format == "csv":
             yield from self._stream_csv(rows_iter)
-        else:
+        if self.format == "json":
             yield from self._stream_json(rows_iter)
+        else:
+            yield from self._stream_sdf(rows_iter)
 
     def _stream_csv(self, rows_iter):
         output = io.StringIO()
@@ -43,3 +45,14 @@ class StreamingResultWriter:
                     first = False
                 yield orjson.dumps(row).decode("utf-8")
         yield "]"
+
+    def _stream_sdf(self, rows_iter):
+        for rows in rows_iter:
+            for row in rows:
+                molfile = row.get("original_molfile", "")
+                yield molfile + "\n"
+                for key, value in row.items():
+                    if key == "original_molfile":
+                        continue
+                    yield f"> <{key}>\n{value}\n\n"
+                yield "$$$$\n"

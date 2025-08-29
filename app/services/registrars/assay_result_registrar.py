@@ -15,6 +15,7 @@ class AssayResultsRegistrar(BaseRegistrar):
         self.entity_type = enums.EntityType.ASSAY_RESULT
         super().__init__(db, mapping, error_handling)
         self.assay_results_to_insert = []
+        self.entity_type = enums.EntityType.ASSAY_RESULT
 
     def _check_single_result(self, results: list, error_context: str):
         if len(results) == 0:
@@ -126,7 +127,8 @@ class AssayResultsRegistrar(BaseRegistrar):
         details = []
 
         for idx, row in enumerate(rows):
-            try:
+
+            def process_row(row):
                 grouped = self._group_data(row, "assay")
                 batch_record = self._lookup_batch_by_details(grouped.get("batch_details"))
                 assay_run_record = self._lookup_assay_run_by_details(
@@ -136,7 +138,6 @@ class AssayResultsRegistrar(BaseRegistrar):
                 batch_id = getattr(batch_record, "id")
                 assay_run_id = getattr(assay_run_record, "id")
                 assay_result = self._build_assay_result_record(batch_id, assay_run_id)
-                self.assay_results_to_insert.append(assay_result)
 
                 inserted, updated = self.property_service.build_details_records(
                     models.AssayResultDetail,
@@ -145,10 +146,11 @@ class AssayResultsRegistrar(BaseRegistrar):
                     enums.EntityType.ASSAY_RESULT,
                     False,
                 )
+
+                self.assay_results_to_insert.append(assay_result)
                 details.extend(inserted)
-                self._add_output_row(row, "success")
-            except Exception as e:
-                self.handle_row_error(row, e, idx, rows)
+
+            self._process_row(row, process_row)
 
         if self.assay_results_to_insert:
             batch_sql = self.generate_sql(self.assay_results_to_insert, details)

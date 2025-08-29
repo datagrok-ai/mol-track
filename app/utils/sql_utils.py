@@ -1,5 +1,7 @@
 from typing import List, Dict, Any
 from psycopg2.extensions import adapt
+from sqlmodel import SQLModel
+from app.utils import enums
 
 column_types = {
     "value_datetime": "timestamptz",
@@ -46,3 +48,36 @@ def generate_sql(*sql_parts: str, terminate_with_select: bool = True) -> str:
 def chunked(lst, size):
     for i in range(0, len(lst), size):
         yield lst[i : i + size]
+
+
+def normalize_type(type_name: str) -> str:
+    t = type_name.lower()
+
+    for vt in enums.ValueType:
+        if vt.value in t:
+            return vt.value
+    return enums.ValueType.string.value
+
+
+def get_table_fields(table_name: str) -> list[dict[str, Any]] | None:
+    mapping = {
+        "batches": enums.EntityType.BATCH,
+        "compounds": enums.EntityType.COMPOUND,
+        "assays": enums.EntityType.ASSAY,
+        "assay_runs": enums.EntityType.ASSAY_RUN,
+        "assay_results": enums.EntityType.ASSAY_RESULT,
+    }
+
+    table = SQLModel.metadata.tables.get(f"moltrack.{table_name}")
+    return [
+        {
+            "entity_type": mapping.get(table_name),
+            "name": col.name,
+            "value_type": normalize_type(col.type.__class__.__name__),
+        }
+        for col in table.columns
+    ]
+
+
+def get_direct_fields():
+    return [field for table_name in enums.SearchEntityType for field in get_table_fields(table_name.value)]

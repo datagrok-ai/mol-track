@@ -217,12 +217,14 @@ def preload_additions(client):
 def preload_entity(
     client,
     endpoint: str,
-    csv_path: str,
+    file_path: str,
     mapping_path: Optional[Path] = None,
     error_handling=enums.ErrorHandlingOptions.reject_row,
+    mime_type: str = "text/csv",
+    output_format: str = enums.OutputFormat.json,
 ):
-    files = {"csv_file": (str(csv_path), read_csv(csv_path), "text/csv")}
-    data = {"error_handling": error_handling.value}
+    files = {"file": (str(file_path), open(file_path, "rb"), mime_type)}
+    data = {"error_handling": error_handling.value, "output_format": output_format.value}
 
     if mapping_path is not None:
         data["mapping"] = json.dumps(read_json(mapping_path))
@@ -303,7 +305,7 @@ def preload_data_from_dir(client, data_dir: str, use_mapping_files: bool = True)
         "/v1/assay_results/": DATA_PATHS["assay_results"],
     }.items():
         csv_path = data_dir / csv_file
-        files = {"csv_file": (str(csv_path), read_csv(csv_path), "text/csv")}
+        files = {"file": (str(csv_path), read_csv(csv_path), "text/csv")}
         data = {
             "error_handling": enums.ErrorHandlingOptions.reject_row.value,
         }

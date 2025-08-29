@@ -3,13 +3,28 @@ from datetime import datetime
 from io import BytesIO, StringIO
 import json
 import re
-from typing import Any, List
+from typing import Any, Dict, List
+import uuid
 from fastapi import Response
 import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.models import Level
+from app.models import Level, Aggregation
 from app.utils import enums
+
+
+def create_alias_mapping(columns: List[str], aggregations: List[Aggregation]) -> Dict[str, str]:
+    output_aliases = {sanitize_field_name(field): (field, (field, None)) for field in columns}
+    output_aliases.update(
+        {
+            sanitize_field_name(agg.field, agg.operation): (
+                f"{agg.operation.value}({agg.field})",
+                (agg.field, agg.operation.value),
+            )
+            for agg in aggregations
+        }
+    )
+    return output_aliases
 
 
 def create_alias(table: Level) -> str:
@@ -46,13 +61,17 @@ def get_table_columns(table_name: str, session: Session) -> list:
     return columns
 
 
-def sanitize_field_name(field_name: str) -> str:
+def sanitize_field_name(field_name: str, agg_op: str = None) -> str:
     """Sanitize field name for use in SQL aliases"""
     # Replace dots and special characters with underscores
     sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", field_name)
     # Ensure it doesn't start with a number
     if sanitized and sanitized[0].isdigit():
         sanitized = f"field_{sanitized}"
+    if agg_op:
+        agg_op = agg_op.replace(" ", "_")
+        sanitized = f"{agg_op.lower()}_{sanitized}"
+        sanitized = sanitized.lower()
     return sanitized
 
 
@@ -64,12 +83,16 @@ def convert_datetime(obj):
 
 def prepare_search_output(results: List[Any], headers: List[str], output_format: enums.SearchOutputFormat):
     match output_format:
+        # UUID objects are not JSON serializable, so convert to str to prevent circular reference errors
         case enums.SearchOutputFormat.json:
             return_obj = {
                 "status": "success",
                 "total_count": len(results),
                 "columns": headers,
-                "data": [dict(zip(headers, row)) for row in results],
+                "data": [
+                    dict(zip(headers, (str(cell) if isinstance(cell, uuid.UUID) else cell for cell in row)))
+                    for row in results
+                ],
             }
             json_output = json.dumps(return_obj, default=convert_datetime)
             return Response(

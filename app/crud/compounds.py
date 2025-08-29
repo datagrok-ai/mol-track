@@ -2,7 +2,8 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from rdkit import Chem
 from sqlalchemy import select, text
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
+from sqlalchemy import and_
 from app.crud.properties import enrich_properties
 from app import models
 from app.utils.admin_utils import admin
@@ -30,11 +31,18 @@ def read_compounds(db: Session, skip: int = 0, limit: int = 100):
     return [enrich_compound(c) for c in compounds]
 
 
-def get_compound_by_id(db: Session, compound_id: int):
+def get_compound_by_corporate_id(db: Session, corporate_compound_id: str):
     compound = (
         db.query(models.Compound)
-        .options(selectinload(models.Compound.properties).selectinload(models.Property.compound_details))
-        .filter(models.Compound.id == compound_id)
+        .join(models.Compound.compound_details)
+        .join(models.CompoundDetail.property)
+        .options(joinedload(models.Compound.compound_details).joinedload(models.CompoundDetail.property))
+        .filter(
+            and_(
+                models.Property.name == "corporate_compound_id",
+                models.CompoundDetail.value_string == corporate_compound_id,
+            )
+        )
         .first()
     )
 

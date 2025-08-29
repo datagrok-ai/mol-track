@@ -12,6 +12,8 @@ from app.utils.logging_utils import logger
 from app.services.properties import property_service
 from app import models
 
+from rdkit import Chem
+
 
 class BaseRegistrar(ABC):
     def __init__(self, db, mapping: Optional[str], error_handling: str):
@@ -30,10 +32,13 @@ class BaseRegistrar(ABC):
         self.user_mapping = self._load_mapping(mapping)
         self.output_rows = []
 
+        self.stop_registration = False
+        self.entity_type = None
+
     @property
     def property_records_map(self):
         if self._property_records_map is None:
-            self._property_records_map = self._load_reference_map(models.Property, "name")
+            self._property_records_map = self._load_reference_map(models.Property, "name", allow_list=True)
         return self._property_records_map
 
     @property
@@ -79,19 +84,85 @@ class BaseRegistrar(ABC):
         if chunk:
             yield chunk
 
+    def process_sdf(self, file_stream: io.TextIOBase, chunk_size=5000) -> Iterator[List[Dict[str, Any]]]:
+        chunk: List[Dict[str, Any]] = []
+        current_mol_lines: List[str] = []
+        current_props: Dict[str, str] = {}
+        prop_name: str | None = None
+        mapping_initialized = False
+
+        for line in file_stream:
+            line = line.rstrip("\n")
+
+            if line == "$$$$":
+                row = dict(current_props)
+                molfile_str = "\n".join(current_mol_lines)
+                row["original_molfile"] = molfile_str
+
+                # Get smiles
+                mol = Chem.MolFromMolBlock(molfile_str)
+                if mol is not None:
+                    smiles = Chem.MolToSmiles(mol)
+                else:
+                    smiles = None
+                row["smiles"] = smiles
+
+                if not mapping_initialized:
+                    if self.user_mapping:
+                        self.normalized_mapping = self.user_mapping
+                    else:
+                        self.normalized_mapping = {k: self._assign_column(k) for k in row.keys()}
+                    mapping_initialized = True
+
+                chunk.append(row)
+
+                if len(chunk) >= chunk_size:
+                    yield chunk
+                    chunk = []
+
+                current_mol_lines = []
+                current_props = {}
+                prop_name = None
+                continue
+
+            if line.startswith(">  <") and line.endswith(">"):
+                prop_name = line[4:-1].strip()
+                current_props[prop_name] = ""
+                continue
+
+            if prop_name:
+                if current_props[prop_name]:
+                    current_props[prop_name] += "\n" + line
+                else:
+                    current_props[prop_name] = line
+                continue
+
+            current_mol_lines.append(line)
+
+        if chunk:
+            yield chunk
+
+        if not chunk and not current_mol_lines and not current_props:
+            raise HTTPException(status_code=400, detail="SDF file is empty or invalid")
+
     def _assign_column(self, col: str) -> str:
-        if col in self.property_records_map:
-            entity_type = getattr(self.property_records_map[col], "entity_type", None)
-            prefix = {
-                enums.EntityType.COMPOUND: "compound_details",
-                enums.EntityType.BATCH: "batch_details",
-                enums.EntityType.ASSAY_RUN: "assay_run_details",
-                enums.EntityType.ASSAY_RESULT: "assay_result_details",
-            }.get(entity_type)
+        prefix_base = {
+            enums.EntityType.COMPOUND: "compound_details",
+            enums.EntityType.BATCH: "batch_details",
+            enums.EntityType.ASSAY_RUN: "assay_run_details",
+            enums.EntityType.ASSAY_RESULT: "assay_result_details",
+        }
+
+        records = self.property_records_map.get(col)
+        if records:
+            entity_types = {r.entity_type for r in records}
+            prefix_key = self.entity_type if self.entity_type in entity_types else next(iter(entity_types), None)
+            prefix = prefix_base.get(prefix_key)
             return f"{prefix}.{col}" if prefix else col
 
         if col in self.addition_records_map:
             return f"batch_additions.{col}"
+
         return col
 
     def _group_data(self, row: Dict[str, Any], entity_name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
@@ -108,9 +179,16 @@ class BaseRegistrar(ABC):
 
     # === Reference loading methods ===
 
-    def _load_reference_map(self, model, key: str = "id"):
+    def _load_reference_map(self, model, key: str = "id", allow_list: bool = False):
         result = self.db.execute(select(model)).scalars().all()
-        return {getattr(row, key): row for row in result}
+        if allow_list:
+            reference_map = {}
+            for row in result:
+                k = getattr(row, key)
+                reference_map.setdefault(k, []).append(row)
+            return reference_map
+        else:
+            return {getattr(row, key): row for row in result}
 
     def model_to_dict(self, obj):
         return {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
@@ -136,6 +214,16 @@ class BaseRegistrar(ABC):
                 logger.error(f"An exception occurred: {e}")
                 self.db.rollback()
 
+    def _process_row(self, row: Dict[str, Any], process_func):
+        if self.stop_registration:
+            self._add_output_row(row, "not_processed")
+
+        try:
+            process_func(row)
+            self._add_output_row(row, "success")
+        except Exception as e:
+            self.handle_row_error(row, e)
+
     # === Output formatting methods ===
 
     def _add_output_row(self, row, status, error_msg=None):
@@ -156,9 +244,7 @@ class BaseRegistrar(ABC):
 
     # === Error handling methods ===
 
-    def handle_row_error(self, row, exception, global_idx, all_rows):
+    def handle_row_error(self, row, exception):
         self._add_output_row(row, "failed", str(exception))
         if self.error_handling == enums.ErrorHandlingOptions.reject_all.value:
-            for remaining_row in all_rows[global_idx + 1 :]:
-                self._add_output_row(remaining_row, "not_processed")
-            raise HTTPException(status_code=400, detail="Registration failed. See the output file for details.")
+            self.stop_registration = True

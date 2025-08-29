@@ -6,7 +6,7 @@ from app.services.search.query_builder import QueryBuilder, QueryBuildError
 from sqlalchemy import text
 from app.setup.database import DB_SCHEMA
 from app.services.search.operators import SearchOperators
-from app.services.search.utils.helper_functions import sanitize_field_name, prepare_search_output
+from app.services.search.utils.helper_functions import create_alias_mapping, prepare_search_output
 from app.models import Level
 
 
@@ -42,12 +42,11 @@ class SearchEngine:
             if validation_errors:
                 raise SearchEngineError(f"Request validation failed: {'; '.join(validation_errors)}")
 
-            # Extract column names from output fields
-            columns = [field.lower() for field in request.output]
-            self.output_aliases = {sanitize_field_name(field): field for field in columns}
+            # Prepare output fields
+            self.prepare_output_fields(request)
 
             # Build the SQL query
-            query_info = self.query_builder.build_query(request)
+            query_info = self.query_builder.build_query(request, self.output_aliases)
 
             # Execute main query
             results, headers = self._execute_main_query(query_info["sql"], query_info["params"])
@@ -73,12 +72,28 @@ class SearchEngine:
             if not self.field_resolver.validate_field_path(field_path, request.level):
                 errors.append(f"Invalid output field: {field_path}")
 
+        # Validate output fields
+        for aggregation in request.aggregations:
+            field_path = aggregation.field
+            if not self.field_resolver.validate_field_path(field_path):
+                errors.append(f"Invalid output field: {field_path}")
+
         # Validate filter conditions if present
         if request.filter:
             filter_errors = self._validate_filter(request.filter, request.level)
             errors.extend(filter_errors)
 
         return errors
+
+    def prepare_output_fields(self, request: models.SearchRequest):
+        """
+        Prepares output fields by resolving aliases and ensuring valid field paths
+        """
+        if not request.output:
+            raise SearchEngineError("Output fields cannot be empty")
+
+        columns = [field.lower() for field in request.output]
+        self.output_aliases = create_alias_mapping(columns, request.aggregations)
 
     def _validate_filter(self, filter_obj: models.Filter, level: Level, path: str = "filter") -> List[str]:
         """Recursively validate filter conditions"""
@@ -118,7 +133,7 @@ class SearchEngine:
 
             # Get column names from result
             if result.returns_rows:
-                headers = [self.output_aliases[item] for item in list(result.keys())]
+                headers = [self.output_aliases[item][0] for item in list(result.keys())]
                 rows = result.fetchall()
                 return rows, headers
             else:

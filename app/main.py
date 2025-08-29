@@ -26,6 +26,7 @@ from sqlalchemy.sql import text
 from app.utils.logging_utils import logger
 from app.utils.admin_utils import admin
 from app.utils.chemistry_utils import get_molecule_standardization_config
+from app.utils.sql_utils import get_direct_fields
 
 
 # Handle both package imports and direct execution
@@ -85,6 +86,11 @@ def get_schema(db: Session = Depends(get_db)):
     return crud.get_entities_by_entity_type(db)
 
 
+@router.get("/schema-direct/")
+def get_schema_direct():
+    return get_direct_fields()
+
+
 @router.get("/schema/compounds", response_model=List[models.PropertyBase])
 def get_schema_compounds(db: Session = Depends(get_db)):
     return crud.get_entities_by_entity_type(db, enums.EntityType.COMPOUND)
@@ -122,22 +128,28 @@ def get_schema_batch_synonyms(db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-virtual-compounds
 def process_registration(
     registrar_class: Type,
-    csv_file: UploadFile,
+    file: UploadFile,
     mapping: Optional[str],
     error_handling,
     output_format,
     db: Session,
 ):
+    extension = file.filename.split(".")[-1].lower()
+    if extension not in ["csv", "sdf"]:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Only CSV or SDF allowed.")
+
     registrar = registrar_class(db=db, mapping=mapping, error_handling=error_handling)
 
     tmp = tempfile.SpooledTemporaryFile(mode="w+b", max_size=50 * 1024 * 1024)
-    shutil.copyfileobj(csv_file.file, tmp)
+    shutil.copyfileobj(file.file, tmp)
     tmp.seek(0)
+
+    processor = registrar.process_csv if extension == "csv" else registrar.process_sdf
 
     def row_generator():
         try:
             with io.TextIOWrapper(tmp, encoding="utf-8", newline="") as text_stream:
-                for chunk_rows in registrar.process_csv(text_stream, chunk_size=5000):
+                for chunk_rows in processor(text_stream, chunk_size=5000):
                     registrar.register_all(chunk_rows)
                     yield registrar.output_rows.copy()
                     registrar.cleanup_chunk()
@@ -145,17 +157,23 @@ def process_registration(
             tmp.close()
             registrar.cleanup()
 
+    media_type_map = {
+        "csv": "text/csv",
+        "json": "application/json",
+        "sdf": "chemical/x-mdl-sdfile",
+    }
+
     result_writer = StreamingResultWriter(output_format.value)
     return StreamingResponse(
         result_writer.stream_rows(row_generator()),
-        media_type="text/csv" if output_format.value == enums.OutputFormat.csv.value else "application/json",
+        media_type=media_type_map.get(output_format.value, "application/octet-stream"),
         headers={"Content-Disposition": f"attachment; filename=registration_result.{output_format.value}"},
     )
 
 
 @router.post("/compounds/")
 def register_compounds(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
@@ -163,7 +181,7 @@ def register_compounds(
 ):
     return process_registration(
         CompoundRegistrar,
-        csv_file,
+        file,
         mapping,
         error_handling,
         output_format,
@@ -177,20 +195,24 @@ def get_compounds(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     return compounds
 
 
-@router.get("/compounds/{compound_id}", response_model=models.CompoundResponse)
-def get_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
+@router.get("/compounds/{corporate_compound_id}", response_model=models.CompoundResponse)
+def get_compound_by_corporate_id(corporate_compound_id: str, db: Session = Depends(get_db)):
+    return get_or_raise_exception(crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found")
 
 
-@router.get("/compounds/{compound_id}/synonyms", response_model=List[models.PropertyWithValue])
-def get_compound_synonyms(compound_id: int, db: Session = Depends(get_db)):
-    compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
+@router.get("/compounds/{corporate_compound_id}/synonyms", response_model=List[models.PropertyWithValue])
+def get_compound_synonyms(corporate_compound_id: str, db: Session = Depends(get_db)):
+    compound = get_or_raise_exception(
+        crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found"
+    )
     return [prop for prop in compound.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/compounds/{compound_id}/properties", response_model=List[models.PropertyWithValue])
-def get_compound_properties(compound_id: int, db: Session = Depends(get_db)):
-    compound = get_or_raise_exception(crud.get_compound_by_id, db, compound_id, "Compound not found")
+@router.get("/compounds/{corporate_compound_id}/properties", response_model=List[models.PropertyWithValue])
+def get_compound_properties(corporate_compound_id: str, db: Session = Depends(get_db)):
+    compound = get_or_raise_exception(
+        crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found"
+    )
     return compound.properties
 
 
@@ -277,13 +299,13 @@ def delete_addition(addition_id: int, db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-batches
 @router.post("/batches/")
 def register_batches_v1(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(BatchRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(BatchRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.get("/batches/", response_model=List[models.BatchResponse])
@@ -292,26 +314,26 @@ def read_batches_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
     return batches
 
 
-@router.get("/batches/{batch_id}", response_model=models.BatchResponse)
-def read_batch_v1(batch_id: int, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+@router.get("/batches/{corporate_batch_id}", response_model=models.BatchResponse)
+def read_batch_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
+    return get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
 
 
-@router.get("/batches/{batch_id}/properties", response_model=List[models.PropertyWithValue])
-def read_batch_properties_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+@router.get("/batches/{corporate_batch_id}/properties", response_model=List[models.PropertyWithValue])
+def read_batch_properties_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
     return batch.properties
 
 
-@router.get("/batches/{batch_id}/synonyms", response_model=List[models.PropertyWithValue])
-def read_batch_synonyms_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+@router.get("/batches/{corporate_batch_id}/synonyms", response_model=List[models.PropertyWithValue])
+def read_batch_synonyms_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
     return [prop for prop in batch.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/batches/{batch_id}/additions", response_model=List[models.BatchAddition])
-def read_batch_additions_v1(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, batch_id, "Batch not found")
+@router.get("/batches/{corporate_batch_id}/additions", response_model=List[models.BatchAddition])
+def read_batch_additions_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
     return batch.batch_additions
 
 
@@ -327,7 +349,9 @@ def delete_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#assay-data-domain
 @router.post("/assays")
 def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(get_db)):
-    all_properties = {p.name: p for p in crud.get_properties(db)}
+    all_properties = {}
+    for p in crud.get_properties(db):
+        all_properties.setdefault(p.name, []).append(p)
     property_service = PropertyService(all_properties, db, enums.EntityType.ASSAY.value)
 
     assays_to_insert = [
@@ -393,13 +417,13 @@ def get_assay_by_id(assay_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_runs/")
 def create_assay_runs(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(AssayRunRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(AssayRunRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.get("/assay_runs/", response_model=list[models.AssayRunResponse])
@@ -418,13 +442,13 @@ def get_assay_run_by_id(assay_run_id: int, db: Session = Depends(get_db)):
 
 @router.post("/assay_results/")
 def create_assay_results(
-    csv_file: UploadFile = File(...),
+    file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
     output_format: enums.OutputFormat = Form(enums.OutputFormat.json),
     db: Session = Depends(get_db),
 ):
-    return process_registration(AssayResultsRegistrar, csv_file, mapping, error_handling, output_format, db)
+    return process_registration(AssayResultsRegistrar, file, mapping, error_handling, output_format, db)
 
 
 @router.get("/validators/")
@@ -589,7 +613,7 @@ def update_institution_id_pattern(
         db.commit()
         return {
             "status": "success",
-            "message": f"Corporate ID pattern for {entity_type} updated to {pattern}, ids will be looking like {pattern.format(1)}",
+            "message": f"Corporate ID pattern for {entity_type.value} updated to {pattern}, ids will be looking like {pattern.format(1)}",
         }
     except Exception as e:
         db.rollback()
@@ -649,6 +673,7 @@ def advanced_search(request: models.SearchRequest, db: Session = Depends(get_db)
 @router.post("/search/compounds")
 def search_compounds_advanced(
     output: List[str] = Body(...),
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -658,13 +683,20 @@ def search_compounds_advanced(
 
     Automatically sets level to 'compounds' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(level="compounds", output=output, filter=filter, output_format=output_format)
+    request = models.SearchRequest(
+        level=enums.SearchEntityType.COMPOUNDS.value,
+        output=output,
+        filter=filter,
+        output_format=output_format,
+        aggregations=aggregations,
+    )
     return advanced_search(request, db)
 
 
 @router.post("/search/batches")
 def search_batches_advanced(
     output: List[str] = Body(...),
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -674,13 +706,20 @@ def search_batches_advanced(
 
     Automatically sets level to 'batches' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(level="batches", output=output, filter=filter, output_format=output_format)
+    request = models.SearchRequest(
+        level=enums.SearchEntityType.BATCHES.value,
+        output=output,
+        filter=filter,
+        output_format=output_format,
+        aggregations=aggregations,
+    )
     return advanced_search(request, db)
 
 
 @router.post("/search/assay-results")
 def search_assay_results_advanced(
     output: List[str] = Body(...),
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -690,13 +729,20 @@ def search_assay_results_advanced(
 
     Automatically sets level to 'assay_results' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(level="assay_results", output=output, filter=filter, output_format=output_format)
+    request = models.SearchRequest(
+        level=enums.SearchEntityType.ASSAY_RESULTS.value,
+        output=output,
+        filter=filter,
+        output_format=output_format,
+        aggregations=aggregations,
+    )
     return advanced_search(request, db)
 
 
 @router.post("/search/assays")
 def search_assays_advanced(
     output: List[str] = Body(...),
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -706,13 +752,20 @@ def search_assays_advanced(
 
     Automatically sets level to 'assays' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(level="assays", output=output, filter=filter, output_format=output_format)
+    request = models.SearchRequest(
+        level=enums.SearchEntityType.ASSAYS.value,
+        output=output,
+        filter=filter,
+        output_format=output_format,
+        aggregations=aggregations,
+    )
     return advanced_search(request, db)
 
 
 @router.post("/search/assay-runs")
 def search_assay_runs_advanced(
     output: List[str] = Body(...),
+    aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
     db: Session = Depends(get_db),
@@ -722,7 +775,13 @@ def search_assay_runs_advanced(
 
     Automatically sets level to 'assay_runs' and accepts filter parameters directly.
     """
-    request = models.SearchRequest(level="assay_runs", output=output, filter=filter, output_format=output_format)
+    request = models.SearchRequest(
+        level=enums.SearchEntityType.ASSAY_RUNS.value,
+        output=output,
+        filter=filter,
+        output_format=output_format,
+        aggregations=aggregations,
+    )
     return advanced_search(request, db)
 
 

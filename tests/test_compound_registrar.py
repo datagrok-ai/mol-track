@@ -1,6 +1,6 @@
 import pytest
 from app.utils import enums
-from tests.conftest import BLACK_DIR, read_json, _preload_compounds
+from tests.conftest import BLACK_DIR, preload_entity, read_json, _preload_compounds
 
 
 def extract_name_entity_type(items):
@@ -65,8 +65,16 @@ def test_register_compounds_without_mapping(client, preload_schema):
         names = {p["name"] for p in properties}
         assert names == expected_props, f"[Compound {index}] Property names mismatch: {names} != {expected_props}"
 
-    assert_properties(compounds[0], {"epa_compound_id", "corporate_compound_id", "MolLogP"}, index=0)
-    assert_properties(compounds[8], {"epa_compound_id", "corporate_compound_id"}, index=8)
+    assert_properties(
+        compounds[0],
+        {"EPA Compound ID", "corporate_compound_id", "MolLogP", "Source Compound Code", "CAS", "Source", "Common Name"},
+        index=0,
+    )
+    assert_properties(
+        compounds[8],
+        {"EPA Compound ID", "corporate_compound_id", "Source Compound Code", "CAS", "Source", "Common Name"},
+        index=8,
+    )
 
 
 @pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject all' behaviour.")
@@ -124,14 +132,24 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     assert first["inchikey"] == "QQVIHTHCMHWDBS-UHFFFAOYSA-N"
 
     props = {p["name"]: p for p in first["properties"]}
-    assert props["epa_compound_id"]["value_string"] == "EPA-001"
-    assert props["cas"]["value_string"] == "121-91-5"
-    assert props["common_name"]["value_string"].strip() == "1,3-Benzenedicarboxylic acid"
+    assert props["EPA Compound ID"]["value_string"] == "EPA-001"
+    assert props["CAS"]["value_string"] == "121-91-5"
+    assert props["Common Name"]["value_string"].strip() == "1,3-Benzenedicarboxylic acid"
     assert abs(props["MolLogP"]["value_num"] - 1.083) < 1e-3
 
 
-def test_get_compound_by_id(client, preload_schema, preload_compounds):
-    response = client.get("/v1/compounds/2")
+def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds):
+    response = client.get("/v1/compounds/")
+    assert response.status_code == 200
+    compounds = response.json()
+    first_compound = compounds[1]
+
+    corporate_compound_prop = next(
+        (p for p in first_compound["properties"] if p["name"] == "corporate_compound_id"), None
+    )
+    assert corporate_compound_prop is not None, "No Corporate Compound ID found"
+    corporate_id = corporate_compound_prop["value_string"]
+    response = client.get(f"/v1/compounds/{corporate_id}")
     assert response.status_code == 200
 
     result = response.json()
@@ -146,7 +164,56 @@ def test_get_compound_by_id(client, preload_schema, preload_compounds):
 
     props = {p["name"]: p for p in result["properties"]}
 
-    assert props["epa_compound_id"]["value_string"] == "EPA-002"
-    assert props["cas"]["value_string"] == "1478-61-1"
-    assert props["common_name"]["value_string"].strip() == "Bisphenol AF"
+    assert props["EPA Compound ID"]["value_string"] == "EPA-002"
+    assert props["CAS"]["value_string"] == "1478-61-1"
+    assert props["Common Name"]["value_string"].strip() == "Bisphenol AF"
     assert abs(props["MolLogP"]["value_num"] - 4.5085) < 1e-3
+
+
+def test_compounds_input_sdf(client):
+    sdf_path = BLACK_DIR / "compounds.sdf"
+    response = preload_entity(
+        client,
+        "/v1/compounds/",
+        sdf_path,
+        mapping_path=None,
+        error_handling=enums.ErrorHandlingOptions.reject_row,
+        mime_type="chemical/x-mdl-sdfile",
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 54
+
+    first = data[0]
+    expected = {
+        "Common Name": "1,3-Benzenedicarboxylic acid",
+        "CAS": "121-91-5",
+        "EPA Compound ID": "EPA-001",
+        "MolLogP": "1.082999945",
+        "Source": "EPA",
+        "Source Compound Code": "EPA-001",
+        "registration_status": "success",
+        "registration_error_message": "",
+    }
+
+    for k, v in expected.items():
+        actual = first.get(k)
+        assert actual.strip() == v.strip(), f"Mismatch in field {k}: expected {v!r}, got {actual!r}"
+
+
+def test_compounds_output_sdf(client):
+    csv_path = BLACK_DIR / "compounds.csv"
+    response = preload_entity(
+        client,
+        "/v1/compounds/",
+        csv_path,
+        mapping_path=None,
+        error_handling=enums.ErrorHandlingOptions.reject_row,
+        output_format=enums.OutputFormat.sdf,
+    )
+
+    assert response.status_code == 200
+    assert "sdf" in response.headers["content-type"].lower()
+    assert "$$$$" in response.text

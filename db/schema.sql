@@ -50,6 +50,7 @@ CREATE TABLE moltrack.properties (
   max float, -- maximum value for numeric properties
   choices text, -- JSON-encoded list of choices. Applicable to string properties only
   validators text, -- JSON-encoded list of validators. Applicable to string properties only
+  friendly_name text,
   UNIQUE(name, entity_type) -- Ensure unique property names within each entity_type
 );
 

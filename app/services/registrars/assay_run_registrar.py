@@ -15,6 +15,7 @@ class AssayRunRegistrar(BaseRegistrar):
         super().__init__(db, mapping, error_handling)
         self._assay_records_map = None
         self.assay_runs_to_insert = []
+        self.entity_type = enums.EntityType.ASSAY_RUN
 
     @property
     def assay_records_map(self):
@@ -41,11 +42,11 @@ class AssayRunRegistrar(BaseRegistrar):
         details = []
 
         for idx, row in enumerate(rows):
-            try:
+
+            def process_row(row):
                 grouped = self._group_data(row, "assay")
                 assay_data = grouped.get("assay", {})
                 assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
-                self.assay_runs_to_insert.append(assay_run)
 
                 inserted, updated = self.property_service.build_details_records(
                     models.AssayRunDetail,
@@ -54,10 +55,11 @@ class AssayRunRegistrar(BaseRegistrar):
                     enums.EntityType.ASSAY_RUN,
                     False,
                 )
+
+                self.assay_runs_to_insert.append(assay_run)
                 details.extend(inserted)
-                self._add_output_row(row, "success")
-            except Exception as e:
-                self.handle_row_error(row, e, idx, rows)
+
+            self._process_row(row, process_row)
 
         if self.assay_runs_to_insert:
             batch_sql = self.generate_sql(self.assay_runs_to_insert, details)
