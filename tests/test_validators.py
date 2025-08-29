@@ -12,7 +12,7 @@ def send_registration_request(client, rows):
     writer.writerows(rows)
     csv_buffer.seek(0)
 
-    files = {"csv_file": ("data.csv", csv_buffer.getvalue(), "text/csv")}
+    files = {"file": ("data.csv", csv_buffer.getvalue(), "text/csv")}
     data = {"error_handling": enums.ErrorHandlingOptions.reject_row.value}
 
     response = client.post("v1/compounds/", files=files, data=data)

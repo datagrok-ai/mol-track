@@ -1,7 +1,7 @@
 import json
 from typing import Any
 from app import models
-from app.services.property_service.numeric_constraint import NumericConstraint
+from app.services.properties.numeric_constraint import NumericConstraint
 
 
 class PropertyValidator:

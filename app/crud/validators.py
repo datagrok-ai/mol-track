@@ -4,7 +4,7 @@ from pytest import Session
 from sqlalchemy import insert
 
 from app import models
-from app.services.property_service.complex_validator import ComplexValidator
+from app.services.properties.complex_validator import ComplexValidator
 from app.utils import enums
 from app.utils.admin_utils import admin
 
