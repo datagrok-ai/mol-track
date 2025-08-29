@@ -17,7 +17,7 @@ from app import models
 from app import crud
 from app.services.registrars.writer import StreamingResultWriter
 from app.utils import enums
-from app.services.property_service import PropertyService
+from app.services.properties.property_service import PropertyService
 from app.services.search.engine import SearchEngine
 from app.services.search.search_filter_builder import SearchFilterBuilder
 
@@ -352,7 +352,7 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
     all_properties = {}
     for p in crud.get_properties(db):
         all_properties.setdefault(p.name, []).append(p)
-    property_service = PropertyService(all_properties)
+    property_service = PropertyService(all_properties, db, enums.EntityType.ASSAY.value)
 
     assays_to_insert = [
         {"name": assay.name, "created_by": admin.admin_user_id, "updated_by": admin.admin_user_id} for assay in payload
@@ -363,17 +363,24 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
 
     detail_records = []
     property_records = []
+    detail_logs = []
 
     for assay_id, assay in zip(inserted_ids, payload):
-        entity_ids = {"assay_id": assay_id}
-        inserted, updated = property_service.build_details_records(
-            models.AssayDetail,
-            properties=assay.extra_fields,
-            entity_ids=entity_ids,
-            entity_type=enums.EntityType.ASSAY,
-            include_user_fields=False,
-        )
-        detail_records.extend(inserted)
+        try:
+            entity_ids = {"assay_id": assay_id}
+            inserted, updated = property_service.build_details_records(
+                models.AssayDetail,
+                properties=assay.extra_fields,
+                entity_ids=entity_ids,
+                entity_type=enums.EntityType.ASSAY,
+                include_user_fields=False,
+            )
+            detail_records.extend(inserted)
+            detail_logs.append({"status": "success", **assay.extra_fields, "registration_error": ""})
+        except Exception as e:
+            detail_logs.append(
+                {"status": "failed", **assay.extra_fields, "registration_error": f"Error processing details: {e}"}
+            )
 
         for prop_data in assay.assay_result_properties:
             prop_info = property_service.get_property_info(prop_data.name, enums.EntityType.ASSAY_RESULT)
@@ -391,7 +398,7 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
         db.execute(insert(models.AssayProperty).values(property_records))
 
     db.commit()
-    return {"status": "success", "created": assays_to_insert}
+    return {"status": "success", "created": assays_to_insert, "details": detail_logs}
 
 
 @router.get("/assays/", response_model=list[models.AssayResponse])
@@ -442,6 +449,27 @@ def create_assay_results(
     db: Session = Depends(get_db),
 ):
     return process_registration(AssayResultsRegistrar, file, mapping, error_handling, output_format, db)
+
+
+@router.get("/validators/")
+def get_validators(entity: enums.EntityType, db: Session = Depends(get_db)):
+    return crud.get_validators_for_entity(db, entity)
+
+
+@router.post("/validators/")
+def register_validators(
+    entity: enums.EntityType = Form(enums.EntityType.COMPOUND),
+    name: str = Form(..., embed=True),
+    description: Optional[str] = Form(None, embed=True),
+    expression: str = Form(..., embed=True),
+    db: Session = Depends(get_db),
+):
+    return crud.create_validator(db, entity, name, expression, description)
+
+
+@router.delete("/validators/{validator_name}")
+def delete_validator_by_name(validator_name: str, db: Session = Depends(get_db)):
+    return crud.delete_validator_by_name(db, validator_name)
 
 
 @router.patch("/admin/update-standardization-config")

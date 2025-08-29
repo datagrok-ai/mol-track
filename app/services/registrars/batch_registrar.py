@@ -11,6 +11,7 @@ from sqlalchemy.sql import text
 
 class BatchRegistrar(CompoundRegistrar):
     def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
+        self.entity_type = enums.EntityType.BATCH
         super().__init__(db, mapping, error_handling)
         self._additions_map = None
 
