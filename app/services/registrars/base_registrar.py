@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from app.utils import enums
 from app.utils.logging_utils import logger
-from app.services.property_service import property_service
+from app.services.properties import property_service
 from app import models
 
 

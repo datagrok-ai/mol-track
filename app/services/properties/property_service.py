@@ -2,8 +2,8 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session
 from app.models import Validator
-from app.services.property_service.complex_validator import ComplexValidator
-from app.services.property_service.property_validator import PropertyValidator
+from app.services.properties.complex_validator import ComplexValidator
+from app.services.properties.property_validator import PropertyValidator
 from app.utils import type_casting_utils
 from app.utils.admin_utils import admin
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
