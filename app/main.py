@@ -221,19 +221,18 @@ def get_compound_properties(property_value: str, property_name: Optional[str] = 
     return compound.properties
 
 
-@router.put("/compounds/", response_model=models.CompoundResponse)
+@router.put("/compounds/{corporate_compound_id}", response_model=models.CompoundResponse)
 def update_compound_by_id(
-    property_value: str,
+    corporate_compound_id: str,
     update_data: models.CompoundUpdate,
-    property_name: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    return crud.update_compound(db, property_value, property_name, update_data)
+    return crud.update_compound(db, corporate_compound_id, "corporate_compound_id", update_data)
 
 
-@router.delete("/compounds/", response_model=models.Compound)
-def delete_compound_by_id(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
-    return crud.delete_compound(db, property_value, property_name)
+@router.delete("/compounds/{corporate_compound_id}", response_model=models.Compound)
+def delete_compound_by_id(corporate_compound_id: str, db: Session = Depends(get_db)):
+    return crud.delete_compound(db, corporate_compound_id, "corporate_compound_id")
 
 
 # TODO: Create the utils module and move there
@@ -352,9 +351,9 @@ def get_batch_additions(property_value: str, property_name: Optional[str] = None
     return batch.batch_additions
 
 
-@router.delete("/batches/", response_model=models.Batch)
-def delete_batch_by_any_synonym(property_value: str, property_name: str = None, db: Session = Depends(get_db)):
-    return crud.delete_batch_by_synonym(db, property_value, property_name)
+@router.delete("/batches/{corporate_batch_id}", response_model=models.Batch)
+def delete_batch_by_any_synonym(corporate_batch_id: str, db: Session = Depends(get_db)):
+    return crud.delete_batch_by_synonym(db, corporate_batch_id, "corporate_batch_id")
 
 
 # === Assay data endpoints ===
