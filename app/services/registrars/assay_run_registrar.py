@@ -37,6 +37,26 @@ class AssayRunRegistrar(BaseRegistrar):
             "updated_by": admin.admin_user_id,
         }
 
+    def _get_details_for_assay(self, assay_id: int) -> List[Dict[str, Any]]:
+        properties = properties = (
+            self.db.query(models.AssayDetail, models.Property)
+            .join(models.Property, models.AssayDetail.property_id == models.Property.id)
+            .filter(models.AssayDetail.assay_id == assay_id)
+            .all()
+        )
+        prop_dict = {}
+        for detail, prop in properties:
+            if prop.value_type.value == "string":
+                prop_dict[prop.name] = detail.value_string
+            elif prop.value_type.value in ("int", "float"):  # stored in same column
+                prop_dict[prop.name] = detail.value_num
+            elif prop.value_type.value == "datetime":
+                prop_dict[prop.name] = detail.value_datetime
+            elif prop.value_type.value == "uuid":
+                prop_dict[prop.name] = detail.value_uuid
+
+        return prop_dict
+
     def build_sql(self, rows: List[Dict[str, Any]]) -> str:
         self.assay_runs_to_insert = []
         details = []
@@ -47,13 +67,15 @@ class AssayRunRegistrar(BaseRegistrar):
                 grouped = self._group_data(row, "assay")
                 assay_data = grouped.get("assay", {})
                 assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
-
-                inserted, updated = self.property_service.build_details_records(
+                details = self._get_details_for_assay(assay_run.get("assay_id"))
+                assay_details = self.property_service.prepare_details_record(details, enums.EntityType.ASSAY)
+                inserted, updated, record = self.property_service.build_details_records(
                     models.AssayRunDetail,
                     grouped.get("assay_run_details", {}),
                     {"rn": idx + 1},
                     enums.EntityType.ASSAY_RUN,
                     False,
+                    additional_details=assay_details,
                 )
 
                 self.assay_runs_to_insert.append(assay_run)

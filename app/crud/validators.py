@@ -9,6 +9,15 @@ from app.utils import enums
 from app.utils.admin_utils import admin
 
 
+entity_propery_map = {
+    enums.EntityType.COMPOUND: [enums.EntityType.COMPOUND],
+    enums.EntityType.BATCH: [enums.EntityType.BATCH, enums.EntityType.COMPOUND],
+    enums.EntityType.ASSAY: [enums.EntityType.ASSAY],
+    enums.EntityType.ASSAY_RUN: [enums.EntityType.ASSAY_RUN, enums.EntityType.ASSAY],
+    enums.EntityType.ASSAY_RESULT: [enums.EntityType.ASSAY_RESULT, enums.EntityType.ASSAY_RUN, enums.EntityType.ASSAY],
+}
+
+
 def get_validators_for_entity(db: Session, entity: enums.EntityType) -> List[str]:
     results = db.query(models.Validator).filter(models.Validator.entity_type == entity).all()
     return results
@@ -30,12 +39,16 @@ def create_validator(
         raise HTTPException(status_code=400, detail="Validator is not provided")
 
     properties = (
-        db.query(models.Property.name, models.Property.value_type).filter(models.Property.entity_type == entity).all()
+        db.query(models.Property.name, models.Property.value_type, models.Property.entity_type)
+        .filter(models.Property.entity_type.in_(entity_propery_map[entity]))
+        .all()
     )
-    properties = {name: val_type.value for (name, val_type) in properties}
+    properties = {
+        f"{entity_type.lower()}_details.{name}": val_type.value for (name, val_type, entity_type) in properties
+    }
 
     try:
-        ComplexValidator.validate_rule(expression, properties)
+        expression = ComplexValidator.validate_rule(expression, properties, entity)
     except Exception as e:
         raise HTTPException(
             status_code=400, detail={"status": "failed", "message": f"Error adding validators: {str(e)}"}

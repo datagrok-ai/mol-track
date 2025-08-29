@@ -3,6 +3,8 @@ from typing import Dict, Mapping, List, Any
 from cel import evaluate, Context
 import re
 
+from app.utils import enums
+
 
 class ComplexValidationError(ValueError):
     """Raised when a record does not satisfy a validation expression."""
@@ -29,7 +31,8 @@ class ComplexValidator:
             evaluate_rule = True
             variables = cls._extract_variables(raw_expr)
             for var in variables:
-                if var not in record.keys():
+                var = var.replace(".", "_").replace(" ", "_")
+                if var not in safe_ctx.keys():
                     evaluate_rule = False
                     break
             if not evaluate_rule:
@@ -46,7 +49,7 @@ class ComplexValidator:
                 raise ComplexValidationError(f"Record does not satisfy rule: {raw_expr}")
 
     @classmethod
-    def validate_rule(cls, expr: str, properties: Dict[str, str]) -> bool:
+    def validate_rule(cls, expr: str, properties: Dict[str, str], entity_type: enums.EntityType) -> bool:
         """
         Validate a single CEL rule against a dictionary of properties.
         Creates a mock context where each property is set to a non-null value.
@@ -55,22 +58,40 @@ class ComplexValidator:
 
         variables = cls._extract_variables(expr)
         for var in variables:
+            if "." not in var:
+                new_var = f"{entity_type.value.lower()}_details.{var}"
+                expr = expr.replace(f"${{{var}}}", f"${{{new_var}}}")
+                var = new_var
             if var not in properties.keys():
-                raise ComplexValidationError(f"Unknown property '{var}' in rule: {expr}")
+                raise ComplexValidationError(f"Unknown property '{var}' (transformed to {new_var}) in rule: {expr}")
 
         mock_record = cls._create_mock_record(variables, properties)
 
         cls.validate_record(mock_record, [expr], validate_rule=True)
 
+        return expr
+
     # ------------------------
     # Internal helpers
     # ------------------------
+    @staticmethod
+    def replace_dots_in_placeholder(s: str) -> str:
+        pattern = re.compile(r"\$\{([^}]+)\}")
+
+        def replacer(match):
+            inner = match.group(1)
+            inner = inner.replace(".", "_")
+            return f"${{{inner}}}"
+
+        return pattern.sub(replacer, s)
+
     @staticmethod
     def _sanitize_context(record: Mapping[str, Any]) -> Mapping[str, Any]:
         """Convert record values into JSON-serializable primitives."""
         safe_ctx = {}
         for k, v in record.items():
             k = k.replace(" ", "_")
+            k = k.replace(".", "_")
             if isinstance(v, (str, int, float, bool)) or v is None:
                 safe_ctx[k] = v
             else:
@@ -115,6 +136,8 @@ class ComplexValidator:
 
         # replaces white spaces inside ${...} with underscores
         expr = re.sub(r"\$\{([^}]+)\}", lambda m: re.sub(r"[^a-zA-Z0-9_]", "_", m.group(1)), expr)
+
+        expr = ComplexValidator.replace_dots_in_placeholder(expr)
 
         return expr.strip()
 
