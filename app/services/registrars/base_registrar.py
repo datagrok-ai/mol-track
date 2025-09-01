@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from app.utils import enums
 from app.utils.logging_utils import logger
-from app.services import property_service
+from app.services.properties import property_service
 from app import models
 
 from rdkit import Chem
@@ -28,7 +28,7 @@ class BaseRegistrar(ABC):
         self._property_records_map = None
         self._addition_records_map = None
 
-        self.property_service = property_service.PropertyService(self.property_records_map)
+        self.property_service = property_service.PropertyService(self.property_records_map, db, self.entity_type.value)
         self.user_mapping = self._load_mapping(mapping)
         self.output_rows = []
 

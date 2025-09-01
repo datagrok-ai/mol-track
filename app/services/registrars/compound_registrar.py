@@ -19,6 +19,8 @@ class CompoundRegistrar(BaseRegistrar):
     def __init__(
         self, db: Session, mapping: Optional[str], error_handling: str = enums.ErrorHandlingOptions.reject_all
     ):
+        if not hasattr(self, "entity_type"):
+            self.entity_type = enums.EntityType.COMPOUND
         super().__init__(db, mapping, error_handling)
         self._compound_records_map = None
         self._compound_details_map = None

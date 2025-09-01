@@ -234,6 +234,10 @@ class PropertyBase(SQLModel):
     entity_type: enums.EntityType = Field(sa_column=Column(Enum(enums.EntityType), nullable=False))
     semantic_type_id: Optional[int] = Field(foreign_key=f"{DB_SCHEMA}.semantic_types.id", nullable=True, default=None)
     pattern: Optional[str] = Field(default=None)
+    min: Optional[float] = Field(default=None)
+    max: Optional[float] = Field(default=None)
+    choices: Optional[str] = Field(default=None)
+    validators: Optional[str] = Field(default=None)
     friendly_name: Optional[str] = Field(default=None)
 
 
@@ -433,6 +437,10 @@ class Property(PropertyResponse, table=True):
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
     semantic_type: "SemanticType" = Relationship(back_populates="properties")
+    min: Optional[float] = Field(default=None)
+    max: Optional[float] = Field(default=None)
+    choices: Optional[str] = Field(default=None)
+    validators: Optional[str] = Field(default=None)
 
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
@@ -450,6 +458,25 @@ class Property(PropertyResponse, table=True):
     batches: List["Batch"] = Relationship(
         back_populates="properties", link_model=BatchDetail, sa_relationship_kwargs={"viewonly": True}
     )
+
+
+class Validator(SQLModel, table=True):
+    __tablename__ = "validators"
+    __table_args__ = (
+        CheckConstraint(
+            "entity_type IN ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_TYPES', 'ASSAY_RESULT', 'SYSTEM')",
+            name="validators_entity_type_check",
+        ),
+        {"schema": DB_SCHEMA},
+    )  # since table is in schema moltrack
+    id: int = Field(primary_key=True, index=True)
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    name: str = Field(unique=True, nullable=False)
+    description: Optional[str] = Field(default=None)
+    entity_type: enums.EntityType = Field(sa_column=Column(Enum(enums.EntityType), nullable=False))
+    expression: str = Field(nullable=False)
 
 
 class AssayResultBase(SQLModel):

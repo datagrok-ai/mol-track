@@ -13,6 +13,7 @@ class AssayRunRegistrar(BaseRegistrar):
     def __init__(
         self, db: Session, mapping: Optional[str], error_handling: str = enums.ErrorHandlingOptions.reject_all
     ):
+        self.entity_type = enums.EntityType.ASSAY_RUN
         super().__init__(db, mapping, error_handling)
         self._assay_records_map = None
         self.assay_runs_to_insert = []

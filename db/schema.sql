@@ -46,8 +46,24 @@ CREATE TABLE moltrack.properties (
   unit text,
   entity_type text check (entity_type in ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_RUN', 'ASSAY_RESULT', 'SYSTEM')) NOT NULL,
   pattern text, -- regex for validating string value_type properties, e.g., identifier: CHEMBL.*
+  min float, -- minimum value for numeric properties
+  max float, -- maximum value for numeric properties
+  choices text, -- JSON-encoded list of choices. Applicable to string properties only
+  validators text, -- JSON-encoded list of validators. Applicable to string properties only
   friendly_name text,
   UNIQUE(name, entity_type) -- Ensure unique property names within each entity_type
+);
+
+CREATE TABLE moltrack.validators (
+  id serial PRIMARY KEY,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  updated_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  created_by uuid NOT NULL REFERENCES moltrack.users (id),
+  updated_by uuid NOT NULL REFERENCES moltrack.users (id),
+  name text NOT NULL UNIQUE, -- e.g., "is_email", "is_url", "is_uuid", "is_smiles", "is_inchi", "is_inchikey"
+  description text,
+  entity_type text check (entity_type in ('BATCH', 'COMPOUND', 'ASSAY', 'ASSAY_RUN', 'ASSAY_RESULT')) NOT NULL,
+  expression text NOT NULL
 );
 
 -- System settings like compound standardization rules, compound uniqueness rules, compound identification rules and synonym generation rules.
