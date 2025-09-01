@@ -11,7 +11,12 @@ from app.services.registrars.base_registrar import BaseRegistrar
 
 
 class AssayResultsRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[Dict[str, str]], error_handling: str):
+    def __init__(
+        self,
+        db: Session,
+        mapping: Optional[Dict[str, str]],
+        error_handling: str = enums.ErrorHandlingOptions.reject_all,
+    ):
         super().__init__(db, mapping, error_handling)
         self.assay_results_to_insert = []
         self.entity_type = enums.EntityType.ASSAY_RESULT

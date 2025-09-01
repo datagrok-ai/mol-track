@@ -16,7 +16,9 @@ from sqlalchemy.sql import text
 
 
 class CompoundRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
+    def __init__(
+        self, db: Session, mapping: Optional[str], error_handling: str = enums.ErrorHandlingOptions.reject_all
+    ):
         super().__init__(db, mapping, error_handling)
         self._compound_records_map = None
         self._compound_details_map = None

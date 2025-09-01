@@ -10,7 +10,9 @@ from app.services.registrars.base_registrar import BaseRegistrar
 
 
 class AssayRunRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
+    def __init__(
+        self, db: Session, mapping: Optional[str], error_handling: str = enums.ErrorHandlingOptions.reject_all
+    ):
         super().__init__(db, mapping, error_handling)
         self._assay_records_map = None
         self.assay_runs_to_insert = []

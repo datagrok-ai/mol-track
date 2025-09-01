@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
-from typing import List, Optional, Type
+from typing import Dict, List, Optional, Type
 
 import yaml
 from app.services.registrars.assay_result_registrar import AssayResultsRegistrar
@@ -63,6 +63,26 @@ def get_or_raise_exception(get_func, db, *args, not_found_msg=None, **kwargs):
         msg = not_found_msg or "Item not found"
         raise HTTPException(status_code=404, detail=msg)
     return item
+
+
+@router.post("/auto-map-columns")
+def auto_map_columns(
+    entity_type: enums.EntityType = Body(...), columns: List[str] = Body(...), db: Session = Depends(get_db)
+) -> Dict[str, str]:
+    registrar_map = {
+        enums.EntityType.COMPOUND: CompoundRegistrar,
+        enums.EntityType.BATCH: BatchRegistrar,
+        enums.EntityType.ASSAY_RUN: AssayRunRegistrar,
+        enums.EntityType.ASSAY_RESULT: AssayResultsRegistrar,
+    }
+
+    registrar_class = registrar_map.get(entity_type)
+    if not registrar_class:
+        raise ValueError(f"No registrar found for entity type {entity_type}")
+
+    registrar = registrar_class(db, None)
+    mapping = {col: registrar._assign_column(col) for col in columns}
+    return mapping
 
 
 # === Schema endpoints for supplementary data like properties and synonyms ===
