@@ -194,7 +194,9 @@ class ComplexValidator:
 
         record = {}
         for var in variables:
+            var_split = var.split(".")
+            record.setdefault(var_split[0], {})
             value = mock_values.get(properties.get(var, "string"), "mock")
-            record[var] = value
+            record[var_split[0]][var_split[1]] = value
 
         return record
