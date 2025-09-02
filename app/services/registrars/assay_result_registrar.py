@@ -8,6 +8,7 @@ from app import models
 from app.utils.admin_utils import admin
 from app.utils import enums, sql_utils
 from app.services.registrars.base_registrar import BaseRegistrar
+from app.utils.registrar_utils import get_details_for_entity
 
 
 class AssayResultsRegistrar(BaseRegistrar):
@@ -16,6 +17,9 @@ class AssayResultsRegistrar(BaseRegistrar):
         super().__init__(db, mapping, error_handling)
         self.assay_results_to_insert = []
         self.entity_type = enums.EntityType.ASSAY_RESULT
+        self.batch_details_cache = {}
+        self.assay_run_cache = {}
+        self.assay_cache = {}
 
     def _check_single_result(self, results: list, error_context: str):
         if len(results) == 0:
@@ -136,15 +140,33 @@ class AssayResultsRegistrar(BaseRegistrar):
                 )
 
                 batch_id = getattr(batch_record, "id")
+                batch_details = get_details_for_entity(
+                    batch_id, self.batch_details_cache, enums.EntityType.BATCH, self.db, models.BatchDetail, "batch_id"
+                )
+
                 assay_run_id = getattr(assay_run_record, "id")
                 assay_result = self._build_assay_result_record(batch_id, assay_run_id)
+                assay_run_details = get_details_for_entity(
+                    assay_run_id,
+                    self.assay_run_cache,
+                    enums.EntityType.ASSAY_RUN,
+                    self.db,
+                    models.AssayRunDetail,
+                    "assay_run_id",
+                )
 
-                inserted, updated = self.property_service.build_details_records(
+                assay_id = getattr(assay_run_record, "assay_id")
+                assay_details = get_details_for_entity(
+                    assay_id, self.assay_cache, enums.EntityType.ASSAY, self.db, models.AssayDetail, "assay_id"
+                )
+
+                inserted, updated, record = self.property_service.build_details_records(
                     models.AssayResultDetail,
                     grouped.get("assay_result_details", {}),
                     {"rn": idx + 1},
                     enums.EntityType.ASSAY_RESULT,
                     False,
+                    additional_details={**batch_details, **assay_run_details, **assay_details},
                 )
 
                 self.assay_results_to_insert.append(assay_result)

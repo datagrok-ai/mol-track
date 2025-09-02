@@ -7,6 +7,7 @@ from app.utils.admin_utils import admin
 from app import models
 from app.utils import enums, sql_utils
 from app.services.registrars.base_registrar import BaseRegistrar
+from app.utils.registrar_utils import get_details_for_entity
 
 
 class AssayRunRegistrar(BaseRegistrar):
@@ -16,6 +17,7 @@ class AssayRunRegistrar(BaseRegistrar):
         self._assay_records_map = None
         self.assay_runs_to_insert = []
         self.entity_type = enums.EntityType.ASSAY_RUN
+        self.assay_details_cache = {}
 
     @property
     def assay_records_map(self):
@@ -37,26 +39,6 @@ class AssayRunRegistrar(BaseRegistrar):
             "updated_by": admin.admin_user_id,
         }
 
-    def _get_details_for_assay(self, assay_id: int) -> List[Dict[str, Any]]:
-        properties = properties = (
-            self.db.query(models.AssayDetail, models.Property)
-            .join(models.Property, models.AssayDetail.property_id == models.Property.id)
-            .filter(models.AssayDetail.assay_id == assay_id)
-            .all()
-        )
-        prop_dict = {}
-        for detail, prop in properties:
-            if prop.value_type.value == "string":
-                prop_dict[prop.name] = detail.value_string
-            elif prop.value_type.value in ("int", "float"):  # stored in same column
-                prop_dict[prop.name] = detail.value_num
-            elif prop.value_type.value == "datetime":
-                prop_dict[prop.name] = detail.value_datetime
-            elif prop.value_type.value == "uuid":
-                prop_dict[prop.name] = detail.value_uuid
-
-        return prop_dict
-
     def build_sql(self, rows: List[Dict[str, Any]]) -> str:
         self.assay_runs_to_insert = []
         details = []
@@ -67,8 +49,14 @@ class AssayRunRegistrar(BaseRegistrar):
                 grouped = self._group_data(row, "assay")
                 assay_data = grouped.get("assay", {})
                 assay_run = self._build_assay_run_record(assay_data, grouped.get("assay_run_details"))
-                details = self._get_details_for_assay(assay_run.get("assay_id"))
-                assay_details = self.property_service.prepare_details_record(details, enums.EntityType.ASSAY)
+                assay_details = get_details_for_entity(
+                    assay_run.get("assay_id"),
+                    self.assay_details_cache,
+                    enums.EntityType.ASSAY,
+                    self.db,
+                    models.AssayDetail,
+                    "assay_id",
+                )
                 inserted, updated, record = self.property_service.build_details_records(
                     models.AssayRunDetail,
                     grouped.get("assay_run_details", {}),

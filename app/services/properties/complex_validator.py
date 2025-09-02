@@ -17,7 +17,7 @@ class ComplexValidator:
     """
 
     @classmethod
-    def validate_record(cls, record: Mapping[str, Any], rules: List[str] = None, validate_rule=False) -> None:
+    def validate_record(cls, record: Dict[str, Any], rules: List[str] = None, validate_rule=False) -> None:
         """
         Validate a record against a list of CEL rules.
         Raises RecordValidationError if any rule fails.
@@ -31,8 +31,9 @@ class ComplexValidator:
             evaluate_rule = True
             variables = cls._extract_variables(raw_expr)
             for var in variables:
-                var = var.replace(".", "_").replace(" ", "_")
-                if var not in safe_ctx.keys():
+                var = var.replace(" ", "_")
+                var_parts = var.split(".")
+                if var_parts[0] not in safe_ctx.keys() or var_parts[1] not in safe_ctx[var_parts[0]]:
                     evaluate_rule = False
                     break
             if not evaluate_rule:
@@ -57,13 +58,14 @@ class ComplexValidator:
         """
 
         variables = cls._extract_variables(expr)
-        for var in variables:
+        for i, var in enumerate(variables):
+            new_var = var
             if "." not in var:
                 new_var = f"{entity_type.value.lower()}_details.{var}"
                 expr = expr.replace(f"${{{var}}}", f"${{{new_var}}}")
-                var = new_var
-            if var not in properties.keys():
+            if new_var not in properties.keys():
                 raise ComplexValidationError(f"Unknown property '{var}' (transformed to {new_var}) in rule: {expr}")
+            variables[i] = new_var
 
         mock_record = cls._create_mock_record(variables, properties)
 
@@ -74,36 +76,57 @@ class ComplexValidator:
     # ------------------------
     # Internal helpers
     # ------------------------
-    @staticmethod
-    def replace_dots_in_placeholder(s: str) -> str:
-        pattern = re.compile(r"\$\{([^}]+)\}")
+    def rewrite_string_literals(expr: str) -> str:
+        """
+        Rewrite string literals containing numbers so that CEL does not misinterpret them as floats.
+        Works with single or double quotes. This is just a temporary solution until they fix the library.
+        """
+
+        def transform_literal(literal: str, quote: str) -> str:
+            # Split into digit and non-digit chunks
+            parts = re.findall(r"\d+|[^\d]+", literal)
+            rewritten = []
+            for p in parts:
+                if p.isdigit():
+                    rewritten.append(f"string({p})")
+                else:
+                    rewritten.append(f"{quote}{p}{quote}")
+            return " + ".join(rewritten)
 
         def replacer(match):
-            inner = match.group(1)
-            inner = inner.replace(".", "_")
-            return f"${{{inner}}}"
+            quote = match.group(1)
+            literal = match.group(2)
+            return transform_literal(literal, quote)
 
-        return pattern.sub(replacer, s)
+        pattern = r'([\'"])(.+?)\1'
+        return re.sub(pattern, replacer, expr)
 
     @staticmethod
-    def _sanitize_context(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    def _sanitize_context(record: Dict[str, Any]) -> Mapping[str, Any]:
         """Convert record values into JSON-serializable primitives."""
+
         safe_ctx = {}
-        for k, v in record.items():
-            k = k.replace(" ", "_")
-            k = k.replace(".", "_")
-            if isinstance(v, (str, int, float, bool)) or v is None:
-                safe_ctx[k] = v
-            else:
-                safe_ctx[k] = str(v)
+        for scope in record.keys():
+            scope_details = {}
+            for k, v in record[scope].items():
+                k = k.replace(" ", "_")
+                if isinstance(v, (str, int, float, bool)) or v is None:
+                    scope_details[k] = v
+                else:
+                    scope_details[k] = str(v)
+            safe_ctx[scope] = scope_details
         return safe_ctx
 
     @staticmethod
-    def _build_context(record: Mapping[str, Any]) -> Context:
+    def _build_context(record: Dict[str, Any]) -> Context:
         """
         Build a CEL Context with custom functions.
         """
-        ctx = Context(record)
+
+        ctx = Context()
+
+        for key, value in record.items():
+            ctx.add_variable(key, value)
 
         # size(value) → length of string or list
         ctx.add_function("size", lambda x: len(x) if x is not None else 0)
@@ -135,9 +158,11 @@ class ComplexValidator:
         expr = re.sub(r"([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+not\s+null", r"\1 != null", expr)
 
         # replaces white spaces inside ${...} with underscores
-        expr = re.sub(r"\$\{([^}]+)\}", lambda m: re.sub(r"[^a-zA-Z0-9_]", "_", m.group(1)), expr)
+        expr = re.sub(r"\$\{([^}]+)\}", lambda m: re.sub(r"[^a-zA-Z0-9_.]", "_", m.group(1)), expr)
 
-        expr = ComplexValidator.replace_dots_in_placeholder(expr)
+        # This rewrites strings that have numbers in them due to the bug in the CEL library.
+        # It should be removed once the bug is fixed
+        expr = ComplexValidator.rewrite_string_literals(expr)
 
         return expr.strip()
 

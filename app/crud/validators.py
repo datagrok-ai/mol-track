@@ -14,7 +14,12 @@ entity_propery_map = {
     enums.EntityType.BATCH: [enums.EntityType.BATCH, enums.EntityType.COMPOUND],
     enums.EntityType.ASSAY: [enums.EntityType.ASSAY],
     enums.EntityType.ASSAY_RUN: [enums.EntityType.ASSAY_RUN, enums.EntityType.ASSAY],
-    enums.EntityType.ASSAY_RESULT: [enums.EntityType.ASSAY_RESULT, enums.EntityType.ASSAY_RUN, enums.EntityType.ASSAY],
+    enums.EntityType.ASSAY_RESULT: [
+        enums.EntityType.ASSAY_RESULT,
+        enums.EntityType.ASSAY_RUN,
+        enums.EntityType.ASSAY,
+        enums.EntityType.BATCH,
+    ],
 }
 
 

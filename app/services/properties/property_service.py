@@ -7,6 +7,7 @@ from app.services.properties.property_validator import PropertyValidator
 from app.utils import type_casting_utils, enums
 from app.utils.admin_utils import admin
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
+from app.utils.registrar_utils import get_validation_prefix
 
 
 class PropertyService:
@@ -15,13 +16,6 @@ class PropertyService:
         self.institution_synonym_dict = self._load_institution_synonym_dict()
         self.entity = entity
         self.validators = self._load_validators(db, entity)
-        self.validation_name_map = {
-            enums.EntityType.COMPOUND: "compound_details",
-            enums.EntityType.BATCH: "batch_details",
-            enums.EntityType.ASSAY: "assay_details",
-            enums.EntityType.ASSAY_RUN: "assay_run_details",
-            enums.EntityType.ASSAY_RESULT: "assay_result_details",
-        }
 
     def _load_validators(self, db, entity: str) -> List[str]:
         results = db.query(Validator.expression).filter(Validator.entity_type == entity).all()
@@ -60,18 +54,6 @@ class PropertyService:
             "field_name": type_casting_utils.value_type_to_field[value_type],
             "cast_fn": type_casting_utils.value_type_cast_map[value_type],
         }
-
-    def prepare_details_record(self, records: Dict[str, Any], entity_type: enums.EntityType) -> Dict[str, Any]:
-        details = {}
-        for prop_name, value in records.items():
-            prop_info = self.get_property_info(prop_name, entity_type)
-            cast_fn = prop_info["cast_fn"]
-            try:
-                casted_value = cast_fn(value)
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Error casting value for property {prop_name}: {e}")
-            details[f"{self.validation_name_map[entity_type]}.{prop_name}"] = casted_value
-        return details
 
     # TODO: Design a more robust and efficient approach for handling updates to compound details
     def build_details_records(
@@ -125,7 +107,7 @@ class PropertyService:
                 field_name: casted_value,
             }
 
-            records_to_validate.update({f"{self.validation_name_map[entity_type]}.{prop_name}": casted_value})
+            records_to_validate.update({f"{prop_name}": casted_value})
 
             # TODO: Refactor to generically handle all value_* fields without hardcoding model-specific attributes
             mapper = inspect(model)
@@ -160,6 +142,7 @@ class PropertyService:
                     pass
 
             records_to_insert.append(detail)
+        records_to_validate = {f"{get_validation_prefix(entity_type)}": records_to_validate}
         if entity_type.value == self.entity and self.validators and records_to_validate:
             records_to_validate = {**records_to_validate, **(additional_details or {})}
             ComplexValidator.validate_record(records_to_validate, self.validators)
