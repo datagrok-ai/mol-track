@@ -40,7 +40,7 @@ class ComplexValidator:
                 continue
             expr = cls._preprocess(raw_expr)
             try:
-                result = evaluate(expr, ctx)
+                result = evaluate(expr, ctx, mode="strict")
             except Exception as e:
                 raise ComplexValidationError(
                     f"Error while evaluating rule '{raw_expr}' (translated to '{expr}'): {e}"
@@ -76,31 +76,6 @@ class ComplexValidator:
     # ------------------------
     # Internal helpers
     # ------------------------
-    def rewrite_string_literals(expr: str) -> str:
-        """
-        Rewrite string literals containing numbers so that CEL does not misinterpret them as floats.
-        Works with single or double quotes. This is just a temporary solution until they fix the library.
-        """
-
-        def transform_literal(literal: str, quote: str) -> str:
-            # Split into digit and non-digit chunks
-            parts = re.findall(r"\d+|[^\d]+", literal)
-            rewritten = []
-            for p in parts:
-                if p.isdigit():
-                    rewritten.append(f"string({p})")
-                else:
-                    rewritten.append(f"{quote}{p}{quote}")
-            return " + ".join(rewritten)
-
-        def replacer(match):
-            quote = match.group(1)
-            literal = match.group(2)
-            return transform_literal(literal, quote)
-
-        pattern = r'([\'"])(.+?)\1'
-        return re.sub(pattern, replacer, expr)
-
     @staticmethod
     def _sanitize_context(record: Dict[str, Any]) -> Mapping[str, Any]:
         """Convert record values into JSON-serializable primitives."""
@@ -159,10 +134,6 @@ class ComplexValidator:
 
         # replaces white spaces inside ${...} with underscores
         expr = re.sub(r"\$\{([^}]+)\}", lambda m: re.sub(r"[^a-zA-Z0-9_.]", "_", m.group(1)), expr)
-
-        # This rewrites strings that have numbers in them due to the bug in the CEL library.
-        # It should be removed once the bug is fixed
-        expr = ComplexValidator.rewrite_string_literals(expr)
 
         return expr.strip()
 
