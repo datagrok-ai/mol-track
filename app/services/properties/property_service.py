@@ -107,7 +107,7 @@ class PropertyService:
                 field_name: casted_value,
             }
 
-            records_to_validate.update({f"{prop_name}": casted_value})
+            records_to_validate.update({prop_name: casted_value})
 
             # TODO: Refactor to generically handle all value_* fields without hardcoding model-specific attributes
             mapper = inspect(model)
