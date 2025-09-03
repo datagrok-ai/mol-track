@@ -8,6 +8,7 @@ from app.setup.database import DB_SCHEMA
 from app.services.search.operators import SearchOperators
 from app.services.search.utils.helper_functions import create_alias_mapping, prepare_search_output
 from app.models import Level
+from app.services.search.utils.helper_functions import add_identity_columns
 
 
 class SearchEngineError(Exception):
@@ -92,7 +93,13 @@ class SearchEngine:
         if not request.output:
             raise SearchEngineError("Output fields cannot be empty")
 
-        columns = [field.lower() for field in request.output]
+        id_fields = [
+            f"{request.level}.id",
+            "compounds.details.corporate_compound_id",
+            "batches.details.corporate_batch_id",
+        ]
+        columns = [field.lower() for field in request.output if field not in id_fields]
+        add_identity_columns(request, columns)
         self.output_aliases = create_alias_mapping(columns, request.aggregations)
 
     def _validate_filter(self, filter_obj: models.Filter, level: Level, path: str = "filter") -> List[str]:

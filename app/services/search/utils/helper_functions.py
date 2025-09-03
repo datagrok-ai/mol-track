@@ -11,6 +11,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.models import Level, Aggregation
 from app.utils import enums
+import app.models as models
+
+
+def add_identity_columns(request: models.SearchRequest, columns: List[str]):
+    if request.level in ["compounds", "batches"]:
+        columns.insert(0, f"{request.level}.details.corporate_{singularize(request.level)}_id")
+    else:
+        columns.insert(0, f"{request.level}.id")
 
 
 def create_alias_mapping(columns: List[str], aggregations: List[Aggregation]) -> Dict[str, str]:
