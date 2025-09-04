@@ -9,7 +9,7 @@ from app.utils import enums
 from app.utils.admin_utils import admin
 
 
-entity_propery_map = {
+entity_property_map = {
     enums.EntityType.COMPOUND: [enums.EntityType.COMPOUND],
     enums.EntityType.BATCH: [enums.EntityType.BATCH, enums.EntityType.COMPOUND],
     enums.EntityType.ASSAY: [enums.EntityType.ASSAY],
@@ -45,7 +45,7 @@ def create_validator(
 
     properties = (
         db.query(models.Property.name, models.Property.value_type, models.Property.entity_type)
-        .filter(models.Property.entity_type.in_(entity_propery_map[entity]))
+        .filter(models.Property.entity_type.in_(entity_property_map[entity]))
         .all()
     )
     properties = {
