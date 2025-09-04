@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+import decimal
 from io import BytesIO, StringIO
 import json
 import re
@@ -87,6 +88,17 @@ def convert_datetime(obj):
     return obj
 
 
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, uuid.UUID):
+            return str(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
+        if isinstance(o, decimal.Decimal):
+            return float(o)
+        return super().default(o)
+
+
 def prepare_search_output(results: List[Any], headers: List[str], output_format: enums.SearchOutputFormat):
     match output_format:
         # UUID objects are not JSON serializable, so convert to str to prevent circular reference errors
@@ -95,12 +107,9 @@ def prepare_search_output(results: List[Any], headers: List[str], output_format:
                 "status": "success",
                 "total_count": len(results),
                 "columns": headers,
-                "data": [
-                    dict(zip(headers, (str(cell) if isinstance(cell, uuid.UUID) else cell for cell in row)))
-                    for row in results
-                ],
+                "data": [dict(zip(headers, row)) for row in results],
             }
-            json_output = json.dumps(return_obj, default=convert_datetime)
+            json_output = json.dumps(return_obj, cls=CustomJSONEncoder)
             return Response(
                 content=json_output,
                 media_type="application/json",
