@@ -18,6 +18,16 @@ CREATE TABLE moltrack.users (
   updated_by uuid NOT NULL REFERENCES moltrack.users (id) DEFERRABLE INITIALLY DEFERRED
 );
 
+CREATE TABLE moltrack.api_keys(
+  id uuid PRIMARY KEY NOT NULL,
+  key_id  text UNIQUE NOT NULL,
+  secret_hash text UNIQUE NOT NULL,
+  scopes text, -- comma-separated scopes
+  revoked boolean,
+  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+  expires_at timestamp NULL
+);
+
 -- Explains the meaning of a scalar property.
 CREATE TABLE moltrack.semantic_types (
   id serial PRIMARY KEY,

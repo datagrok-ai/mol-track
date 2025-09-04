@@ -189,3 +189,9 @@ def lowercase_enum_values(enum_class, value):
             if member.value == v_norm:
                 return member
     return None
+
+
+class AuthScopes(str, enum.Enum):
+    ADMIN = "admin"
+    READER = "reader"
+    WRITER = "writer"

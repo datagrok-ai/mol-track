@@ -39,6 +39,19 @@ class User(SQLModel, table=True):
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
 
+class ApiKey(SQLModel, table=True):
+    __tablename__ = "api_keys"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    key_id: str = Field(index=True, unique=True, nullable=False)
+    secret_hash: str
+    scopes: str = ""
+    revoked: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: Optional[datetime] = None
+
+
 class Settings(SQLModel, table=True):
     __tablename__ = "settings"
     __table_args__ = {"schema": DB_SCHEMA}
