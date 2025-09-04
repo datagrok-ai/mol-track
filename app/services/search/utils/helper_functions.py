@@ -13,6 +13,12 @@ from app.models import Level, Aggregation
 from app.utils import enums
 
 
+def get_identity_field(level: Level) -> str:
+    if level in ["compounds", "batches"]:
+        return f"{level}.details.corporate_{singularize(level)}_id"
+    return f"{level}.id"
+
+
 def create_alias_mapping(columns: List[str], aggregations: List[Aggregation]) -> Dict[str, str]:
     output_aliases = {sanitize_field_name(field): (field, (field, None)) for field in columns}
     output_aliases.update(
