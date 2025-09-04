@@ -399,7 +399,7 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
     for assay_id, assay in zip(inserted_ids, payload):
         try:
             entity_ids = {"assay_id": assay_id}
-            inserted = property_service.build_details_records(
+            inserted, updated, record = property_service.build_details_records(
                 models.AssayDetail,
                 properties=assay.extra_fields,
                 entity_ids=entity_ids,

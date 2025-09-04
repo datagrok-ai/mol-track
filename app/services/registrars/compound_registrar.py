@@ -185,7 +185,7 @@ class CompoundRegistrar(BaseRegistrar):
 
                 # This step is performed here specifically to attach corporate IDs to the output row
                 self.inject_corporate_property(row, grouped, molregno, enums.EntityType.COMPOUND)
-                inserted = self.property_service.build_details_records(
+                inserted, updated, compound_details = self.property_service.build_details_records(
                     models.CompoundDetail,
                     details_data,
                     {"molregno": molregno},
@@ -193,7 +193,7 @@ class CompoundRegistrar(BaseRegistrar):
                     True,
                 )
 
-                self.get_additional_records(row, grouped, molregno)
+                self.get_additional_records(row, grouped, molregno, compound_details)
 
                 # Only add the resulting data after it has been fully processed
                 # to ensure that no partial or invalid data from this row gets registered.
@@ -300,5 +300,5 @@ class CompoundRegistrar(BaseRegistrar):
     def get_additional_cte(self):
         pass
 
-    def get_additional_records(self, row, grouped, molregno):
+    def get_additional_records(self, row, grouped, molregno, compound_details):
         pass
