@@ -31,9 +31,9 @@ class ComplexValidator:
             evaluate_rule = True
             variables = cls._extract_variables(raw_expr)
             for var in variables:
-                var = var.replace(" ", "_")
-                var_parts = var.split(".")
-                if var_parts[0] not in safe_ctx.keys() or var_parts[1] not in safe_ctx[var_parts[0]]:
+                var_parts = var.replace(" ", "_").split(".")
+                details_table, property_name = var_parts[0], var_parts[1]
+                if details_table not in safe_ctx.keys() or property_name not in safe_ctx[details_table]:
                     evaluate_rule = False
                     break
             if not evaluate_rule:
@@ -59,13 +59,15 @@ class ComplexValidator:
 
         variables = cls._extract_variables(expr)
         for i, var in enumerate(variables):
-            new_var = var
+            standardized_var = var
             if "." not in var:
-                new_var = f"{entity_type.value.lower()}_details.{var}"
-                expr = expr.replace(f"${{{var}}}", f"${{{new_var}}}")
-            if new_var not in properties.keys():
-                raise ComplexValidationError(f"Unknown property '{var}' (transformed to {new_var}) in rule: {expr}")
-            variables[i] = new_var
+                standardized_var = f"{entity_type.value.lower()}_details.{var}"
+                expr = expr.replace(f"${{{var}}}", f"${{{standardized_var}}}")
+            if standardized_var not in properties.keys():
+                raise ComplexValidationError(
+                    f"Unknown property '{var}' (transformed to {standardized_var}) in rule: {expr}"
+                )
+            variables[i] = standardized_var
 
         mock_record = cls._create_mock_record(variables, properties)
 
@@ -165,9 +167,9 @@ class ComplexValidator:
 
         record = {}
         for var in variables:
-            var_split = var.split(".")
-            record.setdefault(var_split[0], {})
+            parent, child = var.split(".", 1)
+            record.setdefault(parent, {})
             value = mock_values.get(properties.get(var, "string"), "mock")
-            record[var_split[0]][var_split[1]] = value
+            record[parent][child] = value
 
         return record
