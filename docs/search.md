@@ -1,5 +1,5 @@
 # Search
-The search functionality allows users to query compounds, batches, assay results, assay runs, and assays using flexible filters, field selection and aggregations. Users can define which fields to return, apply precise conditions using logical operators, and build simple or complex queries. Aggregations can also be defined to compute summaries or statistics over the results. This functionality and be accessed through emdpoints ```/v1/search/compounds```, ```/v1/search/batches```, ```/v1/search/assay_results```, ```/v1/search/assay_runs```, and ```/v1/search/assays```. This document explains how to structure search requests and use the available options effectively.
+The search functionality allows users to query compounds, batches, assay results, assay runs, and assays using flexible filters, field selection and aggregations. Users can define which fields to return, apply precise conditions using logical operators, specify the limit of records to be returned and build simple or complex queries. Aggregations can also be defined to compute summaries or statistics over the results. This functionality and be accessed through emdpoints ```/v1/search/compounds```, ```/v1/search/batches```, ```/v1/search/assay_results```, ```/v1/search/assay_runs```, and ```/v1/search/assays```. This document explains how to structure search requests and use the available options effectively.
 # Search request
 Format of the search filter is as follows:
 ```json
@@ -8,7 +8,8 @@ Format of the search filter is as follows:
   "output": <output_list>,
   "aggregations": <aggregation_list>,
   "filter": <filter>,
-  "output_format": <format>
+  "output_format": <format>,
+  "limit": <limit>,
 }
 ```
 * `<level>` - Specifies the main entity to search over.
@@ -31,6 +32,8 @@ Format of the search filter is as follows:
 * `<aggregation_list>` - List of aggregated values. It's exact format is described in [this section](#aggregations).
 * `<filter>` - Filter represents the filter criteria and it's exact format is described in [this section](#filter).
 * `<format>` - Format in which the results will be returned. Possible formats are *JSON*, *CSV*, and *Parquet*, with default value *JSON*.
+* `<limit>` - Maximum number of records to be returned. If not specified, all matching records will be returned.
+
 ## Fields
 Field names follow a specific notation, depending on whether a standard field or a dynamic property is referenced:
 * `<table>.<field>`
@@ -175,7 +178,8 @@ Field descriptions:
             ]
          }
       ]
-   }
+   },
+   "limit": 150
 }
 ```
 ## Search query parser
