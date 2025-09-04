@@ -7,12 +7,14 @@ from app.services.properties.property_validator import PropertyValidator
 from app.utils import type_casting_utils, enums
 from app.utils.admin_utils import admin
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
+from app.utils.registrar_utils import get_validation_prefix
 
 
 class PropertyService:
     def __init__(self, property_records_map: Dict[str, Any], db: Session, entity: str):
         self.property_records_map = property_records_map
         self.institution_synonym_dict = self._load_institution_synonym_dict()
+        self.entity = entity
         self.validators = self._load_validators(db, entity)
 
     def _load_validators(self, db, entity: str) -> List[str]:
@@ -62,6 +64,7 @@ class PropertyService:
         entity_type: enums.EntityType,
         include_user_fields: bool = True,
         update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
+        additional_details: Optional[Dict[str, Any]] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         records_to_insert, records_to_update = [], []
         records_to_validate = {}
@@ -139,6 +142,9 @@ class PropertyService:
                     pass
 
             records_to_insert.append(detail)
-        if self.validators and records_to_validate:
+        records_to_validate = {f"{get_validation_prefix(entity_type)}": records_to_validate}
+        if entity_type.value == self.entity and self.validators and records_to_validate:
+            records_to_validate = {**records_to_validate, **(additional_details or {})}
             ComplexValidator.validate_record(records_to_validate, self.validators)
-        return records_to_insert, records_to_update
+
+        return records_to_insert, records_to_update, records_to_validate
