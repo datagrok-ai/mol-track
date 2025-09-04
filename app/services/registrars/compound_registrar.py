@@ -16,12 +16,16 @@ from sqlalchemy.sql import text
 
 
 class CompoundRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
+    def __init__(
+        self, db: Session, mapping: Optional[str], error_handling: str = enums.ErrorHandlingOptions.reject_all
+    ):
         if not hasattr(self, "entity_type"):
             self.entity_type = enums.EntityType.COMPOUND
         super().__init__(db, mapping, error_handling)
         self._compound_records_map = None
         self._compound_details_map = None
+        # Precomputed map: compound_id -> property_id -> value
+        self._compound_details_by_compound_cache: Optional[Dict[int, Dict[int, Any]]] = None
 
         self.compounds_to_insert: Dict[str, Dict[str, Any]] = {}
         self.matching_setting = self._load_matching_setting()
@@ -41,6 +45,20 @@ class CompoundRegistrar(BaseRegistrar):
             self._compound_details_map = self._load_reference_map(models.CompoundDetail, "id")
         return self._compound_details_map
 
+    @property
+    def compound_details_by_compound_cache(self) -> Dict[int, Dict[int, Any]]:
+        if self._compound_details_by_compound_cache is None:
+            cache: Dict[int, Dict[int, Any]] = {}
+            for detail in self.compound_details_map.values():
+                cid = detail.compound_id
+                if cid not in cache:
+                    cache[cid] = {}
+                cache[cid][detail.property_id] = (
+                    detail.value_string or detail.value_num or detail.value_datetime or detail.value_uuid
+                )
+            self._compound_details_by_compound_cache = cache
+        return self._compound_details_by_compound_cache
+
     def _next_molregno(self) -> int:
         molregno = self.db.execute(text("SELECT nextval('moltrack.molregno_seq')")).scalar()
         return molregno
@@ -57,7 +75,7 @@ class CompoundRegistrar(BaseRegistrar):
             logger.error(f"Error loading compound matching setting: {e}")
             return HashScheme.ALL_LAYERS
 
-    def _build_compound_record(self, compound_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_compound_record(self, compound_data: Dict[str, Any], new_details: dict) -> Dict[str, Any]:
         smiles = compound_data.get("smiles")
         if not smiles:
             raise HTTPException(status_code=400, detail="SMILES value is required for compound creation.")
@@ -69,12 +87,8 @@ class CompoundRegistrar(BaseRegistrar):
         mol_layers = chemistry_utils.generate_hash_layers(standardized_mol)
         hash_mol = GetMolHash(mol_layers, self.matching_setting)
 
-        existing_compound = self.compound_records_map.get(hash_mol)
-        if existing_compound is None:
-            existing_compound = self.compounds_to_insert.get(hash_mol)
-            if existing_compound:
-                return existing_compound
-        else:
+        existing_compound = self.check_existing_compound(hash_mol, new_details)
+        if existing_compound:
             compound_dict = self.model_to_dict(existing_compound)
             compound_dict.pop("id", None)
             return compound_dict
@@ -117,50 +131,66 @@ class CompoundRegistrar(BaseRegistrar):
 
         return compound
 
-    def _compound_update_checker(self, entity_ids, detail, field_name, new_value: Any) -> models.UpdateCheckResult:
-        id_field, entity_id = next(iter(entity_ids.items()))
-        compound = next(
-            (c for c in self.compound_records_map.values() if getattr(c, id_field, None) == entity_id), None
-        )
-        if not compound:
-            return models.UpdateCheckResult(action="insert")
+    def _check_existing_compound(self, hash_mol: str, new_details: dict, return_existing_if_details_match: bool):
+        existing_compound = self.compound_records_map.get(hash_mol)
+        if existing_compound:
+            if return_existing_if_details_match:
+                if self._compare_compound_details(existing_compound.id, new_details):
+                    return existing_compound
+                raise HTTPException(
+                    status_code=400, detail=f"Compound with hash {hash_mol} already exists with different details."
+                )
+            raise HTTPException(status_code=400, detail=f"Compound with hash {hash_mol} already exists in database.")
 
-        compound_id = getattr(compound, "id")
-        prop_id = detail["property_id"]
-        for compound_detail in self.compound_details_map.values():
-            detail_dict = self.model_to_dict(compound_detail)
-            if detail_dict["compound_id"] == compound_id and detail_dict["property_id"] == prop_id:
-                if detail_dict.get(field_name) != new_value:
-                    update_data = {
-                        ("compound_id" if k == id_field else k): (compound_id if k == id_field else v)
-                        for k, v in detail.items()
-                    }
-                    return models.UpdateCheckResult(action="update", update_data=update_data)
-                else:
-                    return models.UpdateCheckResult(action="skip")
-        return models.UpdateCheckResult(action="insert")
+        existing_compound = self.compounds_to_insert.get(hash_mol)
+        if existing_compound:
+            raise HTTPException(
+                status_code=404, detail=f"Compound with hash {hash_mol} is already queued for insertion."
+            )
+
+        return None
+
+    def check_existing_compound(self, hash_mol: str, new_details: dict):
+        return self._check_existing_compound(hash_mol, new_details, False)
+
+    def _compare_compound_details(self, compound_id: int, new_details: dict) -> bool:
+        existing_details = self.compound_details_by_compound_cache.get(compound_id, {})
+        property_name_to_id = {
+            name: prop.id
+            for name, props in self.property_records_map.items()
+            for prop in (props if isinstance(props, list) else [props])
+        }
+
+        for property_name, new_value in new_details.items():
+            prop_id = property_name_to_id.get(property_name)
+            if prop_id is None:
+                return False
+            if existing_details.get(prop_id) != new_value:
+                return False
+        return True
 
     def build_sql(self, rows: List[Dict[str, Any]]) -> str:
         self.compounds_to_insert = {}
-        details_to_insert, details_to_update = [], []
+        details_to_insert = []
 
         for idx, row in enumerate(rows):
 
             def process_row(row):
                 grouped = self._group_data(row)
                 compound_data = grouped.get("compound", {})
-                compound = self._build_compound_record(compound_data)
+                details_data = grouped.get("compound_details", {})
+
+                compound = self._build_compound_record(compound_data, details_data)
                 molregno = compound["molregno"]
 
                 # This step is performed here specifically to attach corporate IDs to the output row
                 self.inject_corporate_property(row, grouped, molregno, enums.EntityType.COMPOUND)
-                inserted, updated, compound_details = self.property_service.build_details_records(
+                inserted, compound_details = self.property_service.build_details_records(
                     models.CompoundDetail,
-                    grouped.get("compound_details", {}),
+                    details_data,
                     {"molregno": molregno},
                     enums.EntityType.COMPOUND,
                     True,
-                    self._compound_update_checker,
                 )
 
                 self.get_additional_records(row, grouped, molregno, compound_details)
@@ -169,20 +199,18 @@ class CompoundRegistrar(BaseRegistrar):
                 # to ensure that no partial or invalid data from this row gets registered.
                 self.compounds_to_insert[compound["hash_mol"]] = compound
                 details_to_insert.extend(inserted)
-                details_to_update.extend(updated)
 
             self._process_row(row, process_row)
 
         extra_sql = self.get_additional_cte()
         all_compounds_list = list(self.compounds_to_insert.values())
-        batch_sql = self.generate_sql(all_compounds_list, details_to_insert, details_to_update, extra_sql)
+        batch_sql = self.generate_sql(all_compounds_list, details_to_insert, extra_sql)
 
         # Clear temporary data structures
         details_to_insert.clear()
-        details_to_update.clear()
         return batch_sql
 
-    def generate_sql(self, compounds, details_to_insert, details_to_update, extra_sql) -> str:
+    def generate_sql(self, compounds, details_to_insert, extra_sql) -> str:
         parts = []
         compound_sql = self._generate_compound_sql(compounds)
         if compound_sql:
@@ -191,10 +219,6 @@ class CompoundRegistrar(BaseRegistrar):
         details_to_insert_sql = self._generate_details_sql(details_to_insert)
         if details_to_insert_sql:
             parts.append(details_to_insert_sql)
-
-        details_to_update_sql = self._generate_details_update_sql(details_to_update)
-        if details_to_update_sql:
-            parts.append(details_to_update_sql)
 
         if extra_sql:
             parts.append(extra_sql)
@@ -232,27 +256,6 @@ class CompoundRegistrar(BaseRegistrar):
             )
         """
         return insert_cte + available_cte
-
-    def _generate_details_update_sql(self, details: List[Dict[str, Any]]) -> str:
-        if not details:
-            return ""
-
-        required_cols = ["compound_id", "property_id", "updated_by"]
-        value_cols = {key for detail in details for key in detail if key.startswith("value_")}
-        all_cols = required_cols + sorted(value_cols)
-        set_clauses = [f"{col} = v.{col}" for col in sorted(value_cols)] + ["updated_by = v.updated_by"]
-        set_clause_sql = ", ".join(set_clauses)
-        alias_cols_sql = ", ".join(all_cols)
-        vals_sql = sql_utils.values_sql(details, all_cols)
-
-        return f"""updated_details AS (
-            UPDATE moltrack.compound_details cd
-            SET {set_clause_sql}
-            FROM (VALUES {vals_sql}) AS v({alias_cols_sql})
-            WHERE cd.compound_id = v.compound_id
-            AND cd.property_id = v.property_id
-            RETURNING cd.*
-        )"""
 
     def _generate_details_sql(self, details) -> str:
         if not details:

@@ -1,7 +1,7 @@
 # app/crud/__init__.py
 
 from .compounds import (
-    get_compound_by_corporate_id,
+    get_compound_by_synonym,
     get_compound_by_hash,
     read_compounds,
     update_compound,
@@ -10,7 +10,7 @@ from .compounds import (
 
 from .properties import create_properties, get_properties, get_entities_by_entity_type, get_synonym_id
 
-from .batches import get_batches_by_compound, get_batches, get_batch, delete_batch
+from .batches import get_batches_by_compound, get_batches, get_batch_by_synonym, delete_batch_by_synonym
 
 from .additions import (
     create_additions,

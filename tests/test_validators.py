@@ -238,7 +238,7 @@ def test_validator_registration_invalid_property(client):
     validator_payload = {
         "name": "test_validator_1",
         "entity_type": enums.EntityType.COMPOUND.value,
-        "expression": valid_rule,
+        "expression": invalid_rule,
         "description": "test validator 1 description",
     }
     register_rule_response = client.post("/v1/validators/", data=validator_payload)

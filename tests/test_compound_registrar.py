@@ -149,7 +149,7 @@ def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds)
     )
     assert corporate_compound_prop is not None, "No Corporate Compound ID found"
     corporate_id = corporate_compound_prop["value_string"]
-    response = client.get(f"/v1/compounds/{corporate_id}")
+    response = client.get(f"/v1/compounds?property_value={corporate_id}")
     assert response.status_code == 200
 
     result = response.json()

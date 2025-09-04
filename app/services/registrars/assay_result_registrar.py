@@ -12,7 +12,12 @@ from app.utils.registrar_utils import get_details_for_entity
 
 
 class AssayResultsRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[Dict[str, str]], error_handling: str):
+    def __init__(
+        self,
+        db: Session,
+        mapping: Optional[Dict[str, str]],
+        error_handling: str = enums.ErrorHandlingOptions.reject_all,
+    ):
         self.entity_type = enums.EntityType.ASSAY_RESULT
         super().__init__(db, mapping, error_handling)
         self.assay_results_to_insert = []
@@ -160,7 +165,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                     assay_id, self.assay_cache, enums.EntityType.ASSAY, self.db, models.AssayDetail, "assay_id"
                 )
 
-                inserted, updated, record = self.property_service.build_details_records(
+                inserted, record = self.property_service.build_details_records(
                     models.AssayResultDetail,
                     grouped.get("assay_result_details", {}),
                     {"rn": idx + 1},
