@@ -70,7 +70,7 @@ class BatchRegistrar(CompoundRegistrar):
         batch_regno = batch_record["batch_regno"]
 
         self.inject_corporate_property(row, grouped, batch_regno, enums.EntityType.BATCH)
-        inserted, updated, record = self.property_service.build_details_records(
+        inserted, record = self.property_service.build_details_records(
             models.BatchDetail,
             grouped.get("batch_details", {}),
             {"batch_regno": batch_regno},

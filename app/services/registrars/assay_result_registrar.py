@@ -165,7 +165,7 @@ class AssayResultsRegistrar(BaseRegistrar):
                     assay_id, self.assay_cache, enums.EntityType.ASSAY, self.db, models.AssayDetail, "assay_id"
                 )
 
-                inserted, updated, record = self.property_service.build_details_records(
+                inserted, record = self.property_service.build_details_records(
                     models.AssayResultDetail,
                     grouped.get("assay_result_details", {}),
                     {"rn": idx + 1},

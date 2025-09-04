@@ -59,7 +59,7 @@ class AssayRunRegistrar(BaseRegistrar):
                     models.AssayDetail,
                     "assay_id",
                 )
-                inserted, updated, record = self.property_service.build_details_records(
+                inserted, record = self.property_service.build_details_records(
                     models.AssayRunDetail,
                     grouped.get("assay_run_details", {}),
                     {"rn": idx + 1},

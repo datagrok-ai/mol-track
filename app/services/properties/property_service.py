@@ -66,7 +66,7 @@ class PropertyService:
         update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
         additional_details: Optional[Dict[str, Any]] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        records_to_insert, records_to_update = [], []
+        records_to_insert = []
         records_to_validate = {}
 
         for prop_name, value in properties.items():
@@ -131,20 +131,10 @@ class PropertyService:
                 detail["created_by"] = admin.admin_user_id
                 detail["updated_by"] = admin.admin_user_id
 
-            if update_checker:
-                result = update_checker(entity_ids, detail, field_name, casted_value)
-                if result.action == "skip":
-                    continue
-                elif result.action == "update":
-                    records_to_update.append(result.update_data)
-                    continue
-                elif result.action == "insert":
-                    pass
-
             records_to_insert.append(detail)
         records_to_validate = {f"{get_validation_prefix(entity_type)}": records_to_validate}
         if entity_type.value == self.entity and self.validators and records_to_validate:
             records_to_validate = {**records_to_validate, **(additional_details or {})}
             ComplexValidator.validate_record(records_to_validate, self.validators)
 
-        return records_to_insert, records_to_update, records_to_validate
+        return records_to_insert, records_to_validate
