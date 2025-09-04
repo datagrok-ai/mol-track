@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, FastAPI, Depends, File, Form, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import insert
 from sqlalchemy.orm import Session
-from typing import List, Optional, Type
+from typing import Dict, List, Optional, Type
 
 import yaml
 from app.services.registrars.assay_result_registrar import AssayResultsRegistrar
@@ -57,11 +57,32 @@ def get_db():
         db.close()
 
 
-def get_or_raise_exception(get_func, db, id, not_found_msg):
-    item = get_func(db, id)
+def get_or_raise_exception(get_func, db, *args, not_found_msg=None, **kwargs):
+    item = get_func(db, *args, **kwargs)
     if not item:
-        raise HTTPException(status_code=404, detail=not_found_msg)
+        msg = not_found_msg or "Item not found"
+        raise HTTPException(status_code=404, detail=msg)
     return item
+
+
+@router.post("/auto-map-columns")
+def auto_map_columns(
+    entity_type: enums.EntityType = Body(...), columns: List[str] = Body(...), db: Session = Depends(get_db)
+) -> Dict[str, str]:
+    registrar_map = {
+        enums.EntityType.COMPOUND: CompoundRegistrar,
+        enums.EntityType.BATCH: BatchRegistrar,
+        enums.EntityType.ASSAY_RUN: AssayRunRegistrar,
+        enums.EntityType.ASSAY_RESULT: AssayResultsRegistrar,
+    }
+
+    registrar_class = registrar_map.get(entity_type)
+    if not registrar_class:
+        raise ValueError(f"No registrar found for entity type {entity_type}")
+
+    registrar = registrar_class(db, None)
+    mapping = {col: registrar._assign_column(col) for col in columns}
+    return mapping
 
 
 # === Schema endpoints for supplementary data like properties and synonyms ===
@@ -81,7 +102,7 @@ def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db))
         return {"status": "failed", "error": str(e)}
 
 
-@router.get("/schema/")
+@router.get("/schema/", response_model=List[models.PropertyRetrieve])
 def get_schema(db: Session = Depends(get_db)):
     return crud.get_entities_by_entity_type(db)
 
@@ -195,38 +216,43 @@ def get_compounds(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     return compounds
 
 
-@router.get("/compounds/{corporate_compound_id}", response_model=models.CompoundResponse)
-def get_compound_by_corporate_id(corporate_compound_id: str, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found")
+@router.get("/compounds", response_model=models.CompoundResponse)
+def get_compound_by_any_synonym(
+    property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)
+):
+    return get_or_raise_exception(
+        crud.get_compound_by_synonym, db, property_value, property_name, not_found_msg="Compound not found"
+    )
 
 
-@router.get("/compounds/{corporate_compound_id}/synonyms", response_model=List[models.PropertyWithValue])
-def get_compound_synonyms(corporate_compound_id: str, db: Session = Depends(get_db)):
+@router.get("/compounds/synonyms", response_model=List[models.PropertyWithValue])
+def get_compound_synonyms(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(
-        crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found"
+        crud.get_compound_by_synonym, db, property_value, property_name, not_found_msg="Compound not found"
     )
     return [prop for prop in compound.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/compounds/{corporate_compound_id}/properties", response_model=List[models.PropertyWithValue])
-def get_compound_properties(corporate_compound_id: str, db: Session = Depends(get_db)):
+@router.get("/compounds/properties", response_model=List[models.PropertyWithValue])
+def get_compound_properties(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
     compound = get_or_raise_exception(
-        crud.get_compound_by_corporate_id, db, corporate_compound_id, "Compound not found"
+        crud.get_compound_by_synonym, db, property_value, property_name, not_found_msg="Compound not found"
     )
     return compound.properties
 
 
-@router.put("/compounds/{compound_id}", response_model=models.CompoundResponse)
-def update_compound_by_id(compound_id: int, update_data: models.CompoundUpdate, db: Session = Depends(get_db)):
-    return crud.update_compound(db, compound_id, update_data)
+@router.put("/compounds/{corporate_compound_id}", response_model=models.CompoundResponse)
+def update_compound_by_id(
+    corporate_compound_id: str,
+    update_data: models.CompoundUpdate,
+    db: Session = Depends(get_db),
+):
+    return crud.update_compound(db, corporate_compound_id, "corporate_compound_id", update_data)
 
 
-@router.delete("/compounds/{compound_id}", response_model=models.Compound)
-def delete_compound_by_id(compound_id: int, db: Session = Depends(get_db)):
-    batches = crud.get_batches_by_compound(db, compound_id=compound_id)
-    if batches:
-        raise HTTPException(status_code=400, detail="Compound has dependent batches")
-    return crud.delete_compound(db, compound_id=compound_id)
+@router.delete("/compounds/{corporate_compound_id}", response_model=models.Compound)
+def delete_compound_by_id(corporate_compound_id: str, db: Session = Depends(get_db)):
+    return crud.delete_compound(db, corporate_compound_id, "corporate_compound_id")
 
 
 # TODO: Create the utils module and move there
@@ -298,7 +324,7 @@ def delete_addition(addition_id: int, db: Session = Depends(get_db)):
 # === Batches endpoints ===
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#register-batches
 @router.post("/batches/")
-def register_batches_v1(
+def register_batches(
     file: UploadFile = File(...),
     mapping: Optional[str] = Form(None),
     error_handling: enums.ErrorHandlingOptions = Form(enums.ErrorHandlingOptions.reject_all),
@@ -309,40 +335,45 @@ def register_batches_v1(
 
 
 @router.get("/batches/", response_model=List[models.BatchResponse])
-def read_batches_v1(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_batches(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     batches = crud.get_batches(db, skip=skip, limit=limit)
     return batches
 
 
-@router.get("/batches/{corporate_batch_id}", response_model=models.BatchResponse)
-def read_batch_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
-    return get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
+@router.get("/batches", response_model=models.BatchResponse)
+def get_batch_by_any_synonym(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    return get_or_raise_exception(
+        crud.get_batch_by_synonym, db, property_value, property_name, not_found_msg="Batch not found"
+    )
 
 
-@router.get("/batches/{corporate_batch_id}/properties", response_model=List[models.PropertyWithValue])
-def read_batch_properties_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
+@router.get("/batches/properties", response_model=List[models.PropertyWithValue])
+def get_batch_properties(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(
+        crud.get_batch_by_synonym, db, property_value, property_name, not_found_msg="Batch not found"
+    )
     return batch.properties
 
 
-@router.get("/batches/{corporate_batch_id}/synonyms", response_model=List[models.PropertyWithValue])
-def read_batch_synonyms_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
+@router.get("/batches/synonyms", response_model=List[models.PropertyWithValue])
+def get_batch_synonyms(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(
+        crud.get_batch_by_synonym, db, property_value, property_name, not_found_msg="Batch not found"
+    )
     return [prop for prop in batch.properties if prop.semantic_type_id == crud.get_synonym_id(db)]
 
 
-@router.get("/batches/{corporate_batch_id}/additions", response_model=List[models.BatchAddition])
-def read_batch_additions_v1(corporate_batch_id: str, db: Session = Depends(get_db)):
-    batch = get_or_raise_exception(crud.get_batch, db, corporate_batch_id, "Batch not found")
+@router.get("/batches/additions", response_model=List[models.BatchAddition])
+def get_batch_additions(property_value: str, property_name: Optional[str] = None, db: Session = Depends(get_db)):
+    batch = get_or_raise_exception(
+        crud.get_batch_by_synonym, db, property_value, property_name, not_found_msg="Batch not found"
+    )
     return batch.batch_additions
 
 
-@router.delete("/batches/{batch_id}", response_model=models.Batch)
-def delete_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
-    assay_results = crud.get_all_assay_results_for_batch(db, batch_id)
-    if assay_results:
-        raise HTTPException(status_code=400, detail="Batch has dependent assay results")
-    return crud.delete_batch(db, batch_id)
+@router.delete("/batches/{corporate_batch_id}", response_model=models.Batch)
+def delete_batch_by_any_synonym(corporate_batch_id: str, db: Session = Depends(get_db)):
+    return crud.delete_batch_by_synonym(db, corporate_batch_id, "corporate_batch_id")
 
 
 # === Assay data endpoints ===
@@ -368,7 +399,7 @@ def create_assays(payload: List[models.AssayCreateBase], db: Session = Depends(g
     for assay_id, assay in zip(inserted_ids, payload):
         try:
             entity_ids = {"assay_id": assay_id}
-            inserted, updated, record = property_service.build_details_records(
+            inserted, record = property_service.build_details_records(
                 models.AssayDetail,
                 properties=assay.extra_fields,
                 entity_ids=entity_ids,
@@ -540,6 +571,12 @@ def update_settings(
         enums.SettingName.CORPORATE_BATCH_ID_PATTERN: lambda v: update_institution_id_pattern(
             enums.EntityTypeReduced.BATCH, v, db
         ),
+        enums.SettingName.CORPORATE_COMPOUND_ID_FRIENDLY_NAME: lambda v: update_institution_id_friendly_name(
+            enums.EntityTypeReduced.COMPOUND, v, db
+        ),
+        enums.SettingName.CORPORATE_BATCH_ID_FRIENDLY_NAME: lambda v: update_institution_id_friendly_name(
+            enums.EntityTypeReduced.BATCH, v, db
+        ),
     }
 
     handler = setting_handlers.get(name)
@@ -569,6 +606,42 @@ def update_compound_matching_rule(rule: enums.CompoundMatchingRule, db: Session 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating compound matching rule: {str(e)}")
+
+
+def update_institution_id_friendly_name(
+    entity_type: enums.EntityTypeReduced,
+    friendly_name: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Update the friendly name for corporate compound or batch IDs.
+    """
+
+    if not friendly_name:
+        raise HTTPException(status_code=400, detail="Friendly name cannot be empty.")
+
+    property_name = "corporate_batch_id" if entity_type == enums.EntityTypeReduced.BATCH else "corporate_compound_id"
+    setting_name = (
+        "corporate_batch_id_friendly_name"
+        if entity_type == enums.EntityTypeReduced.BATCH
+        else "corporate_compound_id_friendly_name"
+    )
+
+    try:
+        db.execute(
+            text("UPDATE moltrack.properties SET friendly_name = :name WHERE name = :property"),
+            {"property": property_name, "name": friendly_name},
+        )
+
+        db.execute(
+            text("UPDATE moltrack.settings SET value = :name WHERE name = :setting"),
+            {"setting": setting_name, "name": friendly_name},
+        )
+        db.commit()
+        return {"status": "success", "message": f"Friendly name for {entity_type.value} updated to '{friendly_name}'"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating friendly name: {str(e)}")
 
 
 def update_institution_id_pattern(
@@ -676,6 +749,7 @@ def search_compounds_advanced(
     aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    limit: Optional[int] = Body(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -689,6 +763,7 @@ def search_compounds_advanced(
         filter=filter,
         output_format=output_format,
         aggregations=aggregations,
+        limit=limit,
     )
     return advanced_search(request, db)
 
@@ -699,6 +774,7 @@ def search_batches_advanced(
     aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    limit: Optional[int] = Body(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -712,6 +788,7 @@ def search_batches_advanced(
         filter=filter,
         output_format=output_format,
         aggregations=aggregations,
+        limit=limit,
     )
     return advanced_search(request, db)
 
@@ -722,6 +799,7 @@ def search_assay_results_advanced(
     aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    limit: Optional[int] = Body(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -735,6 +813,7 @@ def search_assay_results_advanced(
         filter=filter,
         output_format=output_format,
         aggregations=aggregations,
+        limit=limit,
     )
     return advanced_search(request, db)
 
@@ -745,6 +824,7 @@ def search_assays_advanced(
     aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    limit: Optional[int] = Body(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -758,6 +838,7 @@ def search_assays_advanced(
         filter=filter,
         output_format=output_format,
         aggregations=aggregations,
+        limit=limit,
     )
     return advanced_search(request, db)
 
@@ -768,6 +849,7 @@ def search_assay_runs_advanced(
     aggregations: Optional[List[models.Aggregation]] = Body([]),
     filter: Optional[models.Filter] = Body(None),
     output_format: enums.SearchOutputFormat = Body(enums.SearchOutputFormat.json),
+    limit: Optional[int] = Body(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -781,6 +863,7 @@ def search_assay_runs_advanced(
         filter=filter,
         output_format=output_format,
         aggregations=aggregations,
+        limit=limit,
     )
     return advanced_search(request, db)
 

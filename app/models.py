@@ -127,7 +127,9 @@ class Compound(CompoundResponseBase, table=True):
     deleted_by: Optional[uuid.UUID] = Field(default=None)
 
     batches: List["Batch"] = Relationship(back_populates="compound")
-    compound_details: List["CompoundDetail"] = Relationship(back_populates="compound")
+    compound_details: List["CompoundDetail"] = Relationship(
+        back_populates="compound", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
     properties: List["Property"] = Relationship(
         back_populates="compounds", link_model=CompoundDetail, sa_relationship_kwargs={"viewonly": True}
     )
@@ -199,8 +201,12 @@ class Batch(BatchResponseBase, table=True):
 
     compound: "Compound" = Relationship(back_populates="batches")
     assay_results: List["AssayResult"] = Relationship(back_populates="batch")
-    batch_details: List["BatchDetail"] = Relationship(back_populates="batch")
-    batch_additions: List["BatchAddition"] = Relationship(back_populates="batch")
+    batch_details: List["BatchDetail"] = Relationship(
+        back_populates="batch", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
+    batch_additions: List["BatchAddition"] = Relationship(
+        back_populates="batch", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
     properties: List["Property"] = Relationship(
         back_populates="batches", link_model=BatchDetail, sa_relationship_kwargs={"viewonly": True}
     )
@@ -216,6 +222,7 @@ class SemanticType(SemanticTypeBase, table=True):
     __table_args__ = {"schema": DB_SCHEMA}
 
     id: int = Field(primary_key=True, nullable=False)
+    properties: List["Property"] = Relationship(back_populates="semantic_type")
 
 
 class PropertyBase(SQLModel):
@@ -234,6 +241,14 @@ class PropertyBase(SQLModel):
     friendly_name: Optional[str] = Field(default=None)
 
 
+class PropertyInput(PropertyBase):
+    semantic_type_name: Optional[str] = Field(default=None)
+
+
+class PropertyRetrieve(PropertyBase):
+    semantic_type: Optional[SemanticTypeBase] = None
+
+
 class PropertyWithValue(PropertyBase):
     value_datetime: Optional[datetime] = None
     value_uuid: Optional[uuid.UUID] = None
@@ -241,8 +256,8 @@ class PropertyWithValue(PropertyBase):
     value_string: Optional[str] = None
 
 
-class SynonymTypeBase(PropertyBase):
-    """A specialized type of PropertyBase for synonyms with fixed constraints"""
+class SynonymTypeBase(PropertyInput):
+    """A specialized type of PropertyInput for synonyms with fixed constraints"""
 
     value_type: enums.ValueType = Field(default=enums.ValueType.string)
     property_class: enums.PropertyClass = Field(default=enums.PropertyClass.DECLARED)
@@ -421,6 +436,7 @@ class Property(PropertyResponse, table=True):
     created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
+    semantic_type: "SemanticType" = Relationship(back_populates="properties")
     min: Optional[float] = Field(default=None)
     max: Optional[float] = Field(default=None)
     choices: Optional[str] = Field(default=None)
@@ -604,7 +620,7 @@ class BatchAddition(BatchAdditionBase, table=True):
 
 
 class SchemaPayload(SQLModel):
-    properties: List["PropertyBase"] = Field(default_factory=list)
+    properties: List["PropertyInput"] = Field(default_factory=list)
     synonym_types: List["SynonymTypeBase"] = Field(default_factory=list)
 
 
@@ -745,6 +761,7 @@ class SearchRequest(SQLModel):
     aggregations: Optional[List[Aggregation]] = Field(default_factory=list)
     filter: Optional[Filter] = None
     output_format: enums.SearchOutputFormat
+    limit: Optional[int] = None
 
     @field_validator("output")
     def validate_output(cls, v):

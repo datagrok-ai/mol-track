@@ -140,10 +140,14 @@ class SearchOperators:
     @classmethod
     def validate_operands(cls, operator: str, field: str):
         """Validate that operand is appropriate for operation"""
-        if operator in ["IS SIMILAR", "HAS SUBSTRUCTURE", "IS SUBSTRUCTURE OF"]:
+        molecular_ops = {"IS SIMILAR", "HAS SUBSTRUCTURE", "IS SUBSTRUCTURE OF"}
+
+        if operator in molecular_ops:
             if not field.endswith(".structure"):
                 raise ValueError("Molecular operators can only be applied to compounds.structure")
         else:
+            if field.endswith((".canonical_smiles", ".original_molfile")):
+                raise ValueError(f"Operator {operator} can not be applied to {field}")
             if field.endswith(".structure"):
                 raise ValueError("Only molecular operators can be applied to compounds.structure")
 

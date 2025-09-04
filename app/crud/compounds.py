@@ -5,7 +5,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 from app.crud.properties import enrich_properties
-from app import models
+from app import crud, models
 from app.utils.admin_utils import admin
 from app.utils import type_casting_utils
 
@@ -31,29 +31,32 @@ def read_compounds(db: Session, skip: int = 0, limit: int = 100):
     return [enrich_compound(c) for c in compounds]
 
 
-def get_compound_by_corporate_id(db: Session, corporate_compound_id: str):
+def get_compound_by_synonym(db: Session, property_value: str, property_name: str = None, enrich: bool = True):
+    if not property_value:
+        return None
+
+    filters = [models.Property.semantic_type_id == 1, models.CompoundDetail.value_string == property_value]
+
+    if property_name:
+        filters.append(models.Property.name == property_name)
+
     compound = (
         db.query(models.Compound)
         .join(models.Compound.compound_details)
         .join(models.CompoundDetail.property)
         .options(joinedload(models.Compound.compound_details).joinedload(models.CompoundDetail.property))
-        .filter(
-            and_(
-                models.Property.name == "corporate_compound_id",
-                models.CompoundDetail.value_string == corporate_compound_id,
-            )
-        )
+        .filter(and_(*filters))
         .first()
     )
 
     if not compound:
         return None
 
-    return enrich_compound(compound)
+    return enrich_compound(compound) if enrich else compound
 
 
-def update_compound(db: Session, compound_id: int, update_data: models.CompoundUpdate):
-    db_compound = db.get(models.Compound, compound_id)
+def update_compound(db: Session, property_value: str, property_name: str, update_data: models.CompoundUpdate):
+    db_compound = get_compound_by_synonym(db, property_value=property_value, property_name=property_name, enrich=False)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
 
@@ -106,14 +109,14 @@ def update_compound(db: Session, compound_id: int, update_data: models.CompoundU
     return db_compound
 
 
-def delete_compound(db: Session, compound_id: int):
-    db_compound = db.get(models.Compound, compound_id)
+def delete_compound(db: Session, property_value: str, property_name: str):
+    db_compound = get_compound_by_synonym(db, property_value=property_value, property_name=property_name, enrich=False)
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
 
-    db.query(models.CompoundDetail).filter(models.CompoundDetail.compound_id == compound_id).delete(
-        synchronize_session=False
-    )
+    batches = crud.get_batches_by_compound(db, compound_id=db_compound.id)
+    if batches:
+        raise HTTPException(status_code=400, detail="Compound has dependent batches")
 
     db.delete(db_compound)
     db.commit()

@@ -11,7 +11,9 @@ from app.utils.registrar_utils import get_details_for_entity
 
 
 class AssayRunRegistrar(BaseRegistrar):
-    def __init__(self, db: Session, mapping: Optional[str], error_handling: str):
+    def __init__(
+        self, db: Session, mapping: Optional[str], error_handling: str = enums.ErrorHandlingOptions.reject_all
+    ):
         self.entity_type = enums.EntityType.ASSAY_RUN
         super().__init__(db, mapping, error_handling)
         self._assay_records_map = None
@@ -57,7 +59,7 @@ class AssayRunRegistrar(BaseRegistrar):
                     models.AssayDetail,
                     "assay_id",
                 )
-                inserted, updated, record = self.property_service.build_details_records(
+                inserted, record = self.property_service.build_details_records(
                     models.AssayRunDetail,
                     grouped.get("assay_run_details", {}),
                     {"rn": idx + 1},

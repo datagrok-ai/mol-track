@@ -16,7 +16,7 @@ from rdkit import Chem
 
 
 class BaseRegistrar(ABC):
-    def __init__(self, db, mapping: Optional[str], error_handling: str):
+    def __init__(self, db, mapping: Optional[str], error_handling: str = enums.ErrorHandlingOptions.reject_all):
         """
         Base class for processing and registering data to a database.
         :param db: SQLAlchemy database session.
