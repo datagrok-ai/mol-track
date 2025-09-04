@@ -212,3 +212,21 @@ def test_sql_injection_attempt(client, test_db):
     compounds_after = test_db.execute(text("select * from moltrack.compounds")).fetchall()
 
     assert compounds_before == compounds_after
+
+
+@pytest.mark.usefixtures("preload_simple_data")
+def test_all_numeric_aggregations(client):
+    for aggr in enums.AggregationNumericOp:
+        if aggr in (enums.AggregationNumericOp.SKEW, enums.AggregationNumericOp.KURT):
+            continue
+
+        response = client.post(
+            "v1/search/compounds",
+            json={
+                "output": valid_output_compounds,
+                "aggregations": [{"field": "assay_results.details.clearance", "operation": aggr.value}],
+                "filter": valid_filter,
+                "output_format": enums.SearchOutputFormat.json.value,
+            },
+        )
+        assert response.status_code == 200, f"{aggr.value} failed with {response.text}"
