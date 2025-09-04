@@ -149,7 +149,7 @@ def test_valid_json_assay_runs(client):
 
 @pytest.mark.usefixtures("preload_simple_data")
 def test_valid_molecular_operations(client):
-    output = ["compounds.canonical_smiles"]
+    output = ["compounds.canonical_smiles", "compounds.details.corporate_compound_id"]
     filter = {
         "field": "compounds.structure",
         "operator": "IS SIMILAR",
