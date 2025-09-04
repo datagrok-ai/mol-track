@@ -26,8 +26,8 @@ valid_filter = {
 valid_output_compounds = ["compounds.molregno", "compounds.details.corporate_compound_id"]
 valid_output_batches = ["batches.batch_regno", "batches.details.corporate_batch_id"]
 valid_aggregations = [
-    {"field": "assay_results.details.ic50", "operation": "AVG"},
-    {"field": "assay_results.details.ic50", "operation": "COUNT"},
+    {"field": "assay_results.details.clearance", "operation": "AVG"},
+    {"field": "assay_results.details.clearance", "operation": "COUNT"},
 ]
 
 
