@@ -39,6 +39,15 @@ class User(SQLModel, table=True):
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
 
+class Session(SQLModel, table=True):
+    __tablename__ = "sessions"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    id: uuid.UUID = Field(primary_key=True, nullable=False, default_factory=uuid.uuid4)
+    user_id: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4, foreign_key="moltrack.users.id")
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+
+
 class Settings(SQLModel, table=True):
     __tablename__ = "settings"
     __table_args__ = {"schema": DB_SCHEMA}

@@ -1,4 +1,5 @@
 import os
+from app.utils.logging_utils import logger
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -19,3 +20,14 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"options": f"-csea
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    logger.debug(db.bind.url)
+    logger.debug("Database connection successful")
+    try:
+        yield db
+    finally:
+        db.close()

@@ -22,7 +22,11 @@ dependencies = [
     "sqlmodel>=0.0.24",
     "uvicorn>=0.34.2",
     "pyarrow>=16.1.0",
-    "common-expression-language"
+    "common-expression-language",
+    "pyjwt[crypto]",
+    "passlib[bcrypt]",
+    "cryptography",
+    "jwt"
 ]
 
 [tool.ruff]

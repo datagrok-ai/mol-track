@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 from typing import Dict, List, Optional, Type
 
 import yaml
+from app.services.auth.crud import create_session, get_user_by_email
+from app.services.auth.dependencies import get_current_user
+from app.services.auth.jwt import create_jwt_token
 from app.services.registrars.assay_result_registrar import AssayResultsRegistrar
 from app.services.registrars.assay_run_registrar import AssayRunRegistrar
 from app.services.registrars.batch_registrar import BatchRegistrar
@@ -16,6 +19,7 @@ from app.services.registrars.compound_registrar import CompoundRegistrar
 from app import models
 from app import crud
 from app.services.registrars.writer import StreamingResultWriter
+from app.setup.database import get_db
 from app.utils import enums
 from app.services.properties.property_service import PropertyService
 from app.services.search.engine import SearchEngine
@@ -23,7 +27,6 @@ from app.services.search.search_filter_builder import SearchFilterBuilder
 
 from sqlalchemy.sql import text
 
-from app.utils.logging_utils import logger
 from app.utils.admin_utils import admin
 from app.utils.chemistry_utils import get_molecule_standardization_config
 from app.utils.sql_utils import get_direct_fields
@@ -33,28 +36,14 @@ from app.utils.sql_utils import get_direct_fields
 try:
     # When imported as a package (for tests)
     from . import models
-    from .setup.database import SessionLocal
 except ImportError:
     # When run directly
     import app.models as models
-    from app.setup.database import SessionLocal
 
 # models.Base.metadata.create_all(bind=engine)
 
-
 app = FastAPI(title="MolTrack API", description="API for managing chemical compounds and batches")
 router = APIRouter(prefix="/v1")
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    logger.debug(db.bind.url)
-    logger.debug("Database connection successful")
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def get_or_raise_exception(get_func, db, *args, not_found_msg=None, **kwargs):
@@ -63,6 +52,18 @@ def get_or_raise_exception(get_func, db, *args, not_found_msg=None, **kwargs):
         msg = not_found_msg or "Item not found"
         raise HTTPException(status_code=404, detail=msg)
     return item
+
+
+@router.post("/token")
+def login_for_access_token(user_email: str, db: Session = Depends(get_db)):
+    user = get_user_by_email(db, user_email)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+
+    session = create_session(db, user.id)  # Create a session record in DB
+    access_token = create_jwt_token(user.id, session.id, "admin")
+
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/auto-map-columns")
@@ -88,7 +89,7 @@ def auto_map_columns(
 # === Schema endpoints for supplementary data like properties and synonyms ===
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#schema---wip
 @router.post("/schema/")
-def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db)):
+def preload_schema(payload: models.SchemaPayload, db: Session = Depends(get_db), currentUser=Depends(get_current_user)):
     try:
         created_synonyms = crud.create_properties(db, payload.synonym_types)
         created_properties = crud.create_properties(db, payload.properties)
