@@ -18,14 +18,19 @@ CREATE TABLE moltrack.users (
   updated_by uuid NOT NULL REFERENCES moltrack.users (id) DEFERRABLE INITIALLY DEFERRED
 );
 
-CREATE TABLE moltrack.api_keys(
-  id uuid PRIMARY KEY NOT NULL,
-  key_id  text UNIQUE NOT NULL,
-  secret_hash text UNIQUE NOT NULL,
-  scopes text, -- comma-separated scopes
-  revoked boolean,
-  created_at timestamp with time zone DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-  expires_at timestamp NULL
+
+CREATE TABLE moltrack.api_keys (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id uuid NOT NULL REFERENCES moltrack.users (id),
+    prefix text UNIQUE NOT NULL,
+    secret_hash text NOT NULL,
+    privileges text[] DEFAULT '{}'::text[] NOT NULL CHECK (
+      privileges <@ ARRAY['reader', 'writer', 'admin']
+    ),
+    status text NOT NULL DEFAULT 'active' check (status in ('active', 'revoked')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NULL,
+    last_used_at timestamptz NULL
 );
 
 -- Explains the meaning of a scalar property.

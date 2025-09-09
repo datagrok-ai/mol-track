@@ -191,7 +191,7 @@ def lowercase_enum_values(enum_class, value):
     return None
 
 
-class AuthScopes(str, enum.Enum):
+class AuthPrivileges(str, enum.Enum):
     ADMIN = "admin"
     READER = "reader"
     WRITER = "writer"

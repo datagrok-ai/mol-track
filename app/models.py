@@ -44,10 +44,11 @@ class ApiKey(SQLModel, table=True):
     __table_args__ = {"schema": DB_SCHEMA}
 
     id: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
-    key_id: str = Field(index=True, unique=True, nullable=False)
+    owner_id: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    prefix: str = Field(index=True, unique=True, nullable=False)
     secret_hash: str
-    scopes: str = ""
-    revoked: bool = False
+    privileges: str = ""
+    status: str = Field(default="active")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = None
 
