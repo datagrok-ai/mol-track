@@ -1,9 +1,10 @@
+import ipaddress
 import os
 import hmac
 import hashlib
 import secrets
 import base64
-from typing import Tuple
+from typing import Iterable, Optional, Tuple
 
 
 SERVER_HMAC_KEY = base64.b64decode(os.environ["APIKEY_HMAC_KEY_B64"])
@@ -15,7 +16,7 @@ def _b64url(nbytes: int) -> str:
 
 def generate_api_key(prefix_len_bytes: int = 5) -> Tuple[str, str, str]:
     """
-    Returns (full_key, prefix, last4).
+    Returns (full_key, prefix).
     Format: sk_{env}_{prefixid}.{secret}
     secret: 32 bytes (~256-bit) base64url, no padding.
     """
@@ -23,8 +24,7 @@ def generate_api_key(prefix_len_bytes: int = 5) -> Tuple[str, str, str]:
     prefix_id = _b64url(prefix_len_bytes)  # short, non-secret lookup id
     secret = _b64url(32)
     full_key = f"{prefix_id}.{secret}"
-    last4 = secret[-4:]
-    return full_key, prefix_id, last4
+    return full_key, prefix_id
 
 
 def hmac_hash(full_key: str) -> bytes:
@@ -38,3 +38,10 @@ def redact(full_key_or_secret: str) -> str:
         prefix, secret = full_key_or_secret.split(".", 1)
         return f"{prefix}.…{secret[-4:]}"
     return "…" + full_key_or_secret[-4:]
+
+
+def ip_allowed(client_ip: str, allowlist: Optional[Iterable[str]]) -> bool:
+    if not allowlist:
+        return True
+    ip = ipaddress.ip_address(client_ip)
+    return any(ip in ipaddress.ip_network(cidr) for cidr in allowlist)

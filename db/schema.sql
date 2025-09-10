@@ -30,7 +30,7 @@ CREATE TABLE moltrack.api_keys (
     status text NOT NULL DEFAULT 'active' check (status in ('active', 'revoked')),
     created_at timestamptz NOT NULL DEFAULT now(),
     expires_at timestamptz NULL,
-    last_used_at timestamptz NULL
+    ip_allowlist cidr[] NULL
 );
 
 -- Explains the meaning of a scalar property.

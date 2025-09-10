@@ -13,16 +13,16 @@ from app.services.auth.utils import generate_api_key, hmac_hash
 from app.utils import enums
 
 
-def create_key(owner_id: uuid.UUID, privileges: List[enums.AuthPrivileges], db: Session):
-    full_api_key, prefix, last4 = generate_api_key()
+def create_key(owner_id: uuid.UUID, privileges: List[enums.AuthPrivileges], ip_allowlist: List[str], db: Session):
+    full_api_key, prefix = generate_api_key()
     rec = ApiKey(
         owner_id=owner_id,
         prefix=prefix,
         privileges=privileges,
         status="active",
         secret_hash=hmac_hash(full_api_key),
-        last4=last4,
         created_at=datetime.now(),
+        ip_allowlist=ip_allowlist,
     )
     try:
         db.add(rec)

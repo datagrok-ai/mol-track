@@ -57,7 +57,9 @@ def get_or_raise_exception(get_func, db, id, not_found_msg):
 @router.post("/get-api-key")
 async def create_api_key(
     owner_email: str,  # UUID of the user this key belongs to
-    ip_allowlist: list[str] | None = None,
+    ip_allowlist: Optional[List[str]] = Body(
+        default_factory=list, description="List of allowed IP addresses", embed=True
+    ),
     db: Session = Depends(get_db),
 ):
     """Create a new API key. Returns full key string ONCE."""
@@ -72,7 +74,7 @@ async def create_api_key(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="API key already exists for this user")
 
     privileges = [enums.AuthPrivileges.READER]
-    full_api_key = create_key(owner_id, privileges, db)
+    full_api_key = create_key(owner_id, privileges, ip_allowlist, db)
 
     return {"api_key": full_api_key}
 

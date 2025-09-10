@@ -195,3 +195,8 @@ class AuthPrivileges(str, enum.Enum):
     ADMIN = "admin"
     READER = "reader"
     WRITER = "writer"
+
+
+class APIKeyStatus(str, enum.Enum):
+    active = "active"
+    revoked = "revoked"
