@@ -255,6 +255,7 @@ class PropertyWithValue(PropertyBase):
     value_uuid: Optional[uuid.UUID] = None
     value_num: Optional[float] = None
     value_string: Optional[str] = None
+    value_qualifier: Optional[str] = None
 
 
 class SynonymTypeBase(PropertyInput):
