@@ -105,6 +105,7 @@ class CompoundDetail(CompoundDetailBase, table=True):
     value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
     value_num: Optional[float]
     value_string: Optional[str]
+    value_qualifier: Optional[int]
 
     compound: "Compound" = Relationship(back_populates="compound_details")
     property: "Property" = Relationship(back_populates="compound_details")

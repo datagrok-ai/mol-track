@@ -191,3 +191,9 @@ def lowercase_enum_values(enum_class, value):
             if member.value == v_norm:
                 return member
     return None
+
+
+class ValueQualifier(int, enum.Enum):
+    EQUALS = 0
+    LESS_THAN = 1
+    GREATER_THAN = 2

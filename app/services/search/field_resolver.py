@@ -5,7 +5,7 @@ Handles resolution of field paths like 'compounds.details.chembl' to SQL compone
 
 from typing import Any, Dict, get_args
 from sqlalchemy.orm import Session
-from app.services.search.utils.helper_functions import create_alias, singularize, get_table_columns
+from app.services.search.utils.helper_functions import create_alias, has_value_qualifier, singularize, get_table_columns
 from app.services.search.utils.join_tools import JoinOrderingTool, JoinResolver
 from app.models import Level
 
@@ -30,13 +30,15 @@ class FieldResolver:
         for table in tables:
             alias = create_alias(table)
             singular_name = singularize(table)
+            details_table = f"{singular_name}_details"
             self.table_configs[table] = {
                 "table": table,
                 "alias": alias,
-                "details_table": f"{singular_name}_details",
+                "details_table": details_table,
                 "details_alias": f"{alias}d",
                 "details_fk": f"{singular_name}_id",
                 "direct_fields": {column: f"{alias}.{column}" for column in get_table_columns(table, db)},
+                "value_qualifier": has_value_qualifier(details_table, db),
             }
         self.table_configs["compounds"]["direct_fields"]["structure"] = "c.canonical_smiles"
 
@@ -179,6 +181,7 @@ class FieldResolver:
             "property_alias": f"{property_alias}_name",
             "table_alias": alias,
             "property_filter": f"LOWER({property_alias}_name) = LOWER('{property_name}')",
+            "value_qualifier": table_config["value_qualifier"],
             "subquery": {
                 "sql": subquery_sql,
                 "alias": subquery_alias if subquery else "",
