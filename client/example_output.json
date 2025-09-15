@@ -1,0 +1,8 @@
+{
+  "output": [
+    "id",
+    "canonical_smiles",
+    "common_name",
+    "created_at"
+  ]
+} 
