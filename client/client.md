@@ -36,10 +36,10 @@ Lists the current schema for both compounds and batches.
 
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
 
-### Create Schema
+### Load Schema
 
 ```bash
-python mtcli.py schema create <file_path> [OPTIONS]
+python mtcli.py schema load <file_path> [OPTIONS]
 ```
 
 Adds schema definitions from a JSON file.
@@ -86,7 +86,7 @@ Adds schema definitions from a JSON file.
 ### List Compounds
 
 ```bash
-python mtcli.py compound list [OPTIONS]
+python mtcli.py compounds list [OPTIONS]
 ```
 
 Lists compounds using the v1 endpoint.
@@ -116,7 +116,7 @@ Creates a compound using the legacy `/compounds` endpoint.
 ### Create Compounds from CSV
 
 ```bash
-python mtcli.py compound create <csv_file> [OPTIONS]
+python mtcli.py compounds create <csv_file> [OPTIONS]
 ```
 
 Adds compounds from a CSV file using the `/v1/compounds/` endpoint.
@@ -813,7 +813,7 @@ mtcli.py search compounds --output "id,canonical_smiles,common_name"
 {
   "output": [
     "id",
-    "canonical_smiles", 
+    "canonical_smiles",
     "common_name",
     "created_at"
   ]
@@ -828,7 +828,7 @@ mtcli.py search compounds --output output.json
 [
   "id",
   "batch_regno",
-  "compound_id", 
+  "compound_id",
   "notes"
 ]
 ```

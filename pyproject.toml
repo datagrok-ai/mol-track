@@ -25,6 +25,7 @@ dependencies = [
     "common-expression-language",
     "typer>=0.16.0",
     "requests>=2.32.4",
+    "pydantic-settings"
 ]
 
 [tool.ruff]
