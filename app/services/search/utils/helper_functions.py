@@ -16,7 +16,6 @@ from app.utils import enums
 
 def get_qualifier_sql(field: str):
     qualifier_sql = f"MAX(CASE {field} WHEN 0 THEN '' WHEN 1 THEN '<' WHEN 2 THEN '>' END)"
-
     return qualifier_sql
 
 
