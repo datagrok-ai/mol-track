@@ -66,6 +66,7 @@ class CompoundCreate(CompoundBase):
 
 class CompoundResponseBase(CompoundBase):
     id: int = Field(primary_key=True, index=True)
+    molregno: int = Field(nullable=False)
     canonical_smiles: str = Field(nullable=False)
     inchi: str = Field(nullable=False)
     inchikey: str = Field(nullable=False, unique=True)
@@ -114,7 +115,6 @@ class Compound(CompoundResponseBase, table=True):
     __tablename__ = "compounds"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    molregno: int = Field(nullable=False)
     formula: str = Field(nullable=False)
     hash_mol: str = Field(nullable=False)
     hash_tautomer: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
@@ -239,6 +239,7 @@ class PropertyBase(SQLModel):
     choices: Optional[str] = Field(default=None)
     validators: Optional[str] = Field(default=None)
     friendly_name: Optional[str] = Field(default=None)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
 
 class PropertyInput(PropertyBase):
@@ -287,7 +288,6 @@ class SynonymTypeBase(PropertyInput):
 
 class PropertyResponse(PropertyBase):
     id: int = Field(primary_key=True, index=True)
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
 
 class AssayProperty(SQLModel, table=True):
