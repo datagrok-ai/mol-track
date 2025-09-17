@@ -80,21 +80,9 @@ class PropertyService:
             if value in ("", "none", None):
                 continue
 
+            value_qualifier, value = self.extract_qualifiers(value_type, value)
+
             PropertyValidator.validate_value(value, prop)
-
-            #  Detect and parse value qualifiers
-            value_qualifier = 0
-            if value_type in ("double", "int") and isinstance(value, str):
-                qualifiers = {
-                    "<": 1,
-                    ">": 2,
-                    "=": 0,
-                }
-
-                first_char = value[0] if value else ""
-                if first_char in qualifiers:
-                    value_qualifier = qualifiers[first_char]
-                    value = value[1:].strip()
 
             try:
                 casted_value = cast_fn(value)
@@ -138,3 +126,19 @@ class PropertyService:
             ComplexValidator.validate_record(records_to_validate, self.validators)
 
         return records_to_insert, records_to_validate
+
+    def extract_qualifiers(self, value_type: str, value: Any):
+        #  Detect and parse value qualifiers
+        value_qualifier = 0
+        if value_type in ("double", "int") and isinstance(value, str):
+            qualifiers = {
+                "<": enums.ValueQualifier.LESS_THAN,
+                ">": enums.ValueQualifier.GREATER_THAN,
+                "=": enums.ValueQualifier.EQUALS,
+            }
+
+            first_char = value[0] if value else ""
+            if first_char in qualifiers:
+                value_qualifier = qualifiers[first_char]
+                value = value[1:].strip()
+        return value_qualifier, value

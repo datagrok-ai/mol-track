@@ -106,6 +106,7 @@ class CompoundDetail(CompoundDetailBase, table=True):
     value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
     value_num: Optional[float]
     value_string: Optional[str]
+    value_qualifier: Optional[int]
 
     compound: "Compound" = Relationship(back_populates="compound_details")
     property: "Property" = Relationship(back_populates="compound_details")
@@ -255,6 +256,7 @@ class PropertyWithValue(PropertyBase):
     value_uuid: Optional[uuid.UUID] = None
     value_num: Optional[float] = None
     value_string: Optional[str] = None
+    value_qualifier: Optional[str] = None
 
 
 class SynonymTypeBase(PropertyInput):

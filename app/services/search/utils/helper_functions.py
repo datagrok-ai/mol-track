@@ -14,6 +14,11 @@ from app.models import Level, Aggregation
 from app.utils import enums
 
 
+def get_qualifier_sql(field: str):
+    qualifier_sql = f"MAX(CASE {field} WHEN 0 THEN '' WHEN 1 THEN '<' WHEN 2 THEN '>' END)"
+    return qualifier_sql
+
+
 def get_identity_field(level: Level) -> str:
     if level in ["compounds", "batches"]:
         return f"{level}.details.corporate_{singularize(level)}_id"
@@ -53,6 +58,15 @@ def singularize(word: str) -> str:
     elif word.endswith("s"):
         return word[:-1]
     return word
+
+
+def has_value_qualifier(table_name: str, session: Session):
+    """
+    Checks whether table has a value qualifier
+    """
+
+    details_columns = get_table_columns(table_name, session)
+    return "value_qualifier" in details_columns
 
 
 def get_table_columns(table_name: str, session: Session) -> list:

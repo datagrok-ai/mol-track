@@ -3,7 +3,7 @@ from app.services.search.field_resolver import FieldResolutionError, FieldResolv
 from app.services.search.operators import SearchOperators
 import app.models as models
 from app.services.search.utils.aggregation_operators import AggregationOperators
-from app.services.search.utils.helper_functions import sanitize_field_name
+from app.services.search.utils.helper_functions import get_qualifier_sql, sanitize_field_name
 from app.services.search.utils.join_tools import JoinOrderingTool
 from app.utils.enums import AggregationStringOp
 
@@ -102,6 +102,9 @@ class QueryBuilder:
             if operation not in [AggregationStringOp.LONGEST.value, AggregationStringOp.SHORTEST.value]:
                 statement += f" FILTER (WHERE {details['sql']})"
             statement = statement + f" AS {alias} "
+            qualifier = details.get("qualifier_field", None)
+            if qualifier:
+                statement = f"{get_qualifier_sql(qualifier)} FILTER (WHERE {details['sql']}) || " + statement
             select_clause.append(statement)
         return select_clause
 
@@ -130,6 +133,7 @@ class QueryBuilder:
             else:
                 has_dynamic = True
                 table_alias = resolved["table_alias"]
+                has_value_qualifier = resolved.get("value_qualifier", False)
                 if table_alias not in dynamic_columns:
                     select_fields.extend(
                         [
@@ -137,11 +141,18 @@ class QueryBuilder:
                             f"{resolved['property_name']} AS {resolved['property_alias']}",
                         ]
                     )
+                    if has_value_qualifier:
+                        select_fields.append(f"{table_alias}.value_qualifier as {table_alias}_qualifier")
                     dynamic_columns.append(table_alias)
+
+                qualifier_field = None
+                if has_value_qualifier:
+                    qualifier_field = f"{table_alias}_qualifier"
                 self.dynamic_query_parts[field_alias] = {
                     "sql": resolved["property_filter"],
                     "operation": operation,
                     "column_value": f"{table_alias}_value",
+                    "qualifier_field": qualifier_field,
                 }
 
         if has_dynamic:
@@ -265,7 +276,12 @@ class QueryBuilder:
             value_column = f"CAST({value_column} AS NUMERIC)"
 
         value_sql_expr, value_params = self.operators.get_sql_expression(
-            condition.operator, value_column, condition.value, condition.threshold
+            condition.operator,
+            value_column,
+            condition.value,
+            condition.threshold,
+            field_info["table_alias"],
+            field_info["value_qualifier"],
         )
 
         if field_info["search_level"]["alias"] != field_info["subquery"]["alias"]:
