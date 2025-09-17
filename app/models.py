@@ -239,6 +239,7 @@ class PropertyBase(SQLModel):
     choices: Optional[str] = Field(default=None)
     validators: Optional[str] = Field(default=None)
     friendly_name: Optional[str] = Field(default=None)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
 
 class PropertyInput(PropertyBase):
@@ -287,7 +288,6 @@ class SynonymTypeBase(PropertyInput):
 
 class PropertyResponse(PropertyBase):
     id: int = Field(primary_key=True, index=True)
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
 
 class AssayProperty(SQLModel, table=True):
