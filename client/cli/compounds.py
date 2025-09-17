@@ -42,14 +42,15 @@ def list_compounds_group(
 
 @compound_app.command("get")
 def get_compound(
-    compound_id: int = typer.Argument(..., help="Compound ID to retrieve"),
+    corporate_compound_id: str = typer.Argument(..., help="Compound ID to retrieve"),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
 ):
     """
-    Get a specific compound by ID.
+    Get a specific compound by corporate_compound_id.
     """
-    response = requests.get(f"{url}/v1/compounds/{compound_id}")
+    params = {"property_value": corporate_compound_id, "property_name": "corporate_compound_id"}
+    response = requests.get(f"{url}/v1/compounds", params=params)
 
     if response.status_code == 200:
         compound_data = response.json()
@@ -70,14 +71,15 @@ def get_compound(
 
 @compound_app.command("properties")
 def get_compound_properties(
-    compound_id: int = typer.Argument(..., help="Compound ID to get properties for"),
+    corporate_compound_id: str = typer.Argument(..., help="Compound ID to get properties for"),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
 ):
     """
-    Get all properties for a specific compound.
+    Get all properties for a specific compound by corporate_compound_id.
     """
-    response = requests.get(f"{url}/v1/compounds/{compound_id}/properties")
+    params = {"property_value": corporate_compound_id, "property_name": "corporate_compound_id"}
+    response = requests.get(f"{url}/v1/compounds", params=params)
 
     if response.status_code == 200:
         properties_data = response.json()
@@ -86,7 +88,7 @@ def get_compound_properties(
             print(json.dumps(properties_data, indent=2))
         else:
             # Display properties in table format
-            display_properties_table(properties_data)
+            display_properties_table(properties_data["properties"])
     else:
         print(f"Error: {response.status_code}")
         try:
@@ -98,14 +100,15 @@ def get_compound_properties(
 
 @compound_app.command("synonyms")
 def get_compound_synonyms(
-    compound_id: int = typer.Argument(..., help="Compound ID to get synonyms for"),
+    corporate_compound_id: str = typer.Argument(..., help="Compound ID to get synonyms for"),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
 ):
     """
-    Get all synonyms for a specific compound.
+    Get all synonyms for a specific compound by corporate_compound_id.
     """
-    response = requests.get(f"{url}/v1/compounds/{compound_id}/synonyms")
+    params = {"property_value": corporate_compound_id, "property_name": "corporate_compound_id"}
+    response = requests.get(f"{url}/v1/compounds/synonyms", params=params)
 
     if response.status_code == 200:
         synonyms_data = response.json()
@@ -126,13 +129,13 @@ def get_compound_synonyms(
 
 @compound_app.command("delete")
 def delete_compound(
-    compound_id: int = typer.Argument(..., help="Compound ID to delete"),
+    corporate_compound_id: str = typer.Argument(..., help="Compound ID to delete"),
     url: str = settings.API_BASE_URL,
 ):
     """
-    Delete a specific compound by ID.
+    Delete a specific compound by corporate_compound_id.
     """
-    response = requests.delete(f"{url}/v1/compounds/{compound_id}")
+    response = requests.delete(f"{url}/v1/compounds/{corporate_compound_id}")
     print_response(response)
 
 

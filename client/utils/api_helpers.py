@@ -22,7 +22,7 @@ def print_response(response):
     if response.status_code == 200:
         print(response.json())
     else:
-        print(f"Error: {response.status_code}")
+        print(f"Error: {response.status_code}: {response.json()}")
 
 
 def validate_search_request(level, output, filter_obj):
