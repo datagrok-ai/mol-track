@@ -58,7 +58,6 @@ def add_additions_from_csv(
     error_handling: str = typer.Option(
         "reject_all", "--error-handling", "-e", help="Error handling strategy: reject_all or reject_row"
     ),
-    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: json or csv"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
     save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
 ):
@@ -96,7 +95,6 @@ def add_additions_from_csv(
         url=url,
         endpoint="/v1/additions/",
         error_handling=error_handling,
-        output_format=output_format,
         entity_type="additions",
         csv_data=csv_data if rows is not None else None,
         save_errors=save_errors,

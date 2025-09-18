@@ -1,126 +1,10 @@
-import json
-import requests
 import typer
 
 from client.config import settings
 from client.utils.api_helpers import run_advanced_search
-from client.utils.display import display_compounds_table
-from client.utils.file_utils import load_and_validate_json
 
 
 search_app = typer.Typer()
-
-
-# Search Commands
-@search_app.command("compounds-exact")
-def search_compounds_exact(
-    query_smiles: str = typer.Argument(..., help="SMILES string for exact search"),
-    standardization_steps: str = typer.Option(
-        None, "--standardization", help="Standardization steps (comma-separated)"
-    ),
-    hash_mol: str = typer.Option(None, "--hash-mol", help="Molecular hash for search"),
-    url: str = settings.API_BASE_URL,
-    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
-):
-    """
-    Search for compounds using exact SMILES matching.
-    """
-    payload = {"query_smiles": query_smiles}
-
-    if standardization_steps:
-        payload["standardization_steps"] = [step.strip() for step in standardization_steps.split(",")]
-
-    if hash_mol:
-        payload["hash_mol"] = hash_mol
-
-    response = requests.post(f"{url}/v1/search/compounds/exact", json=payload)
-
-    if response.status_code == 200:
-        compounds_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(compounds_data, indent=2))
-        else:
-            # Display compounds in table format
-            display_compounds_table(compounds_data)
-    else:
-        print(f"Error: {response.status_code}")
-        try:
-            error_detail = response.json()
-            print(f"Details: {json.dumps(error_detail, indent=2)}")
-        except (json.JSONDecodeError, ValueError):
-            print(f"Response: {response.text}")
-
-
-@search_app.command("compounds-structure")
-def search_compounds_structure(
-    search_type: str = typer.Argument(
-        ..., help="Search type: substructure, tautomer, stereo, similarity, connectivity"
-    ),
-    query_smiles: str = typer.Argument(..., help="SMILES string for structure search"),
-    search_parameters: str = typer.Option(None, "--parameters", help="Additional search parameters as JSON string"),
-    url: str = settings.API_BASE_URL,
-    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
-):
-    """
-    Search for compounds using structure-based search.
-    """
-    payload = {"search_type": search_type, "query_smiles": query_smiles}
-
-    if search_parameters:
-        try:
-            payload["search_parameters"] = json.loads(search_parameters)
-        except json.JSONDecodeError:
-            typer.echo("Error: Invalid JSON format for search parameters", err=True)
-            raise typer.Exit(1)
-
-    response = requests.post(f"{url}/v1/search/compounds/structure", json=payload)
-
-    if response.status_code == 200:
-        compounds_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(compounds_data, indent=2))
-        else:
-            # Display compounds in table format
-            display_compounds_table(compounds_data)
-    else:
-        print(f"Error: {response.status_code}")
-        try:
-            error_detail = response.json()
-            print(f"Details: {json.dumps(error_detail, indent=2)}")
-        except (json.JSONDecodeError, ValueError):
-            print(f"Response: {response.text}")
-
-
-@search_app.command("complex")
-def search_complex(
-    file_path: str = typer.Argument(..., help="Path to JSON file containing complex query"),
-    url: str = settings.API_BASE_URL,
-    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: json only"),
-):
-    """
-    Perform a complex query across multiple tables.
-    """
-    # Load and validate the query data
-    query_data = load_and_validate_json(file_path)
-
-    response = requests.post(f"{url}/v1/search/complex", json=query_data)
-
-    if response.status_code == 200:
-        results_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(results_data, indent=2))
-        else:
-            print(json.dumps(results_data, indent=2))  # Default to JSON for complex queries
-    else:
-        print(f"Error: {response.status_code}")
-        try:
-            error_detail = response.json()
-            print(f"Details: {json.dumps(error_detail, indent=2)}")
-        except (json.JSONDecodeError, ValueError):
-            print(f"Response: {response.text}")
 
 
 @search_app.command("compounds")
@@ -130,9 +14,13 @@ def search_compounds(
         help="Comma-separated list of columns to return or path to JSON file (e.g. 'id,canonical_smiles' or output.json)",
     ),
     filter: str = typer.Option(None, help="Filter as JSON string or path to JSON file (see docs for format)"),
+    aggregation: str = typer.Option(
+        None, help="Aggregations as JSON string or path to JSON file (see docs for format)"
+    ),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: table, json, or csv"),
     max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+    input_file: str = typer.Option(None, "--input-file", "-if", help="Get serch input from file"),
 ):
     """
     Advanced search for compounds using /v1/search/compounds endpoint.

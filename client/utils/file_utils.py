@@ -41,10 +41,10 @@ def load_and_validate_json(file_path: str, model_class=None) -> dict:
             return data
 
         try:
-            validated_data = model_class(**data)
+            model_class(**data)
             model_name = model_class.__name__
             typer.echo(f"✅ JSON validation passed using {model_name} model!")
-            return validated_data.model_dump()
+            return data
         except Exception as e:
             model_name = model_class.__name__
             typer.secho(f"❌ JSON validation failed using {model_name} model: {e}", fg=typer.colors.RED, err=True)

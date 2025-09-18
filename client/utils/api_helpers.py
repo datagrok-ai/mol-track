@@ -28,13 +28,20 @@ def print_response(response):
         print(f"Error: {response.status_code}: {response.json()}")
 
 
-def validate_search_request(level, output, filter_obj):
+def validate_search_request(level, output, filter_obj, aggregations, output_format, limit):
     """
     Validate the search request using the SearchRequest model if available.
     """
     if SearchRequest is not None:
         try:
-            req = SearchRequest(level=level, output=output, filter=filter_obj)
+            req = SearchRequest(
+                level=level,
+                output=output,
+                filter=filter_obj,
+                aggregations=aggregations,
+                output_format=output_format,
+                limit=limit,
+            )
             return req.model_dump()
         except Exception as e:
             typer.echo(f"❌ SearchRequest validation failed: {e}", err=True)
@@ -43,31 +50,17 @@ def validate_search_request(level, output, filter_obj):
         return {"level": level, "output": output, "filter": filter_obj}
 
 
-def validate_search_response(data):
-    """
-    Validate the search response using the SearchResponse model if available.
-    """
-    if SearchResponse is not None:
-        try:
-            resp = SearchResponse(**data)
-            return resp
-        except Exception as e:
-            typer.echo(f"❌ SearchResponse validation failed: {e}", err=True)
-            raise typer.Exit(1)
-    else:
-        return data
-
-
 def run_advanced_search(level, endpoint, output, filter, url, output_format, max_rows=None):
     """
     Shared logic for advanced search commands.
     """
     output_list = parse_arg(output, arg_type="output", default_value=[], allow_comma_separated=True)
+    filter = filter.replace("'", '"')
     filter_obj = parse_arg(filter, arg_type="json", default_value=None, allow_comma_separated=False)
-    payload = validate_search_request(level, output_list, filter_obj)
+    payload = validate_search_request(level, output_list, filter_obj, [], output_format, max_rows)
     response = requests.post(f"{url}{endpoint}", json=payload)
     if response.status_code == 200:
-        resp = validate_search_response(response.json())
+        resp = response.json()
         if output_format == "json":
             print(json.dumps(response.json(), indent=2))
         elif output_format == "csv":

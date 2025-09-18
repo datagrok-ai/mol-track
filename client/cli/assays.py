@@ -3,7 +3,7 @@ import requests
 import typer
 
 from client.config import settings
-from client.utils.api_helpers import print_response
+from client.utils.api_helpers import handle_get_request, print_response
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
 from client.utils.display import display_assays_table, display_properties_table
 from client.utils.file_utils import load_and_validate_json, load_and_validate_mapping, validate_and_load_csv_data
@@ -30,23 +30,12 @@ def list_assays(
     If no assay_id is provided, lists all assays.
     If assay_id is provided, gets the specific assay.
     """
-    response = requests.get(f"{url}/v1/assays/?skip={skip}&limit={limit}")
-    if response.status_code == 200:
-        assays_data = response.json()
-
-        if output_format == "json":
-            typer.echo(json.dumps(assays_data, indent=2))
-        else:
-            # Default to table format
-            display_assays_table(assays_data)
+    endpoint = f"{url}/v1/assays/?skip={skip}&limit={limit}"
+    data = handle_get_request(endpoint)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        display_assays_table(data)
 
 
 @assays_app.command("load")
@@ -73,24 +62,13 @@ def get_assay(
     """
     Get a specific assay by ID.
     """
-    response = requests.get(f"{url}/v1/assays/{assay_id}")
-
-    if response.status_code == 200:
-        assay_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(assay_data, indent=2))
-        else:
-            # Display single assay in table format
-            display_assays_table([assay_data])
-            display_properties_table(assay_data["properties"], display_value=True)
+    endpoint = f"{url}/v1/assays/{assay_id}"
+    data = handle_get_request(endpoint)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
     else:
-        print(f"Error: {response.status_code}")
-        try:
-            error_detail = response.json()
-            print(f"Details: {json.dumps(error_detail, indent=2)}")
-        except (json.JSONDecodeError, ValueError):
-            print(f"Response: {response.text}")
+        display_assays_table([data])
+        display_properties_table(data["properties"], display_value=True)
 
 
 # Assay Runs Commands
@@ -107,23 +85,12 @@ def list_assay_runs(
     If no assay_run_id is provided, lists all assay runs.
     If assay_run_id is provided, gets the specific assay run.
     """
-    response = requests.get(f"{url}/v1/assay_runs/?skip={skip}&limit={limit}")
-    if response.status_code == 200:
-        assay_runs_data = response.json()
-
-        if output_format == "json":
-            typer.echo(json.dumps(assay_runs_data, indent=2))
-        else:
-            # Default to table format
-            display_assays_table(assay_runs_data)
+    endpoint = f"{url}/v1/assay_runs/?skip={skip}&limit={limit}"
+    data = handle_get_request(endpoint)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        display_assays_table(data, assay_entity="run")
 
 
 @assays_runs_app.command("load")
@@ -135,7 +102,6 @@ def create_assay_runs_from_csv(
     error_handling: str = typer.Option(
         "reject_all", "--error-handling", "-e", help="Error handling strategy: reject_all or reject_row"
     ),
-    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: json or csv"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
     save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
 ):
@@ -158,7 +124,6 @@ def create_assay_runs_from_csv(
         url=url,
         endpoint="/v1/assay_runs/",
         error_handling=error_handling,
-        output_format=output_format,
         entity_type="assay runs",
         csv_data=csv_data if rows is not None else None,
         save_errors=save_errors,
@@ -168,8 +133,10 @@ def create_assay_runs_from_csv(
 # Assay Results Commands
 @assays_results_app.command("list")
 def list_assay_results(
-    assay_result_id: int | None = typer.Argument(None, help="Assay result ID to retrieve (optional)"),
+    skip: int = 0,
+    limit: int = 10,
     url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
 ):
     """
     List assay results using the v1 endpoint.
@@ -177,13 +144,12 @@ def list_assay_results(
     If no assay_result_id is provided, lists all assay results.
     If assay_result_id is provided, gets the specific assay result.
     """
-    if assay_result_id is not None:
-        # Get specific assay result
-        response = requests.get(f"{url}/v1/assay_results/{assay_result_id}")
+    endpoint = f"{url}/v1/assay_results/?skip={skip}&limit={limit}"
+    data = handle_get_request(endpoint)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
     else:
-        # List all assay results
-        response = requests.get(f"{url}/v1/assay_results")
-    print_response(response)
+        display_assays_table(data, assay_entity="run")
 
 
 @assays_results_app.command("load")
@@ -195,7 +161,6 @@ def create_assay_results_from_csv(
     error_handling: str = typer.Option(
         "reject_all", "--error-handling", "-e", help="Error handling strategy: reject_all or reject_row"
     ),
-    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: json or csv"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
     save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
 ):
@@ -218,7 +183,6 @@ def create_assay_results_from_csv(
         url=url,
         endpoint="/v1/assay_results/",
         error_handling=error_handling,
-        output_format=output_format,
         entity_type="assay results",
         csv_data=csv_data if rows is not None else None,
         save_errors=save_errors,

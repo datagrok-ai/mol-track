@@ -201,26 +201,38 @@ def display_batches_table(batches_data):
     display_data_table(data=batches_data, title="Batches", columns=columns, row_extractor=extract_batch_row)
 
 
-def display_assays_table(assays_data):
+def display_assays_table(assays_data, assay_entity: str = None):
     """Display assays data in a rich table format."""
     columns = [
         ("ID", "cyan", {"no_wrap": True}),
+        ("Assay ID", "yellow", {"no_wrap": True}) if assay_entity else None,
+        ("Batch ID", "yellow", {"no_wrap": True}) if assay_entity == "result" else None,
         ("Name", "blue", {"no_wrap": True}),
-        ("Description", "green", {"no_wrap": True}),
+        ("Description", "green", {"no_wrap": True}) if assay_entity != "result" else None,
         ("Created At", "red", {}),
     ]
+    columns = [item for item in columns if item]
 
     def extract_assay_row(assay):
-        return [
-            str(assay.get("id", "")),
-            assay.get("name", ""),
-            assay.get("description", "")[:30] + "..."
-            if assay.get("description") and len(assay.get("description", "")) > 30
-            else assay.get("description", ""),
-            format_timestamp(assay.get("created_at", "")),
-        ]
+        values = [str(assay.get("id", ""))]
+        if assay_entity:
+            values.append(str(assay.get("assay", "")["id"]))
+        if assay_entity == "result":
+            values.append("batch iD")
+        values.append(assay.get("name", ""))
+        if assay_entity != "result":
+            values.append(
+                assay.get("description", "")[:30] + "..."
+                if assay.get("description") and len(assay.get("description", "")) > 30
+                else assay.get("description", "")
+            )
 
-    display_data_table(data=assays_data, title="Assays", columns=columns, row_extractor=extract_assay_row)
+        values.append(format_timestamp(assay.get("created_at", "")))
+
+        return values
+
+    title = "Assays" if not assay_entity == "runs" else "Assay Runs"
+    display_data_table(data=assays_data, title=title, columns=columns, row_extractor=extract_assay_row)
 
 
 def extract_value_from_property(prop):

@@ -2,7 +2,7 @@ import json
 import typer
 import requests
 from client.config.settings import settings
-from client.utils.api_helpers import print_response
+from client.utils.api_helpers import handle_delete_request, handle_get_request, print_response
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
 from client.utils.display import display_batches_table, display_properties_table
 from client.utils.file_utils import load_and_validate_mapping, validate_and_load_csv_data
@@ -27,23 +27,14 @@ def list_batches_group(
     If batch_id is provided, gets the specific batch.
     """
     # List all batches
-    response = requests.get(f"{url}/v1/batches/?skip={skip}&limit={limit}")
-    if response.status_code == 200:
-        batches_data = response.json()
+    endpoint = f"{url}/v1/batches/?skip={skip}&limit={limit}"
+    data = handle_get_request(endpoint)
 
-        if output_format == "json":
-            print(json.dumps(batches_data, indent=2))
-        else:
-            # Display single compound in table format
-            display_batches_table(batches_data)
+    if output_format == "json":
+        print(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        # Display single compound in table format
+        display_batches_table(data)
 
 
 @batch_app.command("load")
@@ -55,7 +46,6 @@ def create_batches_from_csv(
     error_handling: str = typer.Option(
         "reject_all", "--error-handling", "-e", help="Error handling strategy: reject_all or reject_row"
     ),
-    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: json or csv"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
     save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
 ):
@@ -94,7 +84,6 @@ def create_batches_from_csv(
         url=url,
         endpoint="/v1/batches/",
         error_handling=error_handling,
-        output_format=output_format,
         entity_type="batches",
         csv_data=csv_data if rows is not None else None,
         save_errors=save_errors,
@@ -111,25 +100,13 @@ def get_batch(
     Get a specific batch by corporate_batch_id (friendly name).
     """
     params = {"property_value": corporate_batch_id, "property_name": "corporate_batch_id"}
-    response = requests.get(f"{url}/v1/batches", params=params)
-
-    if response.status_code == 200:
-        batch_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(batch_data, indent=2))
-        else:
-            # Display single batch in table format
-            display_batches_table([batch_data])
-            display_properties_table(batch_data["properties"], display_value=True)
+    endpoint = f"{url}/v1/batches"
+    data = handle_get_request(endpoint, params=params)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        display_batches_table([data])
+        display_properties_table(data["properties"], display_value=True)
 
 
 @batch_app.command("delete")
@@ -140,17 +117,9 @@ def delete_batch(
     """
     Delete a specific batch by Corporate Batch ID (friendly name).
     """
-    response = requests.delete(f"{url}/v1/batches/{corporate_batch_id}")
-    response_dict = response.json()
-    if response.status_code == 200:
-        typer.echo(f"✅ {response_dict['message']}")
-    else:
-        typer.secho(
-            f"❌ Error updating the rule. Error message:\n {json.dumps(response_dict, indent=2)}",
-            fg=typer.colors.RED,
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    endpoint = f"{url}/v1/batches/{corporate_batch_id}"
+    handle_delete_request(endpoint)
+    typer.echo(f"✅ Batch with friendly name {corporate_batch_id} has been successfully deleted.")
 
 
 @batch_app.command("properties")
@@ -163,23 +132,13 @@ def get_batch_properties(
     Get all properties for a specific batch using the v1 endpoint.
     """
     params = {"property_value": corporate_batch_id, "property_name": "corporate_batch_id"}
-    response = requests.get(f"{url}/v1/batches", params=params)
-    if response.status_code == 200:
-        properties_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(properties_data, indent=2))
-        else:
-            # Display properties in table format
-            display_properties_table(properties_data["properties"], display_value=True)
+    endpoint = f"{url}/v1/batches"
+    data = handle_get_request(endpoint, params=params)
+    if output_format == "json":
+        print(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        # Display properties in table format
+        display_properties_table(data["properties"], display_value=True)
 
 
 @batch_app.command("synonyms")
@@ -192,24 +151,13 @@ def get_batch_synonyms(
     Get all synonyms for a specific batch using the v1 endpoint.
     """
     params = {"property_value": corporate_batch_id, "property_name": "corporate_batch_id"}
-    response = requests.get(f"{url}/v1/batches/synonyms", params=params)
-
-    if response.status_code == 200:
-        synonyms_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(synonyms_data, indent=2))
-        else:
-            # Display synonyms in table format
-            display_properties_table(synonyms_data, display_value=True)
+    endpoint = f"{url}/v1/batches/synonyms"
+    data = handle_get_request(endpoint, params=params)
+    if output_format == "json":
+        print(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        # Display synonyms in table format
+        display_properties_table(data, display_value=True)
 
 
 @batch_app.command("additions")

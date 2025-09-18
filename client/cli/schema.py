@@ -69,6 +69,7 @@ def add_schema_from_file(
     """
     # Load and validate schema using utility function
     schema_data = load_and_validate_json(file_path, SchemaPayload)
+    typer.echo(schema_data)
 
     # Send request to server
     try:
@@ -125,5 +126,8 @@ def add_schema_from_file(
         typer.echo(f"❌ Error: Could not connect to server at {url}", err=True)
         raise typer.Exit(1)
     except requests.exceptions.RequestException as e:
-        typer.echo(f"❌ Error making request: {e}", err=True)
+        typer.echo(f"❌ Error making request: {str(e)}", err=True)
+        raise typer.Exit(1)
+    except Exception as e:
+        typer.echo(f"❌ Error making request: {str(e)}", err=True)
         raise typer.Exit(1)

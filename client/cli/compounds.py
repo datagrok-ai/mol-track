@@ -96,8 +96,8 @@ def delete_compound(
     Delete a specific compound by corporate_compound_id (friendly name).
     """
     endpoint = url + "/v1/compounds/" + corporate_compound_id
-    response = handle_delete_request(endpoint)
-    typer.echo(f"✅ {response['message']}")
+    handle_delete_request(endpoint)
+    typer.echo(f"✅ Compound with friendly name {corporate_compound_id} has been successfully deleted.")
 
 
 @compound_app.command("load")
@@ -109,7 +109,7 @@ def add_compounds_from_csv(
     error_handling: str = typer.Option(
         "reject_all", "--error-handling", "-e", help="Error handling strategy: reject_all or reject_row"
     ),
-    output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: json or csv"),
+    # output_format: str = typer.Option("json", "--output-format", "-o", help="Output format: json or csv"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
     save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
 ):
@@ -147,7 +147,6 @@ def add_compounds_from_csv(
         url=url,
         endpoint="/v1/compounds/",
         error_handling=error_handling,
-        output_format=output_format,
         entity_type="compounds",
         csv_data=csv_data if rows is not None else None,
         save_errors=save_errors,

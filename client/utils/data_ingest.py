@@ -48,7 +48,6 @@ def send_csv_upload_request(
     url: str,
     endpoint: str,
     error_handling: str,
-    output_format: str,
     entity_type: str,
     csv_data: list[dict[str, str]] | None = None,
     save_errors: bool = False,
@@ -67,6 +66,7 @@ def send_csv_upload_request(
         csv_data: Optional CSV data to use instead of reading from file
         save_errors: Whether to save error records to a file
     """
+    output_format = "json"
     try:
         if csv_data is not None:
             # Create temporary CSV file with limited data
@@ -100,51 +100,41 @@ def send_csv_upload_request(
                 response = requests.post(f"{url}{endpoint}", files=files, data=data)
 
                 if response.status_code == 200:
-                    result = response.json()
                     typer.echo(f"✅ {entity_type.capitalize()} registered successfully!")
 
                     # Parse the result based on output format
-                    if output_format == "json":
-                        data_list = result
-                        success_count = sum(1 for item in data_list if item.get("registration_status") == "success")
-                        error_count = len(data_list) - success_count
-                        typer.echo(f"📊 Results: {success_count} successful, {error_count} errors")
+                    data_list = response.json()
+                    success_count = sum(1 for item in data_list if item.get("registration_status") == "success")
+                    error_count = len(data_list) - success_count
+                    typer.echo(f"📊 Results: {success_count} successful, {error_count} errors")
 
-                        # Show any errors
-                        # errors = [item for item in data_list if item.get("registration_status") != "success"]
-                        errors = {}
-                        for i, item in enumerate(result):
-                            if item.get("registration_status") != "success":
-                                errors[i] = item["registration_error_message"]
-                        if errors:
-                            typer.echo("❌ Errors found:")
-                            for key, value in errors.items():
-                                if key == 5:
-                                    break
-                                typer.echo(f"  - Row {key}: {value}")
-                            # for error in errors[:5]:  # Show first 5 errors
-                            #     typer.echo(
-                            #         f"  - Row {error.get('row', 'unknown')}: {error.get('registration_error_message', 'Unknown error')}"
-                            #     )
-                            if len(errors) > 5:
-                                typer.echo(f"  ... and {len(errors) - 5} more errors")
+                    # Show any errors
+                    errors = {}
+                    for i, item in enumerate(data_list):
+                        if item.get("registration_status") != "success":
+                            errors[i] = item["registration_error_message"]
+                    if errors:
+                        typer.echo("❌ Errors found:")
+                        for key, value in errors.items():
+                            if key == 5:
+                                break
+                            typer.echo(f"  - Row {key}: {value}")
+                        if len(errors) > 5:
+                            typer.echo(f"  ... and {len(errors) - 5} more errors")
 
-                            # Save errors to file if requested
-                            if save_errors:
-                                # Generate filename based on endpoint
-                                endpoint_name = endpoint.strip("/").replace("/", "_")
-                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                error_filename = f"{endpoint_name}_errors_{timestamp}.json"
+                        # Save errors to file if requested
+                        if save_errors:
+                            # Generate filename based on endpoint
+                            endpoint_name = endpoint.strip("/").replace("/", "_")
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            error_filename = f"{endpoint_name}_errors_{timestamp}.json"
 
-                                try:
-                                    with open(error_filename, "w") as error_file:
-                                        json.dump(errors, error_file, indent=2)
-                                    typer.echo(f"💾 Error records saved to: {error_filename}")
-                                except Exception as e:
-                                    typer.echo(f"⚠️  Warning: Could not save error file: {e}")
-
-                    else:
-                        typer.echo("✅ CSV output received")
+                            try:
+                                with open(error_filename, "w") as error_file:
+                                    json.dump(errors, error_file, indent=2)
+                                typer.echo(f"💾 Error records saved to: {error_filename}")
+                            except Exception as e:
+                                typer.echo(f"⚠️  Warning: Could not save error file: {e}")
 
                 else:
                     typer.echo(f"❌ Error: {response.status_code}")
