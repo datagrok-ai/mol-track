@@ -5,7 +5,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
 from app.utils import enums
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 # import crud
 # # Handle both package imports and direct execution
@@ -240,7 +240,10 @@ class PropertyBase(SQLModel):
     choices: Optional[str] = Field(default=None)
     validators: Optional[str] = Field(default=None)
     friendly_name: Optional[str] = Field(default=None)
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
+    created_at: Optional[datetime] = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), server_default=func.now()),
+    )
 
 
 class PropertyInput(PropertyBase):
