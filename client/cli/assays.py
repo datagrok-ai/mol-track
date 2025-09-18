@@ -5,7 +5,7 @@ import typer
 from client.config import settings
 from client.utils.api_helpers import print_response
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
-from client.utils.display import display_assays_table
+from client.utils.display import display_assays_table, display_properties_table
 from client.utils.file_utils import load_and_validate_json, load_and_validate_mapping, validate_and_load_csv_data
 
 
@@ -19,8 +19,10 @@ assays_app.add_typer(assays_results_app, name="results", help="Assay results man
 # Assays Commands
 @assays_app.command("list")
 def list_assays(
-    assay_id: int | None = typer.Argument(None, help="Assay ID to retrieve (optional)"),
+    skip: int = 0,
+    limit: int = 10,
     url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
 ):
     """
     List assays using the v1 endpoint.
@@ -28,13 +30,23 @@ def list_assays(
     If no assay_id is provided, lists all assays.
     If assay_id is provided, gets the specific assay.
     """
-    if assay_id is not None:
-        # Get specific assay
-        response = requests.get(f"{url}/v1/assays/{assay_id}")
+    response = requests.get(f"{url}/v1/assays/?skip={skip}&limit={limit}")
+    if response.status_code == 200:
+        assays_data = response.json()
+
+        if output_format == "json":
+            typer.echo(json.dumps(assays_data, indent=2))
+        else:
+            # Default to table format
+            display_assays_table(assays_data)
     else:
-        # List all assays
-        response = requests.get(f"{url}/v1/assays")
-    print_response(response)
+        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
+        try:
+            error_detail = response.json()
+            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
+        except (json.JSONDecodeError, ValueError):
+            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
 
 
 @assays_app.command("load")
@@ -71,6 +83,7 @@ def get_assay(
         else:
             # Display single assay in table format
             display_assays_table([assay_data])
+            display_properties_table(assay_data["properties"], display_value=True)
     else:
         print(f"Error: {response.status_code}")
         try:
@@ -83,8 +96,10 @@ def get_assay(
 # Assay Runs Commands
 @assays_runs_app.command("list")
 def list_assay_runs(
-    assay_run_id: int | None = typer.Argument(None, help="Assay run ID to retrieve (optional)"),
+    skip: int = 0,
+    limit: int = 10,
     url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
 ):
     """
     List assay runs using the v1 endpoint.
@@ -92,13 +107,23 @@ def list_assay_runs(
     If no assay_run_id is provided, lists all assay runs.
     If assay_run_id is provided, gets the specific assay run.
     """
-    if assay_run_id is not None:
-        # Get specific assay run
-        response = requests.get(f"{url}/v1/assay_runs/{assay_run_id}")
+    response = requests.get(f"{url}/v1/assay_runs/?skip={skip}&limit={limit}")
+    if response.status_code == 200:
+        assay_runs_data = response.json()
+
+        if output_format == "json":
+            typer.echo(json.dumps(assay_runs_data, indent=2))
+        else:
+            # Default to table format
+            display_assays_table(assay_runs_data)
     else:
-        # List all assay runs
-        response = requests.get(f"{url}/v1/assay_runs")
-    print_response(response)
+        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
+        try:
+            error_detail = response.json()
+            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
+        except (json.JSONDecodeError, ValueError):
+            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
 
 
 @assays_runs_app.command("load")

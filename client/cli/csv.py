@@ -67,4 +67,4 @@ def analyze_csv_columns(
         writer = csv.writer(f)
         writer.writerow(["column", "type", "null_count", "unique_count"])
         writer.writerows(results)
-    typer.echo(f"Analysis complete. Results written to {output_csv}")
+    typer.echo(f"✅ Analysis complete. Results written to {output_csv}")

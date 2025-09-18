@@ -7,7 +7,6 @@ import typer
 from client.cli.batches import batch_app
 from client.cli.schema import schema_app
 from client.cli.compounds import compound_app
-from client.cli.properties import properties_app
 from client.cli.additions import additions_app
 from client.cli.assays import assays_app
 from client.cli.database import database_app
@@ -27,7 +26,6 @@ app = typer.Typer()
 app.add_typer(schema_app, name="schema", help="Schema management commands")
 app.add_typer(compound_app, name="compounds", help="Compound management commands")
 app.add_typer(batch_app, name="batches", help="Batch management commands")
-app.add_typer(properties_app, name="properties", help="Property management commands")
 app.add_typer(additions_app, name="additions", help="Addition management commands")
 app.add_typer(assays_app, name="assays", help="Assays management commands")
 app.add_typer(database_app, name="database", help="Database management commands")

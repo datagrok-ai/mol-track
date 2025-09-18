@@ -1,4 +1,5 @@
 import json
+from typing import Any, Dict
 import requests
 from sqlalchemy import text
 import typer
@@ -120,3 +121,24 @@ def get_table_row_counts(specific_tables: list[str] | None = None) -> dict[str, 
             row_counts[table] = count_result.scalar() or 0
 
     return row_counts
+
+
+def get_request_and_porocess(url: str, params: Dict[str, Any], display_table_function, output_format: str):
+    response = requests.get(f"{url}", params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+
+        if output_format == "json":
+            typer.echo(json.dumps(data, indent=2))
+        else:
+            # Default to table format
+            display_table_function(data)
+    else:
+        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
+        try:
+            error_detail = response.json()
+            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
+        except (json.JSONDecodeError, ValueError):
+            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)

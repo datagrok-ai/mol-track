@@ -102,8 +102,8 @@ def format_timestamp(timestamp_str: str) -> str:
 def display_compounds_table(compounds_data):
     """Display compounds data in a rich table format."""
     columns = [
-        ("ID", "cyan", {"no_wrap": True}),
-        ("MolRegNo", "blue", {"no_wrap": True}),
+        # ("ID", "cyan", {"no_wrap": True}),
+        ("Friendly Name", "blue", {"no_wrap": True}),
         ("Common Name", "green", {"no_wrap": True}),
         ("CAS", "yellow", {"no_wrap": True}),
         ("SMILES", "magenta", {"no_wrap": True}),
@@ -116,6 +116,7 @@ def display_compounds_table(compounds_data):
         common_name = ""
         cas_number = ""
         synonyms = []
+        friendly_name = ""
 
         for prop in compound.get("properties", []):
             prop_name = prop.get("name", "").lower()
@@ -128,6 +129,8 @@ def display_compounds_table(compounds_data):
                 cas_number = prop_value
             elif semantic_type_id == 1 and prop_value:  # Synonyms have semantic_type_id=1
                 synonyms.append(f"{prop.get('name', '')}: {prop_value}")
+                if prop_name == "corporate_compound_id":
+                    friendly_name = prop_value
 
         # Join synonyms with semicolon
         synonyms_str = "; ".join(synonyms[:3])  # Limit to first 3 synonyms
@@ -142,15 +145,11 @@ def display_compounds_table(compounds_data):
         if len(common_name) > 25:
             common_name = common_name[:22] + "..."
 
-        if len(synonyms_str) > 30:
-            synonyms_str = synonyms_str[:27] + "..."
-
-        # Get molregno if available
-        molregno = compound.get("molregno", "")
+        if len(synonyms_str) > 43:
+            synonyms_str = synonyms_str[:40] + "..."
 
         return [
-            str(compound.get("id", "")),
-            str(molregno) if molregno else "",
+            friendly_name,
             common_name,
             cas_number,
             smiles,
@@ -164,18 +163,35 @@ def display_compounds_table(compounds_data):
 def display_batches_table(batches_data):
     """Display batches data in a rich table format."""
     columns = [
-        ("ID", "cyan", {"no_wrap": True}),
-        ("Batch Regno", "blue", {"no_wrap": True}),
+        # ("ID", "cyan", {"no_wrap": True}),
+        ("Friendly Name", "blue", {"no_wrap": True}),
         ("Compound ID", "green", {"no_wrap": True}),
+        ("Synonyms", "white", {"no_wrap": True}),
         ("Notes", "yellow", {"no_wrap": True}),
         ("Created At", "red", {}),
     ]
 
     def extract_batch_row(batch):
+        synonyms = []
+        friendly_name = ""
+        for prop in batch.get("properties", []):
+            prop_name = prop.get("name", "").lower()
+            prop_value = prop.get("value_string", "")
+            semantic_type_id = prop.get("semantic_type_id")
+            if semantic_type_id == 1 and prop_value:  # Synonyms have semantic_type_id=1
+                synonyms.append(f"{prop_name}: {prop_value}")
+                if prop_name == "corporate_batch_id":
+                    friendly_name = prop_value
+
+        synonyms_str = "; ".join(synonyms[:3])  # Limit to first 3 synonyms
+        if len(synonyms) > 3:
+            synonyms_str += f" (+{len(synonyms) - 3} more)"
+        if len(synonyms_str) > 43:
+            synonyms_str = synonyms_str[:40] + "..."
         return [
-            str(batch.get("id", "")),
-            str(batch.get("batch_regno", "")),
+            friendly_name,
             str(batch.get("compound_id", "")),
+            synonyms_str,
             batch.get("notes", "")[:30] + "..."
             if batch.get("notes") and len(batch.get("notes", "")) > 30
             else batch.get("notes", ""),
@@ -207,7 +223,21 @@ def display_assays_table(assays_data):
     display_data_table(data=assays_data, title="Assays", columns=columns, row_extractor=extract_assay_row)
 
 
-def display_properties_table(properties_data, max_rows=None):
+def extract_value_from_property(prop):
+    value_type = prop.get("value_type", "")
+    if value_type == "string":
+        return prop.get("value_string", "")
+    elif value_type in ("int", "double"):
+        return prop.get("value_num", "")
+    elif value_type == "uuid":
+        return prop.get("value_uuid", "")
+    elif value_type == "datetime":
+        return prop.get("value_datetime", "")
+    elif value_type == "bool":
+        return prop.get("value_bool")
+
+
+def display_properties_table(properties_data, max_rows=None, display_value=False):
     """Display properties data in a rich table format."""
     # Define the entity_type order for sorting (matching the API's uppercase format)
     entity_type_order = ["COMPOUND", "BATCH", "ASSAY", "ASSAY_RUN", "ASSAY_RESULT"]
@@ -233,15 +263,20 @@ def display_properties_table(properties_data, max_rows=None):
         ("Semantic Type ID", "yellow", {}),
         ("Created At", "blue", {}),
     ]
+    if display_value:
+        columns.append(("Value", "white", {}))
 
     def extract_property_row(prop):
-        return [
+        table_values = [
             prop.get("name", ""),
             prop.get("entity_type", ""),
             prop.get("value_type", ""),
             str(prop.get("semantic_type_id", "")),
             format_timestamp(prop.get("created_at", "")),
         ]
+        if display_value:
+            table_values.append(str(extract_value_from_property(prop)))
+        return table_values
 
     display_data_table(
         data=sorted_properties,
