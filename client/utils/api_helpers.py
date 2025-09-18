@@ -3,8 +3,10 @@ from typing import Any, Dict
 import requests
 from sqlalchemy import text
 import typer
+from requests.exceptions import RequestException, Timeout
 
 
+from client.config import settings
 from client.utils.data_ingest import parse_arg
 from client.utils.display import display_search_csv, display_search_table
 
@@ -123,22 +125,30 @@ def get_table_row_counts(specific_tables: list[str] | None = None) -> dict[str, 
     return row_counts
 
 
-def get_request_and_porocess(url: str, params: Dict[str, Any], display_table_function, output_format: str):
-    response = requests.get(f"{url}", params=params)
+def handle_get_request(endpoint: str, params: Dict[str, Any] = None):
+    try:
+        response = requests.get(endpoint, params=params, timeout=settings.REQUEST_TIMEOUT)
+        response.raise_for_status()
+    except (RequestException, Timeout) as e:
+        typer.secho(f"❌ Error: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
 
-    if response.status_code == 200:
-        data = response.json()
+    try:
+        return response.json()
+    except (json.JSONDecodeError, ValueError):
+        typer.secho(f"❌ Failed to parse JSON. Response: {response.text}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
 
-        if output_format == "json":
-            typer.echo(json.dumps(data, indent=2))
-        else:
-            # Default to table format
-            display_table_function(data)
-    else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
+
+def handle_delete_request(endpoint: str):
+    try:
+        response = requests.delete(endpoint)
+        resp_json = response.json()
+        response.raise_for_status()
+        return resp_json
+    except (RequestException, Timeout):
+        typer.secho(f"❌ Error: {resp_json['detail']}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    except (json.JSONDecodeError, ValueError):
+        typer.secho(f"❌ Failed to parse JSON. Response: {response.text}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)

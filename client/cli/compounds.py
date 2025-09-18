@@ -1,7 +1,6 @@
 import json
 import typer
-import requests
-from client.utils.api_helpers import get_request_and_porocess
+from client.utils.api_helpers import handle_delete_request, handle_get_request
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
 from client.utils.display import display_compounds_table, display_properties_table
 from client.config.settings import settings
@@ -21,26 +20,12 @@ def list_compounds_group(
     """
     List compounds using the v1 endpoint.
     """
-    url = f"{url}/v1/compounds/?skip={skip}&limit={limit}"
-    get_request_and_porocess(url, None, display_compounds_table, output_format)
-    # response = requests.get(f"{url}/v1/compounds/?skip={skip}&limit={limit}")
-
-    # if response.status_code == 200:
-    #     compounds_data = response.json()
-
-    #     if output_format == "json":
-    #         typer.echo(json.dumps(compounds_data, indent=2))
-    #     else:
-    #         # Default to table format
-    #         display_compounds_table(compounds_data)
-    # else:
-    #     typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-    #     try:
-    #         error_detail = response.json()
-    #         typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-    #     except (json.JSONDecodeError, ValueError):
-    #         typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-    #     raise typer.Exit(code=1)
+    endpoint = f"{url}/v1/compounds/?skip={skip}&limit={limit}"
+    data = handle_get_request(endpoint)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        display_compounds_table(data)
 
 
 @compound_app.command("get")
@@ -53,25 +38,13 @@ def get_compound(
     Get a specific compound by corporate_compound_id (friendly name).
     """
     params = {"property_value": corporate_compound_id, "property_name": "corporate_compound_id"}
-    response = requests.get(f"{url}/v1/compounds", params=params)
-
-    if response.status_code == 200:
-        compound_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(compound_data, indent=2))
-        else:
-            # Display single compound in table format
-            display_compounds_table([compound_data])
-            display_properties_table(compound_data["properties"], display_value=True)
+    endpoint = f"{url}/v1/compounds"
+    data = handle_get_request(endpoint, params=params)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        display_compounds_table([data])
+        display_properties_table(data["properties"], display_value=True)
 
 
 @compound_app.command("properties")
@@ -86,24 +59,13 @@ def get_compound_properties(
     Get all properties for a specific compound by corporate_compound_id (friendly name).
     """
     params = {"property_value": corporate_compound_id, "property_name": "corporate_compound_id"}
-    response = requests.get(f"{url}/v1/compounds", params=params)
-
-    if response.status_code == 200:
-        properties_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(properties_data, indent=2))
-        else:
-            # Display properties in table format
-            display_properties_table(properties_data["properties"], display_value=True)
+    endpoint = f"{url}/v1/compounds"
+    data = handle_get_request(endpoint, params=params)
+    if output_format == "json":
+        print(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        # Display properties in table format
+        display_properties_table(data["properties"], display_value=True)
 
 
 @compound_app.command("synonyms")
@@ -116,24 +78,13 @@ def get_compound_synonyms(
     Get all synonyms for a specific compound by corporate_compound_id (friendly name).
     """
     params = {"property_value": corporate_compound_id, "property_name": "corporate_compound_id"}
-    response = requests.get(f"{url}/v1/compounds/synonyms", params=params)
-
-    if response.status_code == 200:
-        synonyms_data = response.json()
-
-        if output_format == "json":
-            print(json.dumps(synonyms_data, indent=2))
-        else:
-            # Display synonyms in table format
-            display_properties_table(synonyms_data, display_value=True)
+    endpoint = f"{url}/v1/compounds/synonyms"
+    data = handle_get_request(endpoint, params=params)
+    if output_format == "json":
+        print(json.dumps(data, indent=2))
     else:
-        typer.secho(f"Error: {response.status_code}", fg=typer.colors.RED, err=True)
-        try:
-            error_detail = response.json()
-            typer.secho(f"Details: {json.dumps(error_detail, indent=2)}", fg=typer.colors.RED, err=True)
-        except (json.JSONDecodeError, ValueError):
-            typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        # Display synonyms in table format
+        display_properties_table(data, display_value=True)
 
 
 @compound_app.command("delete")
@@ -144,17 +95,9 @@ def delete_compound(
     """
     Delete a specific compound by corporate_compound_id (friendly name).
     """
-    response = requests.delete(f"{url}/v1/compounds/{corporate_compound_id}")
-    response_dict = response.json()
-    if response.status_code == 200:
-        typer.echo(f"✅ {response_dict['message']}")
-    else:
-        typer.secho(
-            f"❌ Error updating the rule. Error message:\n {json.dumps(response_dict, indent=2)}",
-            fg=typer.colors.RED,
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    endpoint = url + "/v1/compounds/" + corporate_compound_id
+    response = handle_delete_request(endpoint)
+    typer.echo(f"✅ {response['message']}")
 
 
 @compound_app.command("load")

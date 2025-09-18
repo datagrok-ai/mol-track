@@ -47,7 +47,7 @@ def load_and_validate_json(file_path: str, model_class=None) -> dict:
             return validated_data.model_dump()
         except Exception as e:
             model_name = model_class.__name__
-            typer.echo(f"❌ JSON validation failed using {model_name} model: {e}", err=True)
+            typer.secho(f"❌ JSON validation failed using {model_name} model: {e}", fg=typer.colors.RED, err=True)
             raise typer.Exit(1)
     else:
         typer.echo("✅ JSON loaded successfully (no validation model specified)")
