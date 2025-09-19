@@ -178,34 +178,6 @@ def parse_arg(arg, arg_type="json", default_value=None, allow_comma_separated=Fa
     if arg is None:
         return default_value
 
-    # Try to load as a file if it exists
-    if isinstance(arg, str) and Path(arg).exists():
-        try:
-            with open(arg, "r") as f:
-                data = json.load(f)
-
-                # For output type, handle different JSON formats
-                if arg_type == "output":
-                    if isinstance(data, list):
-                        return data
-                    elif isinstance(data, dict) and "output" in data:
-                        return data["output"]
-                    elif isinstance(data, dict) and "columns" in data:
-                        return data["columns"]
-                    else:
-                        typer.echo(
-                            "Error: JSON file must contain a list of columns or an object with 'output' or 'columns' key",
-                            err=True,
-                        )
-                        raise typer.Exit(1)
-                else:
-                    # For JSON type, return the data as-is
-                    return data
-
-        except Exception as e:
-            typer.echo(f"Error parsing {arg_type} file: {e}", err=True)
-            raise typer.Exit(1)
-
     # Try to parse as JSON string
     try:
         return json.loads(arg)

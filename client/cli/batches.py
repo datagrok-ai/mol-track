@@ -7,9 +7,8 @@ from client.utils.data_ingest import report_csv_information, send_csv_upload_req
 from client.utils.display import display_batches_table, display_properties_table
 from client.utils.file_utils import load_and_validate_mapping, validate_and_load_csv_data
 
+
 batch_app = typer.Typer()
-# batch_list_app = typer.Typer()
-# batch_app.add_typer(batch_list_app, name="list", help="List batch information")
 
 
 # Batch Commands

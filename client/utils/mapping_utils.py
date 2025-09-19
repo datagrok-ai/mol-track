@@ -1,6 +1,3 @@
-import re
-
-
 def create_column_mapping(output, level):
     """
     Create a mapping from output column names to actual field names in the response.
@@ -60,49 +57,3 @@ def create_column_mapping(output, level):
         col_map[col] = mapped_col
 
     return col_map
-
-
-def find_field_in_response(item, col_name, level):
-    """
-    Try to find a field in the response data using multiple possible field names.
-    This is a fallback method when the standard mapping doesn't work.
-    """
-    if not item:
-        return ""
-
-    # Derive prefixes directly from level
-    prefix = level
-    details_prefix = f"{level}_details"
-
-    # Compile regex pattern once for efficiency
-    normalize_pattern = re.compile(r"[.\s]+")
-
-    # Create normalized version of column name
-    normalized_col = normalize_pattern.sub("_", col_name)
-
-    # Create variations with exact case first
-    variations = [
-        col_name,  # Exact match
-        normalized_col,  # Normalized version
-        f"{prefix}_{normalized_col}",  # With prefix
-        f"{details_prefix}_{normalized_col}",  # With details prefix
-    ]
-
-    # Try each variation with exact case first
-    for variation in variations:
-        if variation in item:
-            return str(item[variation])
-
-    # If no exact match found, try case-insensitive matching
-    # Create a case-insensitive lookup dictionary
-    item_lower = {k.lower(): k for k in item.keys()}
-
-    # Try case-insensitive variations
-    for variation in variations:
-        variation_lower = variation.lower()
-        if variation_lower in item_lower:
-            # Return the value using the original case key
-            return str(item[item_lower[variation_lower]])
-
-    # If nothing found, return empty string
-    return ""

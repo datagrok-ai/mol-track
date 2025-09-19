@@ -4,8 +4,7 @@ import sys
 import typer
 from rich.console import Console
 from rich.table import Table
-
-from client.utils.mapping_utils import find_field_in_response
+from rich.color import ANSI_COLOR_NAMES
 
 
 def create_rich_table(title: str, columns: list[tuple[str, str, dict]]) -> Table:
@@ -299,40 +298,51 @@ def display_properties_table(properties_data, max_rows=None, display_value=False
     )
 
 
-def display_search_table(resp, output, max_rows=None):
+def display_search_table(resp, max_rows=None):
     """
     Display search results in a table format using rich.
     """
-    columns = [(col.split(".")[-1], "cyan", {"no_wrap": True}) for col in output]  # Keep original for headers
+    output = resp["columns"]
+    level = resp["columns"][0].split(".")[0]
+    all_colors = list(ANSI_COLOR_NAMES)
+    columns = [
+        (
+            col.replace(f"{level}.details.", "").replace(f"{level}.", ""),
+            all_colors[i % len(all_colors)],
+            {"no_wrap": True},
+        )
+        for i, col in enumerate(output)
+    ]  # Keep original for headers
 
     def extract_row(item):
-        return [find_field_in_response(item, col, resp.level) for col in output]
+        return [str(item[col]) for col in output]
 
     display_data_table(
-        data=resp.data,
-        title=f"Search Results ({resp.level})",
+        data=resp["data"],
+        title=f"Search Results ({level.capitalize()})",
         columns=columns,
         row_extractor=extract_row,
         max_rows=max_rows,
     )
 
 
-def display_search_csv(resp, output, max_rows=None):
+def display_search_csv(data, max_rows=None):
     """
     Display search results in CSV format.
     """
     # Write CSV header
     writer = csv.writer(sys.stdout)
-    writer.writerow([col.split(".")[-1] for col in output])
+    data = data.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    data = [item for item in data if item.strip() != ""]
 
     # Write data rows
-    data = resp.data
+    total_rows = len(data) - 1  # Exclude header from count
     if max_rows is not None:
         data = data[:max_rows]
+    typer.echo(f"Rows: {len(data) - 1} (total available: {total_rows})")
 
-    for item in data:
-        row = [find_field_in_response(item, col, resp.level) for col in output]
-        writer.writerow(row)
+    for row in data:
+        writer.writerow(row.split(","))
 
 
 def display_database_stats_table(table_stats, schema_name):

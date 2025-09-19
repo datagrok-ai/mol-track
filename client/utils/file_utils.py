@@ -138,3 +138,49 @@ def load_and_validate_mapping(mapping_file: str | None) -> dict[str, any] | None
             raise typer.Exit(1)
 
     return mapping_data
+
+
+def write_result_to_file(response, output_format, output_file):
+    """
+    Write the response data to a file in the specified format.
+
+    Args:
+        response: The response object from the API call
+        output_format: The desired output format ("json" or "csv")
+        output_file: Path to the output file
+    """
+    if not output_file:
+        return  # No output file specified
+
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            if output_format == "json" or output_format == "table":
+                json.dump(response.json(), f, indent=2)
+            elif output_format == "csv":
+                f.write(response.text)
+            else:
+                typer.secho(
+                    f"Warning: Unsupported output format '{output_format}'. No data written.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                return
+        typer.echo(f"✅ Results written to '{output_file}'")
+    except Exception as e:
+        typer.s(f"Error writing results to file '{output_file}': {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
+
+
+def load_input_from_file(input_file: str):
+    try:
+        with open(input_file, "r") as f:
+            data = json.load(f)
+
+            output = data.get("output", None)
+            filter = data.get("filter", None)
+            aggregations = data.get("aggregations", None)
+            return output, filter, aggregations
+
+    except Exception as e:
+        typer.secho(f"❌ Error parsing file {input_file}: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
