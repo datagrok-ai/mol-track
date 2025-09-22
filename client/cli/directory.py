@@ -89,7 +89,6 @@ def load_directory(
                 mapping_file=mapping_path,
                 url=url,
                 error_handling=error_handling,
-                output_format="json",
                 dry_run=dry_run,
                 save_errors=False,
             )
@@ -138,7 +137,6 @@ def load_directory(
                 mapping_file=batch_mapping_path,
                 url=url,
                 error_handling=error_handling,
-                output_format="json",
                 dry_run=dry_run,
                 save_errors=False,
             )
@@ -229,7 +227,6 @@ def load_directory(
                 mapping_file=assay_runs_mapping_path,
                 url=url,
                 error_handling=error_handling,
-                output_format="json",
                 dry_run=dry_run,
                 save_errors=save_errors,
             )
@@ -264,7 +261,6 @@ def load_directory(
                 mapping_file=assay_results_mapping_path,
                 url=url,
                 error_handling=error_handling,
-                output_format="json",
                 dry_run=dry_run,
                 save_errors=save_errors,
             )

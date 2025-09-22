@@ -88,7 +88,8 @@ def send_csv_upload_request(
             file_to_send = temp_file_path if temp_file_path else csv_path
 
             with open(file_to_send, "rb") as f:
-                files = {"file": (csv_path.name, f, "text/csv")}
+                file_field = "csv_file" if entity_type == "additions" else "file"
+                files = {file_field: (csv_path.name, f, "text/csv")}
 
                 data = {"error_handling": error_handling, "output_format": output_format}
 
@@ -104,7 +105,13 @@ def send_csv_upload_request(
 
                     # Parse the result based on output format
                     data_list = response.json()
-                    success_count = sum(1 for item in data_list if item.get("registration_status") == "success")
+                    if entity_type == "additions":
+                        data_list = data_list.get("additions", [])
+                    success_count = sum(
+                        1
+                        for item in data_list
+                        if item.get("registration_status", "") == "success" or item.get("status", "") == "success"
+                    )
                     error_count = len(data_list) - success_count
                     typer.echo(f"📊 Results: {success_count} successful, {error_count} errors")
 

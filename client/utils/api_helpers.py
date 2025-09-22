@@ -172,3 +172,17 @@ def handle_delete_request(endpoint: str):
     except (json.JSONDecodeError, ValueError):
         typer.secho(f"❌ Failed to parse JSON. Response: {response.text}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
+
+
+def handle_put_request(endpoint: str, json_data: Dict[str, Any]):
+    try:
+        response = requests.put(endpoint, json=json_data, timeout=settings.REQUEST_TIMEOUT)
+        resp_json = response.json()
+        response.raise_for_status()
+        return resp_json
+    except (RequestException, Timeout):
+        typer.secho(f"❌ Error: {resp_json['detail']}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    except (json.JSONDecodeError, ValueError):
+        typer.secho(f"❌ Failed to parse JSON. Response: {response.text}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)

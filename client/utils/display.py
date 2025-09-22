@@ -298,6 +298,49 @@ def display_properties_table(properties_data, max_rows=None, display_value=False
     )
 
 
+def display_additions_table(resp, max_rows=None):
+    """
+    Display additions data in a rich table format.
+    """
+    columns = [
+        ("ID", typer.colors.CYAN, {"no_wrap": True}),
+        ("Name", typer.colors.BLUE, {"no_wrap": True}),
+        ("Role", typer.colors.GREEN, {"no_wrap": True}),
+        ("SMILES", typer.colors.MAGENTA, {"no_wrap": True}),
+        ("Molecular Formula", typer.colors.YELLOW, {"no_wrap": True}),
+        ("Molecular Weight", typer.colors.WHITE, {"no_wrap": True}),
+        ("Description", typer.colors.BRIGHT_BLUE, {"no_wrap": True}),
+        ("Created At", typer.colors.RED, {"no_wrap": True}),
+    ]
+
+    def extract_addition_row(addition):
+        smiles = addition.get("smiles", "")
+        if smiles and len(smiles) > 35:
+            smiles = smiles[:32] + "..."
+
+        desc = addition.get("description", "")
+        desc = "" if not desc else desc[:30] + "..."
+
+        return [
+            str(addition.get("id", "")),
+            addition.get("name", ""),
+            addition.get("role", ""),
+            smiles,
+            addition.get("formula", ""),
+            f"{addition.get('molecular_weight', ''):,.2f}" if addition.get("molecular_weight") else "",
+            desc,
+            format_timestamp(addition.get("created_at", "")),
+        ]
+
+    display_data_table(
+        data=resp,
+        title="Additions",
+        columns=columns,
+        row_extractor=extract_addition_row,
+        max_rows=max_rows,
+    )
+
+
 def display_search_table(resp, max_rows=None):
     """
     Display search results in a table format using rich.

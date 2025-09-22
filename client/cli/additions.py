@@ -1,9 +1,11 @@
-import requests
+import json
 import typer
 
+from app import models
 from client.config import settings
-from client.utils.api_helpers import print_response
+from client.utils.api_helpers import handle_delete_request, handle_get_request, handle_put_request
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
+from client.utils.display import display_additions_table
 from client.utils.file_utils import load_and_validate_json, load_and_validate_mapping, validate_and_load_csv_data
 
 
@@ -13,15 +15,6 @@ additions_app.add_typer(additions_list_app, name="list", help="List additions in
 
 
 # Additions Commands
-@additions_app.command("list")
-def list_additions(url: str = settings.API_BASE_URL):
-    """
-    List the additions.
-    """
-    response = requests.get(f"{url}/v1/additions")
-    print_response(response)
-
-
 @additions_app.command("update")
 def update_addition(
     addition_id: int = typer.Argument(..., help="Addition ID to update"),
@@ -32,10 +25,11 @@ def update_addition(
     Update information for the specified addition.
     """
     # Load and validate the update data
-    update_data = load_and_validate_json(file_path)
+    update_data = load_and_validate_json(file_path, models.AdditionUpdate)
 
-    response = requests.put(f"{url}/v1/additions/{addition_id}", json=update_data)
-    print_response(response)
+    endpoint = f"{url}/v1/additions/{addition_id}"
+    handle_put_request(endpoint, json_data=update_data)
+    typer.echo(f"✅ Addition with id {addition_id} has been successfully updated.")
 
 
 @additions_app.command("delete")
@@ -45,8 +39,28 @@ def delete_addition(
     """
     Soft delete the specified addition (only if no dependent batches exist).
     """
-    response = requests.delete(f"{url}/v1/additions/{addition_id}")
-    print_response(response)
+    endpoint = f"{url}/v1/additions/{addition_id}"
+    handle_delete_request(endpoint)
+    typer.echo(f"✅ Addition with id {addition_id} has been successfully deleted.")
+
+
+@additions_app.command("get")
+def get_addition(
+    addition_id: int = typer.Argument(..., help="Addition ID to retrieve"),
+    url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+):
+    """
+    Get all information for a specific addition.
+    """
+
+    endpoint = f"{url}/v1/additions/{addition_id}"
+    data = handle_get_request(endpoint)
+
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        display_additions_table([data])
 
 
 @additions_app.command("load")
@@ -102,30 +116,49 @@ def add_additions_from_csv(
 
 
 # Additions List Commands
+@additions_list_app.command("all")
+def list_additions(
+    url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+):
+    """
+    List the additions.
+    """
+    endpoint = f"{url}/v1/additions/"
+    data = handle_get_request(endpoint)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        display_additions_table(data)
+
+
 @additions_list_app.command("salts")
-def list_additions_salts(url: str = settings.API_BASE_URL):
+def list_additions_salts(
+    url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+):
     """
     List all additions with role of salts.
     """
-    response = requests.get(f"{url}/v1/additions/salts")
-    print_response(response)
+    endpoint = f"{url}/v1/additions/salts"
+    data = handle_get_request(endpoint)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        display_additions_table(data)
 
 
 @additions_list_app.command("solvates")
-def list_additions_solvates(url: str = settings.API_BASE_URL):
+def list_additions_solvates(
+    url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+):
     """
     List all additions with role of solvates.
     """
-    response = requests.get(f"{url}/v1/additions/solvates")
-    print_response(response)
-
-
-@additions_list_app.command()
-def get_addition(
-    addition_id: int = typer.Argument(..., help="Addition ID to retrieve"), url: str = settings.API_BASE_URL
-):
-    """
-    Get all information for a specific addition.
-    """
-    response = requests.get(f"{url}/v1/additions/{addition_id}")
-    print_response(response)
+    endpoint = f"{url}/v1/additions/solvates"
+    data = handle_get_request(endpoint)
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
+    else:
+        display_additions_table(data)
