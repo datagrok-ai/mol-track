@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Union, Literal, get_args
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Union, Literal, get_args
 from pydantic import ConfigDict, field_validator, model_validator
 from sqlalchemy import Column, DateTime, Enum, CheckConstraint, String
 from sqlalchemy.dialects.postgresql import ARRAY, CIDR
@@ -53,6 +53,10 @@ class ApiKey(SQLModel, table=True):
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     expires_at: Optional[datetime] = Field(default=None)
     ip_allowlist: Optional[List[str]] = Field(sa_column=Column(ARRAY(CIDR()), nullable=True))
+
+
+class PrivilegesUpdateRequest(SQLModel):
+    privileges: Set[enums.AuthPrivileges]
 
 
 class Settings(SQLModel, table=True):

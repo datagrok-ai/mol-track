@@ -56,7 +56,7 @@ def get_or_raise_exception(get_func, db, id, not_found_msg):
 
 @router.post("/get-api-key")
 async def create_api_key(
-    owner_email: str,  # UUID of the user this key belongs to
+    owner_email: str,
     ip_allowlist: Optional[List[str]] = Body(
         default_factory=list, description="List of allowed IP addresses", embed=True
     ),
@@ -64,10 +64,11 @@ async def create_api_key(
 ):
     """Create a new API key. Returns full key string ONCE."""
 
-    owner_id = db.query(models.User.id).filter(models.User.email == owner_email).first()
+    owner_id = db.query(models.User.id).filter(models.User.email == owner_email).scalar()
     if not owner_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email doesn't exist")
-    owner_id = owner_id[0]
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"User with the email {owner_email} doesn't exist"
+        )
 
     existing_key = db.query(models.ApiKey).filter(models.ApiKey.owner_id == owner_id).first()
     if existing_key:
@@ -705,26 +706,25 @@ async def update_standardization_config(
 @router.patch("/admin/api-key-privileges")
 def set_api_key_privileges(
     user_email: str,
-    privileges: List[enums.AuthPrivileges],
+    privileges: models.PrivilegesUpdateRequest,
     auth_scopes=Depends(require_privileges(enums.AuthPrivileges.ADMIN)),
     db=Depends(get_db),
 ):
-    user_id = db.query(models.User.id).filter(models.User.email == user_email).first()
+    user_id = db.query(models.User.id).filter(models.User.email == user_email).scalar()
     if not user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User with that email doesn't exist")
-    user_id = user_id[0]
 
     existing_key = db.query(models.ApiKey).filter(models.ApiKey.owner_id == user_id).first()
     if not existing_key:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This user doesn't have an API key")
 
-    privileges = list(set(privileges))
+    privileges = privileges.privileges
 
     try:
         stmt = update(models.ApiKey).where(models.ApiKey.owner_id == user_id).values(privileges=privileges)
         db.execute(stmt)
         db.commit()
-        return {"status": "success", "message": "Privileges updated successfully"}
+        return {"status": "success", "message": f"Privileges updated successfully to {privileges}"}
     except Exception as e:
         db.rollback()
         raise HTTPException(

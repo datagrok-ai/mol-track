@@ -6,7 +6,6 @@ from fastapi import status
 
 from fastapi import HTTPException
 
-from app import models
 from app.models import ApiKey
 from sqlalchemy.orm import Session
 from app.services.auth.utils import generate_api_key, hmac_hash
@@ -19,7 +18,7 @@ def create_key(owner_id: uuid.UUID, privileges: List[enums.AuthPrivileges], ip_a
         owner_id=owner_id,
         prefix=prefix,
         privileges=privileges,
-        status="active",
+        status=enums.APIKeyStatus.active.value,
         secret_hash=hmac_hash(full_api_key),
         created_at=datetime.now(),
         ip_allowlist=ip_allowlist,
@@ -44,7 +43,4 @@ def get_key_record(db: Session, prefix: str) -> Optional[Dict[str, Any]]:
     owner_id (UUID), ip_allowlist (list[str])
     """
 
-    result = db.query(models.ApiKey).filter(models.ApiKey.prefix == prefix).first()
-    if not result:
-        return None
-    return result
+    return db.query(ApiKey).filter(ApiKey.prefix == prefix).first()
