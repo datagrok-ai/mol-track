@@ -4,7 +4,7 @@ from client.utils.api_helpers import handle_delete_request, handle_get_request
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
 from client.utils.display import display_compounds_table, display_properties_table
 from client.config.settings import settings
-from client.utils.file_utils import load_and_validate_mapping, validate_and_load_csv_data
+from client.utils.file_utils import load_and_validate_mapping, validate_and_load_csv_data, write_result_to_file
 
 compound_app = typer.Typer()
 
@@ -16,6 +16,7 @@ def list_compounds_group(
     limit: int = 10,
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     List compounds using the v1 endpoint.
@@ -27,12 +28,15 @@ def list_compounds_group(
     else:
         display_compounds_table(data)
 
+    write_result_to_file(data, output_format, output_file)
+
 
 @compound_app.command("get")
 def get_compound(
     corporate_compound_id: str = typer.Argument(..., help="Corporate Compound ID (friendly name) to retrieve"),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     Get a specific compound by corporate_compound_id (friendly name).
@@ -46,45 +50,7 @@ def get_compound(
         display_compounds_table([data])
         display_properties_table(data["properties"], display_value=True)
 
-
-@compound_app.command("properties")
-def get_compound_properties(
-    corporate_compound_id: str = typer.Argument(
-        ..., help="Corporate Compound ID (friendly name) to get properties for"
-    ),
-    url: str = settings.API_BASE_URL,
-    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
-):
-    """
-    Get all properties for a specific compound by corporate_compound_id (friendly name).
-    """
-    params = {"property_value": corporate_compound_id, "property_name": "corporate_compound_id"}
-    endpoint = f"{url}/v1/compounds"
-    data = handle_get_request(endpoint, params=params)
-    if output_format == "json":
-        print(json.dumps(data, indent=2))
-    else:
-        # Display properties in table format
-        display_properties_table(data["properties"], display_value=True)
-
-
-@compound_app.command("synonyms")
-def get_compound_synonyms(
-    corporate_compound_id: str = typer.Argument(..., help="Corporate Compound ID (friendly name) to get synonyms for"),
-    url: str = settings.API_BASE_URL,
-    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
-):
-    """
-    Get all synonyms for a specific compound by corporate_compound_id (friendly name).
-    """
-    params = {"property_value": corporate_compound_id, "property_name": "corporate_compound_id"}
-    endpoint = f"{url}/v1/compounds/synonyms"
-    data = handle_get_request(endpoint, params=params)
-    if output_format == "json":
-        print(json.dumps(data, indent=2))
-    else:
-        # Display synonyms in table format
-        display_properties_table(data, display_value=True)
+    write_result_to_file(data, output_format, output_file)
 
 
 @compound_app.command("delete")

@@ -140,7 +140,7 @@ def load_and_validate_mapping(mapping_file: str | None) -> dict[str, any] | None
     return mapping_data
 
 
-def write_result_to_file(response, output_format, output_file):
+def write_result_to_file(data, output_format, output_file, parsed=True):
     """
     Write the response data to a file in the specified format.
 
@@ -155,9 +155,13 @@ def write_result_to_file(response, output_format, output_file):
     try:
         with open(output_file, "w", encoding="utf-8") as f:
             if output_format == "json" or output_format == "table":
-                json.dump(response.json(), f, indent=2)
+                if not parsed:
+                    data = data.json()
+                json.dump(data, f, indent=2)
             elif output_format == "csv":
-                f.write(response.text)
+                if not parsed:
+                    data = data.text
+                f.write(data)
             else:
                 typer.secho(
                     f"Warning: Unsupported output format '{output_format}'. No data written.",
@@ -165,9 +169,9 @@ def write_result_to_file(response, output_format, output_file):
                     err=True,
                 )
                 return
-        typer.echo(f"✅ Results written to '{output_file}'")
+        typer.secho(f"✅ Results written to '{output_file}'")
     except Exception as e:
-        typer.s(f"Error writing results to file '{output_file}': {e}", fg=typer.colors.RED, err=True)
+        typer.secho(f"Error writing results to file '{output_file}': {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(1)
 
 

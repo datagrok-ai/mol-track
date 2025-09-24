@@ -267,24 +267,31 @@ def display_properties_table(properties_data, max_rows=None, display_value=False
         key=lambda prop: (get_entity_type_priority(prop.get("entity_type", "")), prop.get("name", "").lower()),
     )
 
-    columns = [
-        ("Name", "cyan", {"no_wrap": True}),
-        ("Entity Type", "magenta", {}),
-        ("Value Type", "green", {}),
-        ("Semantic Type ID", "yellow", {}),
-        ("Created At", "blue", {}),
-    ]
+    columns = [("Name", "cyan", {"no_wrap": True})]
+
+    if not display_value:
+        columns.extend(
+            [
+                ("Entity Type", "magenta", {}),
+                ("Value Type", "green", {}),
+                ("Semantic Type ID", "yellow", {}),
+                ("Created At", "blue", {}),
+            ]
+        )
     if display_value:
         columns.append(("Value", "white", {}))
 
     def extract_property_row(prop):
-        table_values = [
-            prop.get("name", ""),
-            prop.get("entity_type", ""),
-            prop.get("value_type", ""),
-            str(prop.get("semantic_type_id", "")),
-            format_timestamp(prop.get("created_at", "")),
-        ]
+        table_values = [prop.get("name", "")]
+        if not display_value:
+            table_values.extend(
+                [
+                    prop.get("entity_type", ""),
+                    prop.get("value_type", ""),
+                    str(prop.get("semantic_type_id", "")),
+                    format_timestamp(prop.get("created_at", "")),
+                ]
+            )
         if display_value:
             table_values.append(str(extract_value_from_property(prop)))
         return table_values

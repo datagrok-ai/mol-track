@@ -1,35 +1,94 @@
 import json
 import typer
 import requests
+from client.utils.api_helpers import handle_get_request
 from client.utils.display import display_properties_table
-from client.utils.file_utils import load_and_validate_json
+from client.utils.file_utils import load_and_validate_json, write_result_to_file
 from app.models import SchemaPayload
 from client.config.settings import settings
 
 
 schema_app = typer.Typer()
+schema_list_app = typer.Typer()
+schema_app.add_typer(schema_list_app, name="list", help="List schema information")
+schema_synonyms_app = typer.Typer()
+schema_app.add_typer(schema_synonyms_app, name="synonyms", help="Get schema synonym")
 
 
 # Schema Commands
-@schema_app.command("list")
-def list_schema_group(
+@schema_list_app.command("compounds")
+def list_compounds_schema(
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
     max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
-    List the schema.
+    List the schema information for compounds.
     """
     print(f"Listing schema from {url}")
-    response = requests.get(f"{url}/v1/schema")
-    schema = response.json()
+    endpoint = f"{url}/v1/schema/compounds"
+    get_schema_data(endpoint, output_format, max_rows, output_file)
 
-    if output_format == "json":
-        typer.echo(f"Schema:\n{json.dumps(schema, indent=2)}")
-    else:
-        schema_props = schema if isinstance(schema, list) else schema.get("properties", [])
-        typer.echo("Schema:")
-        display_properties_table(schema_props, max_rows=max_rows)
+
+@schema_list_app.command("batches")
+def list_batches_schema(
+    url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
+):
+    """
+    List the schema information for batches.
+    """
+    print(f"Listing schema from {url}")
+    endpoint = f"{url}/v1/schema/batches"
+    get_schema_data(endpoint, output_format, max_rows, output_file)
+
+
+@schema_list_app.command("all")
+def list_all_schema(
+    url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
+):
+    """
+    List all the schema information.
+    """
+    print(f"Listing schema from {url}")
+    endpoint = f"{url}/v1/schema"
+    get_schema_data(endpoint, output_format, max_rows, output_file)
+
+
+@schema_synonyms_app.command("compounds")
+def get_compounds_synonyms(
+    url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
+):
+    """
+    List synonyms for compounds.
+    """
+    print(f"Listing schema from {url}")
+    endpoint = f"{url}/v1/schema/compounds/synonyms"
+    get_schema_data(endpoint, output_format, max_rows, output_file)
+
+
+@schema_synonyms_app.command("batches")
+def get_batches_synonyms(
+    url: str = settings.API_BASE_URL,
+    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    max_rows: int = typer.Option(None, "--max-rows", "-m", help="Maximum number of rows to display in table output"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
+):
+    """
+    List synonyms for batches.
+    """
+    print(f"Listing schema from {url}")
+    endpoint = f"{url}/v1/schema/batches/synonyms"
+    get_schema_data(endpoint, output_format, max_rows, output_file, synonym=True)
 
 
 @schema_app.command("load")
@@ -131,3 +190,20 @@ def add_schema_from_file(
     except Exception as e:
         typer.echo(f"❌ Error making request: {str(e)}", err=True)
         raise typer.Exit(1)
+
+
+def get_schema_data(endpoint, output_format, max_rows, output_file, synonym=False):
+    schema = handle_get_request(endpoint)
+
+    if output_format == "json":
+        typer.echo(f"Schema:\n{json.dumps(schema, indent=2)}")
+    else:
+        if isinstance(schema, list):
+            schema_props = schema
+        elif "properties" in schema:
+            schema_props = schema["properties"]
+        if synonym and "synonym_types" in schema:
+            schema_props = schema.get("synonym_types", [])
+        typer.echo("Schema:")
+        display_properties_table(schema_props, max_rows=max_rows)
+    write_result_to_file(schema, output_format, output_file)

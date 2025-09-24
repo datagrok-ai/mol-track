@@ -6,7 +6,12 @@ from client.config import settings
 from client.utils.api_helpers import handle_get_request, print_response
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
 from client.utils.display import display_assays_table, display_properties_table
-from client.utils.file_utils import load_and_validate_json, load_and_validate_mapping, validate_and_load_csv_data
+from client.utils.file_utils import (
+    load_and_validate_json,
+    load_and_validate_mapping,
+    validate_and_load_csv_data,
+    write_result_to_file,
+)
 
 
 assays_app = typer.Typer()
@@ -23,12 +28,10 @@ def list_assays(
     limit: int = 10,
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     List assays using the v1 endpoint.
-
-    If no assay_id is provided, lists all assays.
-    If assay_id is provided, gets the specific assay.
     """
     endpoint = f"{url}/v1/assays/?skip={skip}&limit={limit}"
     data = handle_get_request(endpoint)
@@ -36,6 +39,8 @@ def list_assays(
         typer.echo(json.dumps(data, indent=2))
     else:
         display_assays_table(data)
+
+    write_result_to_file(data, output_format, output_file)
 
 
 @assays_app.command("load")
@@ -58,6 +63,7 @@ def get_assay(
     assay_id: int = typer.Argument(..., help="Assay ID to retrieve"),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     Get a specific assay by ID.
@@ -70,6 +76,8 @@ def get_assay(
         display_assays_table([data])
         display_properties_table(data["properties"], display_value=True)
 
+    write_result_to_file(data, output_format, output_file)
+
 
 # Assay Runs Commands
 @assays_runs_app.command("list")
@@ -78,6 +86,7 @@ def list_assay_runs(
     limit: int = 10,
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     List assay runs using the v1 endpoint.
@@ -91,6 +100,8 @@ def list_assay_runs(
         typer.echo(json.dumps(data, indent=2))
     else:
         display_assays_table(data, assay_entity="run")
+
+    write_result_to_file(data, output_format, output_file)
 
 
 @assays_runs_app.command("load")
@@ -137,6 +148,7 @@ def list_assay_results(
     limit: int = 10,
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     List assay results using the v1 endpoint.
@@ -150,6 +162,8 @@ def list_assay_results(
         typer.echo(json.dumps(data, indent=2))
     else:
         display_assays_table(data, assay_entity="run")
+
+    write_result_to_file(data, output_format, output_file)
 
 
 @assays_results_app.command("load")

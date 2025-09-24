@@ -81,13 +81,10 @@ def run_advanced_search(
 
     response = requests.post(f"{url}{endpoint}", json=payload)
     if response.status_code == 200:
-        write_result_to_file(response, cli_output_format, output_file)
+        write_result_to_file(response, cli_output_format, output_file, parsed=False)
         if cli_output_format == "json":
             resp = response.json()
             print(json.dumps(response.json(), indent=2))
-            if output_file:
-                with open(output_file, "w") as f:
-                    json.dump(resp, f, indent=2)
         elif cli_output_format == "csv":
             resp = response.text
             display_search_csv(resp, max_rows=max_rows)

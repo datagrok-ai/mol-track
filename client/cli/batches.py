@@ -5,7 +5,7 @@ from client.config.settings import settings
 from client.utils.api_helpers import handle_delete_request, handle_get_request, print_response
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
 from client.utils.display import display_batches_table, display_properties_table
-from client.utils.file_utils import load_and_validate_mapping, validate_and_load_csv_data
+from client.utils.file_utils import load_and_validate_mapping, validate_and_load_csv_data, write_result_to_file
 
 
 batch_app = typer.Typer()
@@ -18,6 +18,7 @@ def list_batches_group(
     limit: int = typer.Option(10, "--limit", "-l", help="Maximum number of records to return"),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     List batches using the v1 endpoint.
@@ -34,6 +35,8 @@ def list_batches_group(
     else:
         # Display single compound in table format
         display_batches_table(data)
+
+    write_result_to_file(data, output_format, output_file)
 
 
 @batch_app.command("load")
@@ -94,6 +97,7 @@ def get_batch(
     corporate_batch_id: str = typer.Argument(..., help="Corporate Batch ID (friendly name) to retrieve"),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     Get a specific batch by corporate_batch_id (friendly name).
@@ -107,6 +111,8 @@ def get_batch(
         display_batches_table([data])
         display_properties_table(data["properties"], display_value=True)
 
+    write_result_to_file(data, output_format, output_file)
+
 
 @batch_app.command("delete")
 def delete_batch(
@@ -119,44 +125,6 @@ def delete_batch(
     endpoint = f"{url}/v1/batches/{corporate_batch_id}"
     handle_delete_request(endpoint)
     typer.echo(f"✅ Batch with friendly name {corporate_batch_id} has been successfully deleted.")
-
-
-@batch_app.command("properties")
-def get_batch_properties(
-    corporate_batch_id: str = typer.Argument(..., help="Corporate Batch ID (friendly name) to get properties for"),
-    url: str = settings.API_BASE_URL,
-    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
-):
-    """
-    Get all properties for a specific batch using the v1 endpoint.
-    """
-    params = {"property_value": corporate_batch_id, "property_name": "corporate_batch_id"}
-    endpoint = f"{url}/v1/batches"
-    data = handle_get_request(endpoint, params=params)
-    if output_format == "json":
-        print(json.dumps(data, indent=2))
-    else:
-        # Display properties in table format
-        display_properties_table(data["properties"], display_value=True)
-
-
-@batch_app.command("synonyms")
-def get_batch_synonyms(
-    corporate_batch_id: str = typer.Argument(..., help="Corporate Batch ID (friendly name) to get synonyms for"),
-    url: str = settings.API_BASE_URL,
-    output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
-):
-    """
-    Get all synonyms for a specific batch using the v1 endpoint.
-    """
-    params = {"property_value": corporate_batch_id, "property_name": "corporate_batch_id"}
-    endpoint = f"{url}/v1/batches/synonyms"
-    data = handle_get_request(endpoint, params=params)
-    if output_format == "json":
-        print(json.dumps(data, indent=2))
-    else:
-        # Display synonyms in table format
-        display_properties_table(data, display_value=True)
 
 
 @batch_app.command("additions")

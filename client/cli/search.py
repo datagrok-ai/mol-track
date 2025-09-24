@@ -115,7 +115,7 @@ def search_assay_results(
         None,
         "--output",
         "-oc",
-        help="Comma-separated list of columns to return or path to JSON file (e.g. 'id,canonical_smiles' or output.json)",
+        help="Comma-separated list of columns to return",
     ),
     filter: str = typer.Option(
         None, "--filter", "-f", help="Filter as JSON string or path to JSON file (see docs for format)"

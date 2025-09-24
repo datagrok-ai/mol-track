@@ -17,7 +17,6 @@ The CLI is organized into several command groups:
 - **Schema Commands**: Manage API schema definitions
 - **Compound Commands**: Handle compound registration and management
 - **Batch Commands**: Manage batch operations and data
-- **Properties Commands**: Handle properties management
 - **Additions Commands**: Handle additions management
 - **Assays Commands**: Handle assays, assay runs, and assay results management
 - **Utility Commands**: General API operations
@@ -27,14 +26,31 @@ The CLI is organized into several command groups:
 ### List Schema
 
 ```bash
-python mtcli.py schema list [OPTIONS]
+#List the schema for all entities
+python mtcli.py schema list all [OPTIONS]
+
+#List the schema for compounds
+python mtcli.py schema list compounds [OPTIONS]
+
+#List the schema for batches
+python mtcli.py schema list batches [OPTIONS]
+
+#List the synonyms related to compounds
+python mtcli.py schema synonyms compounds [OPTIONS]
+
+#List the synonyms related to batches
+python mtcli.py schema synonyms batches [OPTIONS]
 ```
 
-Lists the current schema for both compounds and batches.
+Lists the current schema for all entities, compounds, or batches.
 
 **Options:**
 
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+
+- `--output-format, -o TEXT` Output format: table or json (default: table)
+- `--max-rows, -m INTEGER` Maximum number of rows to display in table output (default: None)
+- `--output-file, -of TEXT`Path to output file (default: None)
 
 ### Load Schema
 
@@ -96,27 +112,30 @@ Lists compounds using the v1 endpoint.
 - `--skip INTEGER`: Number of records to skip (default: 0)
 - `--limit INTEGER`: Maximum number of records to return (default: 10)
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+- `--output-format, -o TEXT`: Output format: table or json (default: table)
+- `--output-file, -of TEXT`: Path to output file (default: None)
 
-### Create Compound (Legacy)
+### Get Specific Compound
 
 ```bash
-python mtcli.py compound create_old <item_json> [OPTIONS]
+python mtcli.py compounds get <corporate_compound_id> [OPTIONS]
 ```
-
-Creates a compound using the legacy `/compounds` endpoint.
+Get a specific compound by corporate_compound_id (friendly name).
 
 **Arguments:**
 
-- `item_json`: JSON string containing compound data
+- `corporate_compound_id`: Corporate Compound ID (friendly name) to retrieve
 
 **Options:**
 
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+- `--output-format, -o TEXT`: Output format: table or json (default: table)
+- `--output-file, -of TEXT`: Path to output file (default: None)
 
-### Create Compounds from CSV
+### Load Compounds from CSV
 
 ```bash
-python mtcli.py compounds create <csv_file> [OPTIONS]
+python mtcli.py compounds load <csv_file> [OPTIONS]
 ```
 
 Adds compounds from a CSV file using the `/v1/compounds/` endpoint.
@@ -133,6 +152,7 @@ Adds compounds from a CSV file using the `/v1/compounds/` endpoint.
 - `--error-handling, -e [reject_all|reject_row]`: Error handling strategy (default: reject_all)
 - `--output-format, -o [json|csv]`: Output format (default: json)
 - `--dry-run`: Validate data without sending to server
+- `--save-errors`: Save error records to a JSON file
 
 **Example Mapping:**
 
@@ -148,55 +168,82 @@ Adds compounds from a CSV file using the `/v1/compounds/` endpoint.
 
 ```bash
 # Process all compounds in CSV
-python mtcli.py compound create compounds.csv
+python mtcli.py compounds load compounds.csv
 
 # Process only first 5 rows
-python mtcli.py compound create compounds.csv --rows 5
+python mtcli.py compounds load compounds.csv --rows 5
 
 # Use mapping file
-python mtcli.py compound create compounds.csv --mapping mapping.json
+python mtcli.py compounds load compounds.csv --mapping mapping.json
 
 # Dry run to validate data
-python mtcli.py compound create compounds.csv --dry-run
+python mtcli.py compounds load compounds.csv --dry-run
 ```
+### Delete specific compound
+
+```bash
+python mtcli.py batches delete <corporate_compound_id> [OPTIONS]
+```
+Delete a specific compound by Corporate Compound ID (friendly name).
+
+**Arguments:**
+
+- `corporate_compound_id`: Corporate Compound ID (friendly name) to retrieve
+
+**Options:**
+
+- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+
 
 ## Batch Commands
 
 ### List Batches
 
 ```bash
-python mtcli.py batch list [batch_id] [OPTIONS]
+python mtcli.py batches list [OPTIONS]
 ```
 
 Lists batches or gets a specific batch by ID.
-
-**Arguments:**
-
-- `batch_id`: Optional batch ID to retrieve
 
 **Options:**
 
 - `--skip, -s INTEGER`: Number of records to skip (default: 0)
 - `--limit, -l INTEGER`: Maximum number of records to return (default: 10)
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+- `--output-format, -o TEXT`: Output format: table or json (default: table)
+- `--output-file, -of TEXT`: Path to output file (default: None)
 
 **Usage Examples:**
 
 ```bash
 # List all batches
-python mtcli.py batch list
+python mtcli.py batches list
 
 # List batches with pagination
-python mtcli.py batch list --skip 10 --limit 20
-
-# Get specific batch
-python mtcli.py batch list 123
+python mtcli.py batches list --skip 10 --limit 20
 ```
 
-### Create Batches from CSV
+### Get Specific Batch
 
 ```bash
-python mtcli.py batch create <csv_file> [OPTIONS]
+python mtcli.py batches get <corporate_batch_id> [OPTIONS]
+```
+Get the specific batch by corporate_batch_id (friendly name).
+
+**Arguments:**
+
+- `corporate_batch_id`: Corporate Batch ID (friendly name) to retrieve
+
+**Options:**
+
+- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+- `--output-format, -o TEXT`: Output format: table or json (default: table)
+- `--output-file, -of TEXT`: Path to output file (default: None)
+
+### Load Batches from CSV
+
+```bash
+python mtcli.py batches load <csv_file> [OPTIONS]
 ```
 
 Adds batches from a CSV file using the `/v1/batches/` endpoint.
@@ -211,8 +258,8 @@ Adds batches from a CSV file using the `/v1/batches/` endpoint.
 - `--rows, -r INTEGER`: Number of data rows to process (excludes header row)
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
 - `--error-handling, -e [reject_all|reject_row]`: Error handling strategy (default: reject_all)
-- `--output-format, -o [json|csv]`: Output format (default: json)
 - `--dry-run`: Validate data without sending to server
+- `--save-errors`: Save error records to a JSON file
 
 **Example Mapping:**
 
@@ -229,88 +276,47 @@ Adds batches from a CSV file using the `/v1/batches/` endpoint.
 
 ```bash
 # Process all batches in CSV
-python mtcli.py batch create batches.csv
+python mtcli.py batches load batches.csv
 
 # Process only first 3 rows
-python mtcli.py batch create batches.csv --rows 3
+python mtcli.py batches load batches.csv --rows 3
 
 # Use mapping file
-python mtcli.py batch create batches.csv --mapping mapping.json
+python mtcli.py batches load batches.csv --mapping mapping.json
 
 # Dry run to validate data
-python mtcli.py batch create batches.csv --dry-run
+python mtcli.py batches load batches.csv --dry-run
 ```
 
-### Batch List Subcommands
-
-#### Get Batch Properties
+### Delete specific batch
 
 ```bash
-python mtcli.py batch list properties <batch_id> [OPTIONS]
+python mtcli.py batches delete <corporate_batch_id> [OPTIONS]
 ```
-
-Gets all properties for a specific batch.
+Delete a specific batch by Corporate Batch ID (friendly name).
 
 **Arguments:**
 
-- `batch_id`: Batch ID to get properties for
+- `corporate_batch_id`: Corporate Batch ID (friendly name) to retrieve
 
 **Options:**
 
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
 
-#### Get Batch Synonyms
-
-```bash
-python mtcli.py batch list synonyms <batch_id> [OPTIONS]
-```
-
-Gets all synonyms for a specific batch.
-
-**Arguments:**
-
-- `batch_id`: Batch ID to get synonyms for
-
-**Options:**
-
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-
-#### Get Batch Additions
-
-```bash
-python mtcli.py batch list additions <batch_id> [OPTIONS]
-```
-
-Gets all additions for a specific batch.
-
-**Arguments:**
-
-- `batch_id`: Batch ID to get additions for
-
-**Options:**
-
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-
-## Properties Commands
-
-### List Properties
-
-```bash
-python mtcli.py properties list [OPTIONS]
-```
-
-Lists all properties.
-
-**Options:**
-
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
 
 ## Additions Commands
 
 ### List Additions
 
 ```bash
-python mtcli.py additions list [OPTIONS]
+#Load all additions
+python mtcli.py additions list all [OPTIONS]
+
+#Load all additions with role of salts
+python mtcli.py additions list salts [OPTIONS]
+
+#Load all additions with role of solvates
+python mtcli.py additions list solvates [OPTIONS]
 ```
 
 Lists all additions using the v1 endpoint.
@@ -318,11 +324,30 @@ Lists all additions using the v1 endpoint.
 **Options:**
 
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+- `--output-format, -o TEXT`: Output format: table or json (default: table)
+- `--output-file, -of TEXT`: Path to output file (default: None)
 
-### Create Additions from CSV
+### Get specific addition
 
 ```bash
-python mtcli.py additions create <csv_file> [OPTIONS]
+python mtcli.py additions get <corporate_batch_id> [OPTIONS]
+```
+Get the specific addition by addition_id.
+
+**Arguments:**
+
+- `addition_id`:  Addition ID to retrieve
+
+**Options:**
+
+- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+- `--output-format, -o TEXT`: Output format: table or json (default: table)
+- `--output-file, -of TEXT`: Path to output file (default: None)
+
+### Load Additions from CSV
+
+```bash
+python mtcli.py additions load <csv_file> [OPTIONS]
 ```
 
 Adds additions from a CSV file using the `/v1/additions/` endpoint.
@@ -337,8 +362,10 @@ Adds additions from a CSV file using the `/v1/additions/` endpoint.
 - `--rows, -r INTEGER`: Number of data rows to process (excludes header row)
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
 - `--error-handling, -e [reject_all|reject_row]`: Error handling strategy (default: reject_all)
-- `--output-format, -o [json|csv]`: Output format (default: json)
 - `--dry-run`: Validate data without sending to server
+- `--save-errors`: Save error records to a JSON file
+
+
 
 **Example Mapping:**
 
@@ -393,65 +420,23 @@ Soft deletes the specified addition (only if no dependent batches exist).
 
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
 
-### Additions List Subcommands
-
-#### List Additions Salts
-
-```bash
-python mtcli.py additions list salts [OPTIONS]
-```
-
-Lists all additions with role of salts.
-
-**Options:**
-
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-
-#### List Additions Solvates
-
-```bash
-python mtcli.py additions list solvates [OPTIONS]
-```
-
-Lists all additions with role of solvates.
-
-**Options:**
-
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-
-#### Get Addition
-
-```bash
-python mtcli.py additions list <addition_id> [OPTIONS]
-```
-
-Gets all information for a specific addition.
-
-**Arguments:**
-
-- `addition_id`: Addition ID to retrieve
-
-**Options:**
-
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-
 **Usage Examples:**
 
 ```bash
 # Process all additions in CSV
-python mtcli.py additions create additions.csv
+python mtcli.py additions load additions.csv
 
 # Process only first 5 rows
-python mtcli.py additions create additions.csv --rows 5
+python mtcli.py additions load additions.csv --rows 5
 
 # Use mapping file
-python mtcli.py additions create additions.csv --mapping mapping.json
+python mtcli.py additions load additions.csv --mapping mapping.json
 
 # Dry run to validate data
-python mtcli.py additions create additions.csv --dry-run
+python mtcli.py additions load additions.csv --dry-run
 
 # List all additions
-python mtcli.py additions list
+python mtcli.py additions list all
 
 # List all salts
 python mtcli.py additions list salts
@@ -471,39 +456,49 @@ python mtcli.py additions delete 123
 
 ## Assays Commands
 
-### List Assays
+### List Assay data
 
 ```bash
-python mtcli.py assays list [assay_id] [OPTIONS]
+#list all assays
+python mtcli.py assays list [OPTIONS]
+
+#List all assay runs
+python mtcli.py assays runs list [OPTIONS]
+
+#List all assay results
+python mtcli.py assays results list [OPTIONS]
 ```
 
-Lists assays using the v1 endpoint.
-
-**Arguments:**
-
-- `assay_id`: Optional assay ID to retrieve
+Lists assays, assays runs or assay results using the v1 endpoint.
 
 **Options:**
-
+- `--skip, -s INTEGER`: Number of records to skip (default: 0)
+- `--limit, -l INTEGER`: Maximum number of records to return (default: 10)
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
+- `--output-format, -o TEXT`: Output format: table or json (default: table)
+- `--output-file, -of TEXT`: Path to output file (default: None)
 
 **Usage Examples:**
 
 ```bash
 # List all assays
 python mtcli.py assays list
-
-# Get specific assay
-python mtcli.py assays list 123
 ```
 
-### Create Assays
+### Load Assay data
 
 ```bash
-python mtcli.py assays create <file_path> [OPTIONS]
+#Load assays
+python mtcli.py assays load <file_path> [OPTIONS]
+
+#Load assay runs
+python mtcli.py assays load <file_path> [OPTIONS]
+
+#Load assay results
+python mtcli.py assays load <file_path> [OPTIONS]
 ```
 
-Creates assays from a JSON file using the `/v1/assays` endpoint.
+Load assay data from a JSON file using the `/v1/assays` endpoint.
 
 **Arguments:**
 
@@ -512,104 +507,6 @@ Creates assays from a JSON file using the `/v1/assays` endpoint.
 **Options:**
 
 - `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-
-### Assay Runs Commands
-
-#### List Assay Runs
-
-```bash
-python mtcli.py assays runs list [assay_run_id] [OPTIONS]
-```
-
-Lists assay runs using the v1 endpoint.
-
-**Arguments:**
-
-- `assay_run_id`: Optional assay run ID to retrieve
-
-**Options:**
-
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-
-**Usage Examples:**
-
-```bash
-# List all assay runs
-python mtcli.py assays runs list
-
-# Get specific assay run
-python mtcli.py assays runs list 456
-```
-
-#### Create Assay Runs from CSV
-
-```bash
-python mtcli.py assays runs create <csv_file> [OPTIONS]
-```
-
-Creates assay runs from a CSV file using the `/v1/assay_runs/` endpoint.
-
-**Arguments:**
-
-- `csv_file`: Path to the CSV file containing assay run data
-
-**Options:**
-
-- `--mapping, -m TEXT`: Path to the JSON mapping file (optional)
-- `--rows, -r INTEGER`: Number of data rows to process (excludes header row)
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-- `--error-handling, -e [reject_all|reject_row]`: Error handling strategy (default: reject_all)
-- `--output-format, -o [json|csv]`: Output format (default: json)
-- `--dry-run`: Validate data without sending to server
-
-### Assay Results Commands
-
-#### List Assay Results
-
-```bash
-python mtcli.py assays results list [assay_result_id] [OPTIONS]
-```
-
-Lists assay results using the v1 endpoint.
-
-**Arguments:**
-
-- `assay_result_id`: Optional assay result ID to retrieve
-
-**Options:**
-
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-
-**Usage Examples:**
-
-```bash
-# List all assay results
-python mtcli.py assays results list
-
-# Get specific assay result
-python mtcli.py assays results list 789
-```
-
-#### Create Assay Results from CSV
-
-```bash
-python mtcli.py assays results create <csv_file> [OPTIONS]
-```
-
-Creates assay results from a CSV file using the `/v1/assay_results/` endpoint.
-
-**Arguments:**
-
-- `csv_file`: Path to the CSV file containing assay result data
-
-**Options:**
-
-- `--mapping, -m TEXT`: Path to the JSON mapping file (optional)
-- `--rows, -r INTEGER`: Number of data rows to process (excludes header row)
-- `--url TEXT`: Server URL (default: [http://127.0.0.1:8000])
-- `--error-handling, -e [reject_all|reject_row]`: Error handling strategy (default: reject_all)
-- `--output-format, -o [json|csv]`: Output format (default: json)
-- `--dry-run`: Validate data without sending to server
 
 **Usage Examples:**
 
@@ -621,7 +518,7 @@ python mtcli.py assays list
 python mtcli.py assays list 123
 
 # Create assays from JSON
-python mtcli.py assays create assays.json
+python mtcli.py assays load assays.json
 
 # List all assay runs
 python mtcli.py assays runs list
@@ -630,7 +527,7 @@ python mtcli.py assays runs list
 python mtcli.py assays runs list 456
 
 # Create assay runs from CSV
-python mtcli.py assays runs create runs.csv --mapping runs_mapping.json
+python mtcli.py assays runs load runs.csv --mapping runs_mapping.json
 
 # List all assay results
 python mtcli.py assays results list
@@ -639,10 +536,113 @@ python mtcli.py assays results list
 python mtcli.py assays results list 789
 
 # Create assay results from CSV
-python mtcli.py assays results create results.csv --mapping results_mapping.json
+python mtcli.py assays results load results.csv --mapping results_mapping.json
 
 # Dry run to validate data
-python mtcli.py assays runs create runs.csv --dry-run
+python mtcli.py assays runs load runs.csv --dry-run
+```
+
+## Search
+
+```bash
+
+# Search over compounds
+python mtcli.py search compounds [OPTIONS]
+
+# Search over batches
+python mtcli.py search batches [OPTIONS]
+
+# Search over assays
+python mtcli.py search assays [OPTIONS]
+
+# Search over assay runs
+python mtcli.py search assay-runs [OPTIONS]
+
+# Search over assay results
+python mtcli.py search assay-results [OPTIONS]
+```
+Advanced search ove compounds, batches, assays, assay-runs, and assay-results.
+
+**Options**
+- `--output, -oc TEXT`: Comma-separated list of columns to return
+- `--filter, -f TEXT`: Filter as JSON string
+- `--aggregations, -a TEXT`: Aggregations as JSON string
+- `--output-format, -o TEXT`: Output format: table or json (default: table)
+- `--max-rows, -m INTEGER`: Maximum number of rows to display
+- `input-file, -if TEXT`: Get serch input from file, if this option is provided options `--output`, `--filter` and `--aggregations` should be ommited
+- `--output-file, -of TEXT`: Path to output file (default: None)
+
+**Examples**
+
+```bash
+python mtcli.py search assays --filter '{"field": "assays.id","operator": ">","value": 0,"threshold": null}' --output 'assays.id,assays.details.assay format' -o 'csv' -of search_res.csv
+
+python mtcli.py search assays -if search_input.json -of search_res.json
+```
+
+**Search input file format**
+```json
+{
+   "output":[
+      "compounds.canonical_smiles",
+      "compounds.details.chembl",
+      "compounds.details.polarSurface"
+   ],
+   "aggregations":[
+      {
+         "field": "assay_results.details.ic50",
+         "operation": "AVG"
+      },
+      {
+         "field": "assay_results.details.ic50",
+         "operation": "COUNT"
+      }
+   ],
+   "filter":{
+      "operator":"AND",
+      "conditions":[
+         {
+            "field":"compounds.structure",
+            "operator":"IS SIMILAR",
+            "value":"Cc1ccc",
+            "threshold":0.95
+         },
+         {
+            "operator":"OR",
+            "conditions":[
+               {
+                  "field":"compounds.details.chembl",
+                  "operator":"IN",
+                  "value":[
+                     "CHEMBL123",
+                     "CHEMBL123"
+                  ]
+               },
+               {
+                  "field":"compounds.details.project",
+                  "operator":"=",
+                  "value":"My project"
+               }
+            ]
+         },
+         {
+            "operator":"AND",
+            "conditions":[
+               {
+                  "field":"assay_results.ic50",
+                  "operator":">",
+                  "value":0.42
+               },
+               {
+                  "field":"assay_results.ec50",
+                  "operator":"<",
+                  "value":100
+               }
+            ]
+         }
+      ]
+   }
+}
 ```
 
 ## CSV File Format
@@ -693,71 +693,55 @@ The client supports two output formats:
 
 ```bash
 # Add schema definitions
-python mtcli.py schema create schema.json
+python mtcli.py schema load schema.json
 ```
 
 ### 2. Compound Registration
 
 ```bash
 # Register compounds from CSV
-python mtcli.py compound create compounds.csv --mapping compound_mapping.json
+python mtcli.py compounds load compounds.csv --mapping compound_mapping.json
 ```
 
 ### 3. Batch Registration
 
 ```bash
 # Register batches from CSV
-python mtcli.py batch create batches.csv --mapping batch_mapping.json
+python mtcli.py batches load batches.csv --mapping batch_mapping.json
 ```
 
 ### 4. Additions Registration
 
 ```bash
 # Register additions from CSV
-python mtcli.py additions create additions.csv --mapping additions_mapping.json
+python mtcli.py additions load additions.csv --mapping additions_mapping.json
 ```
 
 ### 5. Assays Registration
 
 ```bash
 # Create assays from JSON
-python mtcli.py assays create assays.json
+python mtcli.py assays load assays.json
 
 # Create assay runs from CSV
-python mtcli.py assays runs create runs.csv --mapping runs_mapping.json
+python mtcli.py assays runs load runs.csv --mapping runs_mapping.json
 
 # Create assay results from CSV
-python mtcli.py assays results create results.csv --mapping results_mapping.json
+python mtcli.py assays results load results.csv --mapping results_mapping.json
 ```
 
 ### 6. Data Validation
 
 ```bash
 # Validate data without sending to server
-python mtcli.py compound create compounds.csv --dry-run
+python mtcli.py compounds load compounds.csv --dry-run
 ```
 
 ### 7. Limited Data Processing
 
 ```bash
 # Process only first 10 rows for testing
-python mtcli.py batch create batches.csv --rows 10
-```
-
-### 8. Batch Information Retrieval
-
-```bash
-# Get batch details
-python mtcli.py batch list 123
-
-# Get batch properties
-python mtcli.py batch list properties 123
-
-# Get batch synonyms
-python mtcli.py batch list synonyms 123
-
-# Get batch additions
-python mtcli.py batch list additions 123
+python mtcli.py batches load batches.csv --rows 10
 ```
 
 ## Troubleshooting
@@ -774,7 +758,7 @@ python mtcli.py batch list additions 123
 Use the `--dry-run` option to validate data without sending it to the server:
 
 ```bash
-python mtcli.py compound create data.csv --dry-run
+python mtcli.py compounds load data.csv --dry-run
 ```
 
 ### Getting Help
@@ -783,8 +767,8 @@ Use the `--help` option to get detailed information about any command:
 
 ```bash
 python mtcli.py --help
-python mtcli.py compound --help
-python mtcli.py batch --help
+python mtcli.py compounds --help
+python mtcli.py batches --help
 ```
 
 ## Environment Variables
@@ -797,83 +781,3 @@ The client uses the following default configuration:
 
 These can be overridden using command-line options.
 
-## Search Output Parameter Formats
-
-The search commands (`search compounds`, `search batches`, `search assay-results`) now support multiple formats for the `--output` parameter.
-
-### Supported Formats
-
-#### 1. Comma-separated string (original format)
-```bash
-mtcli.py search compounds --output "id,canonical_smiles,common_name"
-```
-
-#### 2. JSON file with object containing "output" key
-```json
-{
-  "output": [
-    "id",
-    "canonical_smiles",
-    "common_name",
-    "created_at"
-  ]
-}
-```
-```bash
-mtcli.py search compounds --output output.json
-```
-
-#### 3. JSON file with simple list
-```json
-[
-  "id",
-  "batch_regno",
-  "compound_id",
-  "notes"
-]
-```
-```bash
-mtcli.py search batches --output output_list.json
-```
-
-### Examples
-
-#### Compounds Search
-```bash
-# String format
-mtcli.py search compounds --output "id,canonical_smiles" --filter '{"field": "compounds.details.common_name", "operator": "=", "value": "Aspirin"}'
-
-# JSON file format
-mtcli.py search compounds --output example_output.json --filter filter.json --output-format table
-```
-
-#### Batches Search
-```bash
-# String format
-mtcli.py search batches --output "id,batch_regno,notes" --filter '{"field": "batches.compound_id", "operator": "=", "value": 1}'
-
-# JSON file format
-mtcli.py search batches --output example_output_list.json --filter batch_filter.json
-```
-
-#### Assay Results Search
-```bash
-# String format
-mtcli.py search assay-results --output "id,value_num,assay_id" --filter '{"field": "assay_results.value_num", "operator": ">", "value": 50}'
-
-# JSON file format
-mtcli.py search assay-results --output output.json --filter assay_filter.json --output-format table
-```
-
-### File Detection
-
-The system automatically detects whether the `--output` parameter is a file path or a string by checking if the path exists as a file. If the file exists, it's treated as a JSON file; otherwise, it's treated as a comma-separated string.
-
-### Error Handling
-
-- If a JSON file is specified but doesn't exist, an error is shown
-- If a JSON file exists but has invalid format, an error is shown
-- The JSON file must contain either:
-  - A list of column names
-  - An object with an "output" key containing a list
-  - An object with a "columns" key containing a list

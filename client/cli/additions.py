@@ -6,7 +6,12 @@ from client.config import settings
 from client.utils.api_helpers import handle_delete_request, handle_get_request, handle_put_request
 from client.utils.data_ingest import report_csv_information, send_csv_upload_request
 from client.utils.display import display_additions_table
-from client.utils.file_utils import load_and_validate_json, load_and_validate_mapping, validate_and_load_csv_data
+from client.utils.file_utils import (
+    load_and_validate_json,
+    load_and_validate_mapping,
+    validate_and_load_csv_data,
+    write_result_to_file,
+)
 
 
 additions_app = typer.Typer()
@@ -49,6 +54,7 @@ def get_addition(
     addition_id: int = typer.Argument(..., help="Addition ID to retrieve"),
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     Get all information for a specific addition.
@@ -61,6 +67,8 @@ def get_addition(
         typer.echo(json.dumps(data, indent=2))
     else:
         display_additions_table([data])
+
+    write_result_to_file(data, output_format, output_file)
 
 
 @additions_app.command("load")
@@ -120,6 +128,7 @@ def add_additions_from_csv(
 def list_additions(
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     List the additions.
@@ -130,12 +139,14 @@ def list_additions(
         typer.echo(json.dumps(data, indent=2))
     else:
         display_additions_table(data)
+    write_result_to_file(data, output_format, output_file)
 
 
 @additions_list_app.command("salts")
 def list_additions_salts(
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     List all additions with role of salts.
@@ -147,11 +158,14 @@ def list_additions_salts(
     else:
         display_additions_table(data)
 
+    write_result_to_file(data, output_format, output_file)
+
 
 @additions_list_app.command("solvates")
 def list_additions_solvates(
     url: str = settings.API_BASE_URL,
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
+    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
     """
     List all additions with role of solvates.
@@ -162,3 +176,5 @@ def list_additions_solvates(
         typer.echo(json.dumps(data, indent=2))
     else:
         display_additions_table(data)
+
+    write_result_to_file(data, output_format, output_file)
