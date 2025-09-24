@@ -1,15 +1,24 @@
 from typing import List
 from sqlalchemy.orm import Session
 from app import models
+from app.crud.properties import enrich_properties
 
 
 # === Assay-related operations ===
+def enrich_assay(assay: models.Assay) -> models.AssayResponse:
+    assay_resp = models.AssayResponse.model_validate(assay, from_attributes=True)
+    assay_resp.properties = enrich_properties(assay, "assay_details", "assay_id")
+    return assay_resp
+
+
 def get_assay(db: Session, assay_id: int):
-    return db.query(models.Assay).filter(models.Assay.id == assay_id).first()
+    assay = db.query(models.Assay).filter(models.Assay.id == assay_id).first()
+    return enrich_assay(assay) if assay else None
 
 
 def get_assays(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Assay).offset(skip).limit(limit).all()
+    assays = db.query(models.Assay).offset(skip).limit(limit).all()
+    return [enrich_assay(a) for a in assays]
 
 
 # === AssayRun-related operations ===
