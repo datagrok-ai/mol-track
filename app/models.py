@@ -189,7 +189,7 @@ class BatchResponseBase(BatchBase):
 class BatchResponse(BatchResponseBase):
     batch_additions: List["BatchAddition"] = []
     properties: Optional[List["PropertyWithValue"]] = []
-    compound: Optional["Compound"] = None
+    compound: Optional["CompoundResponse"] = None
 
 
 class Batch(BatchResponseBase, table=True):
