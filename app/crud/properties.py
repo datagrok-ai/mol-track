@@ -150,7 +150,7 @@ def enrich_properties(owner, detail_attr: str, id_attr: str) -> list[models.Prop
         enriched.append(
             models.PropertyWithValue(
                 **prop.dict(),
-                value_qualifier=handle_value_qualifier(getattr(detail, "value_qualifier")),
+                value_qualifier=handle_value_qualifier(getattr(detail, "value_qualifier", None)),
                 value_num=getattr(detail, "value_num", None),
                 value_string=getattr(detail, "value_string", None),
                 value_datetime=getattr(detail, "value_datetime", None),
@@ -160,7 +160,10 @@ def enrich_properties(owner, detail_attr: str, id_attr: str) -> list[models.Prop
     return enriched
 
 
-def handle_value_qualifier(value_qualifier: int):
+def handle_value_qualifier(value_qualifier: int | None):
+    if value_qualifier is None:
+        return None
+
     value_qualifier_map = {
         enums.ValueQualifier.EQUALS.value: "=",
         enums.ValueQualifier.LESS_THAN.value: "<",

@@ -7,7 +7,9 @@ from app import crud, models
 
 
 def enrich_batch(batch: models.Batch) -> models.BatchResponse:
-    return models.BatchResponse(**batch.dict(), properties=enrich_properties(batch, "batch_details", "batch_id"))
+    batch_resp = models.BatchResponse.model_validate(batch, from_attributes=True)
+    batch_resp.properties = enrich_properties(batch, "batch_details", "batch_id")
+    return batch_resp
 
 
 def get_batch_by_synonym(db: Session, property_value: str, property_name: str = None, enrich: bool = True):
