@@ -7,6 +7,9 @@ from app.utils.admin_utils import admin
 
 from typing import Type, Dict, Any
 from app.utils import enums, sql_utils
+from typing import TypeVar
+
+T = TypeVar("T")
 
 
 def create_properties(db: Session, properties: list[models.PropertyInput]) -> list[dict]:
@@ -170,3 +173,22 @@ def handle_value_qualifier(value_qualifier: int | None):
         enums.ValueQualifier.GREATER_THAN.value: ">",
     }
     return value_qualifier_map[value_qualifier]
+
+
+def enrich_model(owner, response_class: Type[T], detail_attr: str, id_attr: str) -> T:
+    """
+    Generic enrichment function.
+
+    Args:
+        owner: The SQLModel object to enrich (e.g., Assay, AssayResult).
+        response_class: The corresponding Response model class (e.g., AssayResponse).
+        detail_attr: Attribute name where the detail rows live (e.g., 'assay_details').
+        id_attr: Foreign key attribute name (e.g., 'assay_id').
+
+    Returns:
+        An enriched response model instance of type `response_class`.
+    """
+    resp = response_class.model_validate(owner, from_attributes=True)
+    if hasattr(owner, "properties"):
+        resp.properties = enrich_properties(owner, detail_attr, id_attr)
+    return resp

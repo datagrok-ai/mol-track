@@ -1,24 +1,18 @@
 from typing import List
 from sqlalchemy.orm import Session
 from app import models
-from app.crud.properties import enrich_properties
+from app.crud.properties import enrich_model
 
 
 # === Assay-related operations ===
-def enrich_assay(assay: models.Assay) -> models.AssayResponse:
-    assay_resp = models.AssayResponse.model_validate(assay, from_attributes=True)
-    assay_resp.properties = enrich_properties(assay, "assay_details", "assay_id")
-    return assay_resp
-
-
 def get_assay(db: Session, assay_id: int):
     assay = db.query(models.Assay).filter(models.Assay.id == assay_id).first()
-    return enrich_assay(assay) if assay else None
+    return enrich_model(assay, models.AssayResponse, "assay_details", "assay_id") if assay else None
 
 
 def get_assays(db: Session, skip: int = 0, limit: int = 100):
     assays = db.query(models.Assay).offset(skip).limit(limit).all()
-    return [enrich_assay(a) for a in assays]
+    return [enrich_model(a, models.AssayResponse, "assay_details", "assay_id") for a in assays]
 
 
 # === AssayRun-related operations ===
@@ -83,7 +77,10 @@ def get_assay_result(db: Session, assay_result_id: int):
 
 
 def get_assay_results(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.AssayResult).offset(skip).limit(limit).all()
+    assay_results = db.query(models.AssayResult).offset(skip).limit(limit).all()
+    return [
+        enrich_model(ar, models.AssayResultResponse, "assay_result_details", "assay_result_id") for ar in assay_results
+    ]
 
 
 def get_all_assay_results_for_batch(db: Session, batch_id: int) -> List[models.AssayResult]:

@@ -430,7 +430,7 @@ class AssayResultDetail(SQLModel, table=True):
     value_bool: Optional[bool] = Field(default=None)
 
     assay_result: "AssayResult" = Relationship(back_populates="assay_result_details")
-    property: Optional["Property"] = Relationship()
+    property: Optional["Property"] = Relationship(back_populates="assay_result_details")
 
 
 class Property(PropertyResponse, table=True):
@@ -463,6 +463,7 @@ class Property(PropertyResponse, table=True):
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
     assay_details: List["AssayDetail"] = Relationship(back_populates="property")
+    assay_result_details: List["AssayResultDetail"] = Relationship(back_populates="property")
 
     assays: List["Assay"] = Relationship(link_model=AssayDetail, sa_relationship_kwargs={"viewonly": True})
     assay_runs: List["AssayRun"] = Relationship(
@@ -514,6 +515,7 @@ class AssayResultResponseBase(AssayResultBase):
 class AssayResultResponse(AssayResultResponseBase):
     # Add a computed field for backward compatibility
     result_value: Optional[Union[float, str, bool]] = None
+    properties: List["PropertyWithValue"] = []
 
     @field_validator("result_value")
     def compute_result_value(cls, v, values):

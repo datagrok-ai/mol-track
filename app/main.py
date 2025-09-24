@@ -482,6 +482,12 @@ def create_assay_results(
     return process_registration(AssayResultsRegistrar, file, mapping, error_handling, output_format, db)
 
 
+@router.get("/assay_results/", response_model=list[models.AssayResultResponse])
+def get_assay_results(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    assay_results = crud.get_assay_results(db, skip=skip, limit=limit)
+    return assay_results
+
+
 @router.get("/validators/")
 def get_validators(entity: enums.EntityType, db: Session = Depends(get_db)):
     return crud.get_validators_for_entity(db, entity)

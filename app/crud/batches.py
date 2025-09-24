@@ -2,16 +2,18 @@ from fastapi import HTTPException
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
-from app.crud.properties import enrich_properties
+from app.crud.properties import enrich_model
 from app import crud, models
 
 
 def enrich_batch(batch: models.Batch) -> models.BatchResponse:
     batch_resp = models.BatchResponse.model_validate(batch, from_attributes=True)
-    batch_resp.properties = enrich_properties(batch, "batch_details", "batch_id")
+    batch_resp.properties = enrich_model(batch, models.BatchResponse, "batch_details", "batch_id")
     if batch.compound:
         batch_resp.compound = models.CompoundResponse.model_validate(batch.compound, from_attributes=True)
-        batch_resp.compound.properties = enrich_properties(batch.compound, "compound_details", "compound_id")
+        batch_resp.compound.properties = enrich_model(
+            batch.compound, models.CompoundResponse, "compound_details", "compound_id"
+        )
     return batch_resp
 
 
