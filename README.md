@@ -36,9 +36,10 @@ pip install dg-mol-track==0.6.11
 
 By default, the pip installation will include all required dependencies to run MolTrack seamlessly.
 
-<!-- Placeholder to add the video. -->
-
 For detailed instructions and example commands, see the [CLI usage guide](./docs/cli.md).
+
+<!-- This is the placeholder for the gif. -->
+![](./images/mol-track-cli.gif)
 
 ### Web server
 
@@ -85,6 +86,8 @@ To achieve this, we have developed an MIT-licensed [Datagrok MolTrack plugin](ht
 ![](./images/mol-track-registration.gif)
 
 ## Features
+
+Core MolTrack capabilities:
 
 * Registration of compounds, batches, and assay data  
 * Metadata and property management  
