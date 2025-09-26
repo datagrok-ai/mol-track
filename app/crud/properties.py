@@ -70,7 +70,10 @@ def bulk_create_if_not_exists(
         )
     else:
         existing_entities = set(
-            db.query(getattr(model_cls, name_attr)).filter(getattr(model_cls, name_attr).in_(input_keys)).all()
+            value
+            for (value,) in db.query(getattr(model_cls, name_attr))
+            .filter(getattr(model_cls, name_attr).in_(input_keys))
+            .all()
         )
 
     to_insert = []
@@ -86,13 +89,16 @@ def bulk_create_if_not_exists(
                 {"name": item_name}
                 | {
                     "registration_status": "failed",
-                    "registration_error_message": f"Failed: {item_name} is a reserved name and cannot be used",
+                    "registration_error_message": f"{item_name} is a reserved name and cannot be used",
                 }
             )
             continue
 
         if item_key in existing_entities:
-            result.append(item.model_dump() | {"status": "Skipped: already exists"})
+            result.append(
+                item.model_dump()
+                | {"registration_status": "Skipped", "registration_error_message": f"{item_name} already exists"}
+            )
             continue
 
         try:

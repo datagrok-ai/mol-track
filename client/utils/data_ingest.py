@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+from typing import Optional
 import requests
 import typer
 
@@ -21,7 +22,11 @@ def map_csv_row_to_compound(row: dict[str, str], mapping: dict[str, str]) -> dic
     return compound_data
 
 
-def report_csv_information(csv_data: list[dict[str, str]], mapping_data: dict[str, any] | None, entity_type: str):
+def report_csv_information(
+    csv_data: list[dict[str, str]],
+    entity_type: str,
+    mapping_data: Optional[dict[str, any]] = None,
+):
     """
     Report information about CSV data and mapping.
 
@@ -44,12 +49,12 @@ def report_csv_information(csv_data: list[dict[str, str]], mapping_data: dict[st
 
 def send_csv_upload_request(
     csv_path: Path,
-    mapping_data: dict[str, any] | None,
     url: str,
     endpoint: str,
-    error_handling: str,
     entity_type: str,
-    csv_data: list[dict[str, str]] | None = None,
+    mapping_data: Optional[dict[str, any]] = None,
+    error_handling: Optional[str] = None,
+    csv_data: Optional[list[dict[str, str]]] = None,
     save_errors: bool = False,
 ) -> None:
     """

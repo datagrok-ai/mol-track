@@ -41,8 +41,7 @@ def get_additions(db: Session, role: enums.AdditionsRole | None = None) -> List[
     query = db.query(models.Addition)
     try:
         if role is None:
-            ret = query.all()
-            return ret
+            return query.all()
         return query.filter_by(role=role).all()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
