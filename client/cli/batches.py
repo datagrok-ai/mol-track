@@ -1,140 +1,83 @@
-import json
-import typer
 import requests
+import typer
+from client.cli.shared import EntityCLI
 from client.config.settings import settings
-from client.utils.api_helpers import handle_delete_request, handle_get_request, print_response
-from client.utils.data_ingest import report_csv_information, send_csv_upload_request
-from client.utils.display import display_batches_table, display_properties_table
-from client.utils.file_utils import load_and_validate_mapping, validate_and_load_csv_data, write_result_to_file
+from client.utils.api_helpers import print_response
+from client.utils.display import display_batches_table
 
+from app.utils import enums
 
 batch_app = typer.Typer()
 
 
-# Batch Commands
+class BatchCLI(EntityCLI):
+    entity_type = "batches"
+    display_fn = staticmethod(display_batches_table)
+
+    def get_endpoint(self) -> str:
+        return "v1/batches"
+
+
+batch_cli = BatchCLI()
+
+
 @batch_app.command("list")
 def list_batches_group(
     skip: int = typer.Option(0, "--skip", "-s", help="Number of records to skip"),
     limit: int = typer.Option(10, "--limit", "-l", help="Maximum number of records to return"),
-    url: str = settings.API_BASE_URL,
+    url: str = typer.Option(settings.API_BASE_URL, help="API base URL"),
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
-    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
+    output_file: str | None = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
-    """
-    List batches using the v1 endpoint.
-
-    If no batch_id is provided, lists all batches with pagination.
-    If batch_id is provided, gets the specific batch.
-    """
-    # List all batches
-    endpoint = f"{url}/v1/batches/?skip={skip}&limit={limit}"
-    data = handle_get_request(endpoint)
-
-    if output_format == "json":
-        print(json.dumps(data, indent=2))
-    else:
-        # Display single compound in table format
-        display_batches_table(data)
-
-    write_result_to_file(data, output_format, output_file)
-
-
-@batch_app.command("load")
-def create_batches_from_csv(
-    csv_file: str = typer.Argument(..., help="Path to the CSV file containing batch data"),
-    mapping_file: str = typer.Option(None, "--mapping", "-m", help="Path to the JSON mapping file (optional)"),
-    rows: int | None = typer.Option(None, "--rows", "-r", help="Number of data rows to process (excludes header row)"),
-    url: str = settings.API_BASE_URL,
-    error_handling: str = typer.Option(
-        "reject_all", "--error-handling", "-e", help="Error handling strategy: reject_all or reject_row"
-    ),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
-    save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
-):
-    """
-    Add batches from a CSV file using the /v1/batches/ endpoint.
-
-    The CSV file should contain batch data with headers. If a mapping file is provided,
-    it should be a JSON object mapping CSV column names to field names.
-
-    Example mapping:
-    {
-        "structure": "smiles",
-        "batch_corporate_id": "batches_details.batch_corporate_id",
-        "common_name": "compounds_details.common_name",
-        "cas": "compounds_details.cas"
-    }
-
-    If no mapping is provided, the system will attempt to infer the mapping from column names.
-
-    Use --rows to limit the number of data rows processed (header row is excluded).
-    """
-
-    # Use utility functions for common steps
-    csv_path, csv_data = validate_and_load_csv_data(csv_file, "batches", rows)
-    mapping_data = load_and_validate_mapping(mapping_file)
-    report_csv_information(csv_data, mapping_data, "batches")
-
-    if dry_run:
-        typer.echo("✅ Dry run completed successfully!")
-        return
-
-    # Send the request using utility function
-    send_csv_upload_request(
-        csv_path=csv_path,
-        mapping_data=mapping_data,
-        url=url,
-        endpoint="/v1/batches/",
-        error_handling=error_handling,
-        entity_type="batches",
-        csv_data=csv_data if rows is not None else None,
-        save_errors=save_errors,
-    )
+    batch_cli.list(skip=skip, limit=limit, url=url, output_format=output_format, output_file=output_file)
 
 
 @batch_app.command("get")
 def get_batch(
     corporate_batch_id: str = typer.Argument(..., help="Corporate Batch ID (friendly name) to retrieve"),
-    url: str = settings.API_BASE_URL,
+    url: str = typer.Option(settings.API_BASE_URL, help="API base URL"),
     output_format: str = typer.Option("table", "--output-format", "-o", help="Output format: table or json"),
-    output_file: str = typer.Option(None, "--output-file", "-of", help="Path to output file"),
+    output_file: str | None = typer.Option(None, "--output-file", "-of", help="Path to output file"),
 ):
-    """
-    Get a specific batch by corporate_batch_id (friendly name).
-    """
-    params = {"property_value": corporate_batch_id, "property_name": "corporate_batch_id"}
-    endpoint = f"{url}/v1/batches"
-    data = handle_get_request(endpoint, params=params)
-    if output_format == "json":
-        typer.echo(json.dumps(data, indent=2))
-    else:
-        display_batches_table([data])
-        display_properties_table(data["properties"], display_value=True)
-
-    write_result_to_file(data, output_format, output_file)
+    batch_cli.get(corporate_batch_id, url=url, output_format=output_format, output_file=output_file)
 
 
 @batch_app.command("delete")
 def delete_batch(
     corporate_batch_id: str = typer.Argument(..., help="Corporate Batch ID (friendly name) to delete"),
-    url: str = settings.API_BASE_URL,
+    url: str = typer.Option(settings.API_BASE_URL, help="API base URL"),
 ):
-    """
-    Delete a specific batch by Corporate Batch ID (friendly name).
-    """
-    endpoint = f"{url}/v1/batches/{corporate_batch_id}"
-    handle_delete_request(endpoint)
-    typer.echo(f"✅ Batch with friendly name {corporate_batch_id} has been successfully deleted.")
+    batch_cli.delete(corporate_batch_id, url=url)
+
+
+@batch_app.command("load")
+def create_batches_from_csv(
+    csv_file: str = typer.Argument(..., help="Path to the CSV file containing batch data"),
+    mapping_file: str | None = typer.Option(None, "--mapping", "-m", help="Path to the JSON mapping file (optional)"),
+    rows: int | None = typer.Option(None, "--rows", "-r", help="Number of data rows to process (excludes header row)"),
+    url: str = typer.Option(settings.API_BASE_URL, help="API base URL"),
+    error_handling: enums.ErrorHandlingOptions = typer.Option(
+        "reject_all", "--error-handling", "-e", help="Error handling strategy"
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
+    save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
+):
+    batch_cli.load_from_csv(
+        csv_file=csv_file,
+        mapping_file=mapping_file,
+        rows=rows,
+        url=url,
+        error_handling=error_handling,
+        dry_run=dry_run,
+        save_errors=save_errors,
+    )
 
 
 @batch_app.command("additions")
 def get_batch_additions(
     corporate_batch_id: str = typer.Argument(..., help="Corporate Batch ID (friendly name) to get additions for"),
-    url: str = settings.API_BASE_URL,
+    url: str = typer.Option(settings.API_BASE_URL, help="API base URL"),
 ):
-    """
-    Get all additions for a specific batch using the v1 endpoint.
-    """
     params = {"property_value": corporate_batch_id, "property_name": "corporate_batch_id"}
     response = requests.get(f"{url}/v1/batches/additions", params=params)
     # TODO: This will probably need to be formatted
