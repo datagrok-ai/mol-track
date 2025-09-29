@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 import typer
 
 from app import models
@@ -30,11 +31,7 @@ def register_additions_commands(app: typer.Typer):
         ):
             endpoint = f"{url}/v1/additions{_endpoint_suffix}"
             data = handle_get_request(endpoint)
-            if output_format == "json":
-                typer.echo(json.dumps(data, indent=2))
-            else:
-                display_additions_table(data)
-            write_result_to_file(data, output_format, output_file)
+            output_data(data, output_format, output_file, display_additions_table)
 
         app.command(cmd_name, help=description)(command_func)
 
@@ -88,40 +85,33 @@ def get_addition(
 
     endpoint = f"{url}/v1/additions/{addition_id}"
     data = handle_get_request(endpoint)
-
-    if output_format == "json":
-        typer.echo(json.dumps(data, indent=2))
-    else:
-        display_additions_table([data])
-
-    write_result_to_file(data, output_format, output_file)
+    output_data(data, output_format, output_file, display_additions_table)
 
 
 @additions_app.command("load")
 def add_additions_from_csv(
     csv_file: str = typer.Argument(..., help="Path to the CSV file containing addition data"),
-    rows: int | None = typer.Option(None, "--rows", "-r", help="Number of data rows to process (excludes header row)"),
+    rows: Optional[int] = typer.Option(
+        None, "--rows", "-r", help="Number of data rows to process (excludes header row)"
+    ),
     url: str = settings.API_BASE_URL,
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
     save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
 ):
     """
-    Add additions from a CSV file using the `/v1/additions/` API endpoint.
-    The CSV file must include headers corresponding to the addition fields.
+    Add additions from a CSV file.
 
-    Parameters:
-    - csv_file: Path to the CSV file containing addition data.
-    - rows: Optional. Limit the number of data rows to process (header row is excluded).
-    - url: Optional. Base URL of the API server. Defaults to the configured API_BASE_URL.
-    - dry_run: Optional. If True, validate data without sending it to the server.
-    - save_errors: Optional. If True, save any error records to a JSON file.
+    Args:
+        csv_file: Path to the CSV file.
+        rows: Optional number of rows to process (excluding header).
+        url: API base URL. Defaults to settings.API_BASE_URL.
+        dry_run: Validate data without sending it.
+        save_errors: Save errors to JSON file.
     """
-
     # Use utility functions for common steps
     csv_path, csv_data = validate_and_load_csv_data(csv_file, "additions", rows)
     report_csv_information(csv_data, "additions")
 
-    # TODO: Not sure if we need the dry_run option for additions since it does nothing
     if dry_run:
         typer.echo("✅ Dry run completed successfully!")
         return
@@ -135,3 +125,14 @@ def add_additions_from_csv(
         csv_data=csv_data if rows is not None else None,
         save_errors=save_errors,
     )
+
+
+def output_data(data, output_format="table", output_file=None, table_display_func=None):
+    table_data = data if isinstance(data, list) else [data]
+
+    if output_format == "json":
+        typer.echo(json.dumps(data, indent=2))
+    elif table_display_func:
+        table_display_func(table_data)
+
+    write_result_to_file(data, output_format, output_file)
