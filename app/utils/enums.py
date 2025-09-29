@@ -160,11 +160,14 @@ class AggregationNumericOp(str, enum.Enum):
     AVG = "AVG"
     STDEV = "STDEV"
     VARIANCE = "VARIANCE"
+    STDDEV_POP = "STDDEV_POP"
+    VAR_POP = "VAR_POP"
     SKEW = "SKEW"
     KURT = "KURT"
     Q1 = "Q1"
     Q2 = "Q2"
     Q3 = "Q3"
+    ARRAY_AGG = "ARRAY_AGG"
 
     @classmethod
     def _missing_(cls, value):
