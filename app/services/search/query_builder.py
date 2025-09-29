@@ -5,7 +5,6 @@ import app.models as models
 from app.services.search.utils.aggregation_operators import AggregationOperators
 from app.services.search.utils.helper_functions import get_qualifier_sql, sanitize_field_name
 from app.services.search.utils.join_tools import JoinOrderingTool
-from app.utils.enums import AggregationStringOp
 
 
 class QueryBuildError(Exception):
@@ -99,8 +98,7 @@ class QueryBuilder:
             column_value = details["column_value"]
             sql = details["sql"]
             statement = AggregationOperators.get_sql_expression(operation, column_value, sql)
-            if operation not in [AggregationStringOp.LONGEST.value, AggregationStringOp.SHORTEST.value]:
-                statement += f" FILTER (WHERE {details['sql']})"
+            statement += f" FILTER (WHERE {details['sql']})"
             statement = statement + f" AS {alias} "
             qualifier = details.get("qualifier_field", None)
             if qualifier:

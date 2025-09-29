@@ -27,7 +27,8 @@ class AggregationOperators:
         AggregationStringOp.MOST_FREQUENT.value: "MODE() WITHIN GROUP (ORDER BY {column}) ",
     }
 
-    def get_sql_expression(cls, operator: str | None, column: str) -> str:
+    @classmethod
+    def get_sql_expression(cls, operator: str | None, column: str, condition: str) -> str:
         if not operator:
             return f"MAX({column})"
 

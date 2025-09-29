@@ -217,9 +217,6 @@ def test_sql_injection_attempt(client, test_db):
 @pytest.mark.usefixtures("preload_simple_data")
 def test_all_numeric_aggregations(client):
     for aggr in enums.AggregationNumericOp:
-        if aggr in (enums.AggregationNumericOp.SKEW, enums.AggregationNumericOp.KURT):
-            continue
-
         response = client.post(
             "v1/search/compounds",
             json={

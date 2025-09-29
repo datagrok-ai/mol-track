@@ -148,7 +148,6 @@ class SettingName(str, enum.Enum):
 
 
 class AggregationNumericOp(str, enum.Enum):
-    FIRST = "FIRST"
     TOTAL_COUNT = "COUNT"
     VALUE_COUNT = "VALUES"
     UNIQUE_COUNT = "UNIQUE"
@@ -162,8 +161,6 @@ class AggregationNumericOp(str, enum.Enum):
     VARIANCE = "VARIANCE"
     STDDEV_POP = "STDDEV_POP"
     VAR_POP = "VAR_POP"
-    SKEW = "SKEW"
-    KURT = "KURT"
     Q1 = "Q1"
     Q2 = "Q2"
     Q3 = "Q3"
@@ -177,10 +174,7 @@ class AggregationNumericOp(str, enum.Enum):
 class AggregationStringOp(str, enum.Enum):
     CONCAT_ALL = "CONCAT ALL"
     CONCAT_UNIQUE = "CONCAT UNIQUE"
-    LONGEST = "LONGEST"
-    SHORTEST = "SHORTEST"
     MOST_FREQUENT = "MOST FREQUENT"
-    CONCAT_COUNTS = "CONCAT COUNTS"
 
     @classmethod
     def _missing_(cls, value):
