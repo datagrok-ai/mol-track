@@ -6,7 +6,6 @@ from dateutil.parser import parse as date_parse
 csv_app = typer.Typer()
 
 
-# TODO: Ask whether we really want to keep this command
 @csv_app.command("analyze")
 def analyze_csv_columns(
     input_csv: str = typer.Argument(..., help="Path to the input CSV file"),

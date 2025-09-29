@@ -17,9 +17,9 @@ The --output parameter can be:
 - A JSON file path containing an object: {"output": ["id", "canonical_smiles"]}
 
 Example usage:
-    mtcli.py search compounds --output "id,canonical_smiles" --filter '{"field": "compounds.details.common_name", "operator": "=", "value": "Aspirin"}'
+    mtcli.py search compounds --output "compounds.id,compounds.canonical_smiles" --filter '{"field": "compounds.details.common_name", "operator": "=", "value": "Aspirin"}'
     mtcli.py search compounds --output output.json --filter filter.json --output-format table
-    mtcli.py search compounds --output "id,canonical_smiles" --output-format csv
+    mtcli.py search compounds --output "compounds.id,compounds.canonical_smiles" --output-format csv
 """,
     },
     "batches": {
@@ -32,12 +32,12 @@ The --output parameter can be:
 - A JSON file path containing an object: {"output": ["id", "batch_regno"]}
 
 Example usage:
-    mtcli.py search batches --output "id,batch_regno" --filter '{"field": "batches.compound_id", "operator": "=", "value": 1}'
+    mtcli.py search batches --output "batches.id,batches.batch_regno" --filter '{"field": "batches.compound_id", "operator": "=", "value": 1}'
     mtcli.py search batches --output output.json --filter batch_filter.json --output-format table
-    mtcli.py search batches --output "id,batch_regno" --output-format csv
+    mtcli.py search batches --output "batches.id,batches.batch_regno" --output-format csv
 """,
     },
-    "assay-results": {
+    "assay_results": {
         "endpoint": "/v1/search/assay-results",
         "doc": """Advanced search for assay results using /v1/search/assay-results endpoint.
 
@@ -47,9 +47,9 @@ The --output parameter can be:
 - A JSON file path containing an object: {"output": ["id", "value_num"]}
 
 Example usage:
-    mtcli.py search assay-results --output "id,value_num" --filter '{"field": "assay_results.value_num", "operator": ">", "value": 50}'
-    mtcli.py search assay-results --output output.json --filter assay_filter.json --output-format table
-    mtcli.py search assay-results --output "id,value_num" --output-format csv
+    mtcli.py search assay_results --output "assay_results.id,assay_results.details.Reported CLint" --filter '{"field": "assay_results.details.Reported CLint", "operator": ">", "value": 50}'
+    mtcli.py search assay_results --output output.json --filter assay_result_filter.json --output-format table
+    mtcli.py search assay_results --output "assay_results.id,assay_results.details.Reported CLint" --output-format csv
 """,
     },
     "assays": {
@@ -62,12 +62,12 @@ The --output parameter can be:
 - A JSON file path containing an object: {"output": ["id", "value_num"]}
 
 Example usage:
-    mtcli.py search assays --output "id,value_num" --filter '{"field": "assay_results.value_num", "operator": ">", "value": 50}'
+    mtcli.py search assays --output "assays.id,assays.details.assay format" --filter '{"field": "assays.details.assay format", "operator": "=", "value": "in cellulo"}'
     mtcli.py search assays --output output.json --filter assay_filter.json --output-format table
-    mtcli.py search assays --output "id,value_num" --output-format csv
+    mtcli.py search assays --output "assays.id,assays.details.assay format" --output-format csv
 """,
     },
-    "assay-runs": {
+    "assay_runs": {
         "endpoint": "/v1/search/assay-runs",
         "doc": """Advanced search for assay runs using /v1/search/assay-runs endpoint.
 
@@ -77,9 +77,9 @@ The --output parameter can be:
 - A JSON file path containing an object: {"output": ["id", "value_num"]}
 
 Example usage:
-    mtcli.py search assays --output "id,value_num" --filter '{"field": "assay_results.value_num", "operator": ">", "value": 50}'
-    mtcli.py search assays --output output.json --filter assay_filter.json --output-format table
-    mtcli.py search assays --output "id,value_num" --output-format csv
+    mtcli.py search assay_runs --output "assay_runs.id,assay_runs.details.Cell Species" --filter '{"field": "assay_runs.details.Cell Species", "operator": "=", "value": "Human"}'
+    mtcli.py search assay_runs --output output.json --filter assay_run_filter.json --output-format table
+    mtcli.py search assay_runs --output "assay_runs.id,assay_runs.details.Cell Species" --output-format csv
 """,
     },
 }
