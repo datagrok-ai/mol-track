@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Optional
 import requests
 from sqlalchemy import text
 import typer
@@ -12,12 +12,10 @@ from client.utils.display import display_search_csv, display_search_table
 from client.utils.file_utils import write_result_to_file, load_input_from_file
 
 try:
-    from app.models import SearchRequest, SearchResponse
+    from app.models import SearchRequest
     from app.setup.database import engine, DB_SCHEMA
 except ImportError:
-    print("app.models import failed")
     SearchRequest = None
-    SearchResponse = None
     engine = None
     DB_SCHEMA = None
 
@@ -100,21 +98,18 @@ def run_advanced_search(
             typer.secho(f"Response: {response.text}", fg=typer.colors.RED, err=True)
 
 
-def get_table_row_counts(specific_tables: list[str] | None = None) -> dict[str, int]:
+def get_table_row_counts(specific_tables: Optional[list[str]] = None) -> dict[str, int]:
     """
     Get row counts for database tables.
 
     Args:
-        specific_tables: List of specific table names to count. If None, gets all tables.
+        specific_tables: List of specific table names to count. If None, counts all tables.
 
     Returns:
-        Dictionary mapping table names to row counts
+        Dictionary mapping table names to row counts.
     """
-    # Use the already-imported engine and DB_SCHEMA
     if engine is None or DB_SCHEMA is None:
         raise ImportError("Database connection not available - engine or DB_SCHEMA is None")
-
-    row_counts = {}
 
     with engine.connect() as connection:
         # Get all tables in the schema
@@ -124,30 +119,35 @@ def get_table_row_counts(specific_tables: list[str] | None = None) -> dict[str, 
             WHERE schemaname = :schema
             ORDER BY tablename
         """)
-
         tables_result = connection.execute(tables_query, {"schema": DB_SCHEMA})
         all_tables = [row[0] for row in tables_result] + ["rdk.mols"]
 
         # Filter tables if specific_tables is provided
-        if specific_tables is not None:
+        if specific_tables:
             all_tables = [table for table in all_tables if table in specific_tables]
 
-        # TODO build a union query so that theree is one traversal of the database
-        # Get actual row counts for each table
-        for table in all_tables:
-            count_query = text(f"SELECT COUNT(*) FROM {table}")
-            count_result = connection.execute(count_query)
-            row_counts[table] = count_result.scalar() or 0
+        if not all_tables:
+            return {}
 
-    return row_counts
+        union_queries = " UNION ALL ".join(
+            f"SELECT '{table}' AS table_name, COUNT(*) AS row_count FROM {table}" for table in all_tables
+        )
+        count_query = text(union_queries)
+        result = connection.execute(count_query)
+
+        return {row["table_name"]: row["row_count"] for row in result}
 
 
-def handle_get_request(endpoint: str, params: Dict[str, Any] = None):
+def handle_request(method: Callable, endpoint: str, **kwargs) -> Dict[str, Any]:
     try:
-        response = requests.get(endpoint, params=params, timeout=settings.REQUEST_TIMEOUT)
+        response = method(endpoint, timeout=settings.REQUEST_TIMEOUT, **kwargs)
         response.raise_for_status()
     except (RequestException, Timeout) as e:
-        typer.secho(f"❌ Error: {e}", fg=typer.colors.RED, err=True)
+        try:
+            err_detail = response.json().get("detail")
+            typer.secho(f"❌ Error: {err_detail}", fg=typer.colors.RED, err=True)
+        except Exception:
+            typer.secho(f"❌ Request failed: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
     try:
@@ -157,29 +157,13 @@ def handle_get_request(endpoint: str, params: Dict[str, Any] = None):
         raise typer.Exit(code=1)
 
 
+def handle_get_request(endpoint: str, params: Optional[Dict[str, Any]] = None):
+    return handle_request(requests.get, endpoint, params=params)
+
+
 def handle_delete_request(endpoint: str):
-    try:
-        response = requests.delete(endpoint)
-        resp_json = response.json()
-        response.raise_for_status()
-        return resp_json
-    except (RequestException, Timeout):
-        typer.secho(f"❌ Error: {resp_json['detail']}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
-    except (json.JSONDecodeError, ValueError):
-        typer.secho(f"❌ Failed to parse JSON. Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+    return handle_request(requests.delete, endpoint)
 
 
 def handle_put_request(endpoint: str, json_data: Dict[str, Any]):
-    try:
-        response = requests.put(endpoint, json=json_data, timeout=settings.REQUEST_TIMEOUT)
-        resp_json = response.json()
-        response.raise_for_status()
-        return resp_json
-    except (RequestException, Timeout):
-        typer.secho(f"❌ Error: {resp_json['detail']}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
-    except (json.JSONDecodeError, ValueError):
-        typer.secho(f"❌ Failed to parse JSON. Response: {response.text}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+    return handle_request(requests.put, endpoint, json=json_data)
