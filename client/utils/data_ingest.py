@@ -9,19 +9,6 @@ import requests
 import typer
 
 
-def map_csv_row_to_compound(row: dict[str, str], mapping: dict[str, str]) -> dict:
-    """Map a CSV row to compound data using the provided mapping."""
-    compound_data = {}
-
-    for csv_field, model_field in mapping.items():
-        if csv_field in row:
-            value = row[csv_field].strip() if row[csv_field] else None
-            if value is not None:
-                compound_data[model_field] = value
-
-    return compound_data
-
-
 def report_csv_information(
     csv_data: list[dict[str, str]],
     entity_type: str,
