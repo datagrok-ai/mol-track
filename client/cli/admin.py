@@ -78,4 +78,19 @@ def set_batchregno_sequence_start(
     _update_admin_setting(enums.SettingName.BATCH_SEQUENCE_START, start_value, url)
 
 
-# TODO: Add commands for updating friendly names for corporate_compound_id and corporate_batch_id
+@admin_app.command("set-compound-friendly-name")
+def set_compound_friendly_name(
+    friendly_name: str = typer.Argument(..., help="Friendly name for corporate_compound_id"),
+    url: str = settings.API_BASE_URL,
+):
+    """Set the friendly name for corporate_compound_id."""
+    _update_admin_setting(enums.SettingName.CORPORATE_COMPOUND_ID_FRIENDLY_NAME, friendly_name, url)
+
+
+@admin_app.command("set-batch-friendly-name")
+def set_batch_friendly_name(
+    friendly_name: str = typer.Argument(..., help="Friendly name for corporate_batch_id"),
+    url: str = settings.API_BASE_URL,
+):
+    """Set the friendly name for corporate_batch_id."""
+    _update_admin_setting(enums.SettingName.CORPORATE_BATCH_ID_FRIENDLY_NAME, friendly_name, url)
