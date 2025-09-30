@@ -11,7 +11,6 @@ from client.cli.additions import additions_app
 from client.cli.assays import assays_app
 from client.cli.database import database_app
 from client.cli.directory import directory_app
-from client.cli.csv import csv_app
 from client.cli.search import search_app
 from client.cli.admin import admin_app
 
@@ -30,7 +29,6 @@ app.add_typer(additions_app, name="additions", help="Addition management command
 app.add_typer(assays_app, name="assays", help="Assays management commands")
 app.add_typer(database_app, name="database", help="Database management commands")
 app.add_typer(directory_app, name="directory", help="Directory loading commands")
-app.add_typer(csv_app, name="csv", help="CSV utility commands")
 app.add_typer(search_app, name="search", help="Search functionality")
 app.add_typer(admin_app, name="admin", help="Administrative functions")
 
