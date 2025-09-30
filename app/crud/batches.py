@@ -7,13 +7,9 @@ from app import crud, models
 
 
 def enrich_batch(batch: models.Batch) -> models.BatchResponse:
-    batch_resp = models.BatchResponse.model_validate(batch, from_attributes=True)
-    batch_resp.properties = enrich_model(batch, models.BatchResponse, "batch_details", "batch_id")
+    batch_resp = enrich_model(batch, models.BatchResponse, "batch_details", "batch_id")
     if batch.compound:
-        batch_resp.compound = models.CompoundResponse.model_validate(batch.compound, from_attributes=True)
-        batch_resp.compound.properties = enrich_model(
-            batch.compound, models.CompoundResponse, "compound_details", "compound_id"
-        )
+        batch_resp.compound = enrich_model(batch.compound, models.CompoundResponse, "compound_details", "compound_id")
     return batch_resp
 
 

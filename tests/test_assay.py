@@ -22,7 +22,6 @@ def test_get_all_assays(client, preload_schema, preload_assays):
     assay = assays[0]
     assert assay["name"] == "Hepatocyte Stability"
     assert "properties" in assay and isinstance(assay["properties"], list) and len(assay["properties"]) > 0
-    assert "assay_details" in assay and isinstance(assay["assay_details"], list) and len(assay["assay_details"]) > 0
     assert (
         "property_requirements" in assay
         and isinstance(assay["property_requirements"], list)
