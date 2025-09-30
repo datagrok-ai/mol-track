@@ -134,8 +134,7 @@ def get_table_row_counts(specific_tables: Optional[list[str]] = None) -> dict[st
         )
         count_query = text(union_queries)
         result = connection.execute(count_query)
-
-        return {row["table_name"]: row["row_count"] for row in result}
+        return {row["table_name"]: row["row_count"] for row in result.mappings()}
 
 
 def handle_request(method: Callable, endpoint: str, **kwargs) -> Dict[str, Any]:

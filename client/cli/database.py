@@ -1,4 +1,5 @@
 from sqlalchemy import text
+from sqlmodel import SQLModel
 import typer
 
 from client.config import settings
@@ -41,49 +42,20 @@ def database_clean(
     url: str = settings.API_BASE_URL,
 ):
     """
-    Clean the database by deleting all data rows in dependency order.
+    Clean the database by deleting rows in dependency order.
 
-    This will delete rows from the following tables in order:
-    - assay_results
-    - assay_run_details
-    - assay_runs
-    - assay_properties
-    - assay_details
-    - assays
-    - batch_additions
-    - batch_details
-    - batches
-    - additions
-    - compound_details
-    - compounds
-    - properties (except corporate_compound_id and corporate_batch_id properties)
-
-    The following tables are preserved:
-    - semantic_types
-    - settings
-    - users
+    All assay, batch, compound, and property data are removed,
+    while semantic_types, settings, and users are preserved.
     """
-    try:
-        # Tables to clean in dependency order (child tables first)
-        tables_to_clean = [
-            "assay_results",
-            "assay_run_details",
-            "assay_runs",
-            "assay_properties",
-            "assay_details",
-            "assays",
-            "batch_additions",
-            "batch_details",
-            "batches",
-            "additions",
-            "compound_details",
-            "compounds",
-            "properties",
-            "rdk.mols",
-        ]
 
+    try:
         # Tables to preserve
         tables_to_preserve = ["semantic_types", "settings", "users"]
+
+        # Tables to clean in dependency order (child tables first)
+        tables_in_dependency_order = reversed(SQLModel.metadata.sorted_tables)
+        tables_to_clean = [t.name for t in tables_in_dependency_order if t.name not in tables_to_preserve]
+        tables_to_clean.append("rdk.mols")  # Include the rdkit mols table
 
         # Show what will be cleaned
         typer.echo("🗑️  Database Clean Operation")
@@ -95,9 +67,6 @@ def database_clean(
         typer.echo("\nTables to be preserved:")
         for table in tables_to_preserve:
             typer.echo(f"  ✓ {table}")
-
-        # typer.echo(f"\nDatabase: {DB_NAME} (schema: {DB_SCHEMA})")
-        # typer.echo(f"Host: {DB_HOST}:{DB_PORT}")
 
         # Get row counts before deletion
         typer.echo("\n📊 Getting current row counts...")
@@ -132,8 +101,6 @@ def database_clean(
         if total_rows == 0:
             typer.echo("\n✅ Database is already clean - no rows to delete.")
             return
-
-        # typer.echo(f"\nTotal rows to delete: {total_rows:,}")
 
         # Confirm unless --force is used
         if not force:
