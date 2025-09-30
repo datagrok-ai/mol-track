@@ -31,20 +31,23 @@ class AssaysCLI(EntityCLI):
 
         return handle_get_request(f"{url}/{self.get_endpoint()}/{entity_id}")
 
+    def load_assays(self, file_path: str, url: str):
+        """
+        Load assays from a JSON file using the /v1/assays endpoint.
+        """
+        assay_data = load_and_validate_json(file_path)
+        response = requests.post(f"{url}/{self.get_endpoint()}", json=assay_data)
+        print_response(response)
+
     def register_commands(self, app: typer.Typer):
         super().register_commands(app)
 
         @app.command("load")
-        def load_assays(
+        def load_assay_entities(
             file_path: str = typer.Argument(..., help="Path to the JSON file containing assay data"),
             url: str = typer.Option(settings.API_BASE_URL, help="API base URL"),
         ):
-            """
-            Load assays from a JSON file using the /v1/assays endpoint.
-            """
-            assay_data = load_and_validate_json(file_path)
-            response = requests.post(f"{url}/{self.get_endpoint()}", json=assay_data)
-            print_response(response)
+            self.load_assays(file_path, url)
 
 
 assays_cli = AssaysCLI()
@@ -89,5 +92,5 @@ class AssayResultsCLI(EntityCLI):
         return handle_get_request(f"{url}/{self.get_endpoint()}/{entity_id}")
 
 
-assay_runs_cli = AssayResultsCLI()
-assay_runs_cli.register_commands(assays_results_app)
+assay_results_cli = AssayResultsCLI()
+assay_results_cli.register_commands(assays_results_app)

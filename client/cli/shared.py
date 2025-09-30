@@ -98,21 +98,47 @@ class EntityCLI(ABC):
             dry_run: bool = typer.Option(False, "--dry-run", help="Validate data without sending to server"),
             save_errors: bool = typer.Option(False, "--save-errors", help="Save error records to a JSON file"),
         ):
-            csv_path, csv_data = validate_and_load_csv_data(csv_file, self.entity_type, rows)
-            mapping_data = load_and_validate_mapping(mapping_file) if mapping_file else None
-            report_csv_information(csv_data, self.entity_type, mapping_data)
-
-            if dry_run:
-                typer.echo("✅ Dry run completed successfully!")
-                return
-
-            send_csv_upload_request(
-                csv_path=csv_path,
-                mapping_data=mapping_data,
+            self.load_entity(
+                csv_file=csv_file,
+                mapping_file=mapping_file,
+                rows=rows,
                 url=url,
-                endpoint=f"/{self.get_endpoint()}/",
-                error_handling=error_handling.value,
-                entity_type=self.entity_type,
-                csv_data=csv_data if rows else None,
+                error_handling=error_handling,
+                dry_run=dry_run,
                 save_errors=save_errors,
             )
+
+    def load_entity(
+        self,
+        csv_file: Path,
+        url: str,
+        mapping_file: Path | None = None,
+        rows: int | None = None,
+        error_handling: enums.ErrorHandlingOptions = enums.ErrorHandlingOptions.reject_all,
+        dry_run: bool = False,
+        save_errors: bool = False,
+    ):
+        error_handling = (
+            error_handling.value if isinstance(error_handling, enums.ErrorHandlingOptions) else error_handling
+        )
+        csv_path, csv_data = validate_and_load_csv_data(csv_file, self.entity_type, rows)
+        mapping_data = load_and_validate_mapping(mapping_file) if mapping_file else None
+        report_csv_information(csv_data, self.entity_type, mapping_data)
+
+        if dry_run:
+            typer.echo("✅ Dry run completed successfully!")
+            return
+
+        print("error handling", error_handling)
+        print(type(error_handling))
+
+        send_csv_upload_request(
+            csv_path=csv_path,
+            mapping_data=mapping_data,
+            url=url,
+            endpoint=f"/{self.get_endpoint()}/",
+            error_handling=error_handling,
+            entity_type=self.entity_type,
+            csv_data=csv_data if rows else None,
+            save_errors=save_errors,
+        )
