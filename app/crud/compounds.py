@@ -4,7 +4,7 @@ from rdkit import Chem
 from sqlalchemy import select, text
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
-from app.crud.properties import enrich_properties
+from app.crud.properties import enrich_model
 from app import crud, models
 from app.utils.admin_utils import admin
 from app.utils import type_casting_utils
@@ -20,15 +20,9 @@ def get_compound_by_hash(db: Session, hash_mol: str):
     return db.query(models.Compound).filter(models.Compound.hash_mol == hash_mol).all()
 
 
-def enrich_compound(compound: models.Compound) -> models.CompoundResponse:
-    return models.CompoundResponse(
-        **compound.dict(), properties=enrich_properties(compound, "compound_details", "compound_id")
-    )
-
-
 def read_compounds(db: Session, skip: int = 0, limit: int = 100):
     compounds = db.query(models.Compound).offset(skip).limit(limit).all()
-    return [enrich_compound(c) for c in compounds]
+    return [enrich_model(c, models.CompoundResponse, "compound_details", "compound_id") for c in compounds]
 
 
 def get_compound_by_synonym(db: Session, property_value: str, property_name: str = None, enrich: bool = True):
@@ -52,7 +46,7 @@ def get_compound_by_synonym(db: Session, property_value: str, property_name: str
     if not compound:
         return None
 
-    return enrich_compound(compound) if enrich else compound
+    return enrich_model(compound, models.CompoundResponse, "compound_details", "compound_id") if enrich else compound
 
 
 def update_compound(db: Session, property_value: str, property_name: str, update_data: models.CompoundUpdate):

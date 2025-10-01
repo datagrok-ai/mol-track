@@ -5,7 +5,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.sql import func
 from app.utils import enums
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 # import crud
 # # Handle both package imports and direct execution
@@ -66,6 +66,7 @@ class CompoundCreate(CompoundBase):
 
 class CompoundResponseBase(CompoundBase):
     id: int = Field(primary_key=True, index=True)
+    molregno: int = Field(nullable=False)
     canonical_smiles: str = Field(nullable=False)
     inchi: str = Field(nullable=False)
     inchikey: str = Field(nullable=False, unique=True)
@@ -115,7 +116,6 @@ class Compound(CompoundResponseBase, table=True):
     __tablename__ = "compounds"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    molregno: int = Field(nullable=False)
     formula: str = Field(nullable=False)
     hash_mol: str = Field(nullable=False)
     hash_tautomer: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
@@ -189,6 +189,7 @@ class BatchResponseBase(BatchBase):
 class BatchResponse(BatchResponseBase):
     batch_additions: List["BatchAddition"] = []
     properties: Optional[List["PropertyWithValue"]] = []
+    compound: Optional["CompoundResponse"] = None
 
 
 class Batch(BatchResponseBase, table=True):
@@ -240,6 +241,10 @@ class PropertyBase(SQLModel):
     choices: Optional[str] = Field(default=None)
     validators: Optional[str] = Field(default=None)
     friendly_name: Optional[str] = Field(default=None)
+    created_at: Optional[datetime] = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), server_default=func.now()),
+    )
 
 
 class PropertyInput(PropertyBase):
@@ -289,7 +294,6 @@ class SynonymTypeBase(PropertyInput):
 
 class PropertyResponse(PropertyBase):
     id: int = Field(primary_key=True, index=True)
-    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
 
 
 class AssayProperty(SQLModel, table=True):
@@ -321,9 +325,24 @@ class AssayResponseBase(AssayBase):
     updated_at: datetime = Field(sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now()))
 
 
+class AssayDetail(SQLModel, table=True):
+    __tablename__ = "assay_details"
+    __table_args__ = {"schema": DB_SCHEMA}
+
+    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", primary_key=True)
+    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
+
+    value_datetime: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
+    value_num: Optional[float] = Field(default=None)
+    value_string: Optional[str] = Field(default=None)
+
+    assay: "Assay" = Relationship(back_populates="assay_details")
+    property: "Property" = Relationship(back_populates="assay_details")
+
+
 class AssayResponse(AssayResponseBase):
-    properties: List["Property"] = []
-    assay_details: List["AssayDetail"] = []
+    properties: Optional[List["PropertyWithValue"]] = []
     property_requirements: List["AssayProperty"] = []
 
 
@@ -335,7 +354,7 @@ class Assay(AssayResponseBase, table=True):
     updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
 
     properties: List["Property"] = Relationship(
-        back_populates="assays", link_model=AssayProperty, sa_relationship_kwargs={"viewonly": True}
+        back_populates="assays", link_model=AssayDetail, sa_relationship_kwargs={"viewonly": True}
     )
 
     assay_runs: List["AssayRun"] = Relationship(back_populates="assay")
@@ -414,7 +433,7 @@ class AssayResultDetail(SQLModel, table=True):
     value_bool: Optional[bool] = Field(default=None)
 
     assay_result: "AssayResult" = Relationship(back_populates="assay_result_details")
-    property: Optional["Property"] = Relationship()
+    property: Optional["Property"] = Relationship(back_populates="assay_result_details")
 
 
 class Property(PropertyResponse, table=True):
@@ -446,8 +465,10 @@ class Property(PropertyResponse, table=True):
 
     batch_details: List["BatchDetail"] = Relationship(back_populates="property")
     compound_details: List["CompoundDetail"] = Relationship(back_populates="property")
+    assay_details: List["AssayDetail"] = Relationship(back_populates="property")
+    assay_result_details: List["AssayResultDetail"] = Relationship(back_populates="property")
 
-    assays: List["Assay"] = Relationship(link_model=AssayProperty, sa_relationship_kwargs={"viewonly": True})
+    assays: List["Assay"] = Relationship(link_model=AssayDetail, sa_relationship_kwargs={"viewonly": True})
     assay_runs: List["AssayRun"] = Relationship(
         back_populates="properties", link_model=AssayRunDetail, sa_relationship_kwargs={"viewonly": True}
     )
@@ -497,6 +518,7 @@ class AssayResultResponseBase(AssayResultBase):
 class AssayResultResponse(AssayResultResponseBase):
     # Add a computed field for backward compatibility
     result_value: Optional[Union[float, str, bool]] = None
+    properties: List["PropertyWithValue"] = []
 
     @field_validator("result_value")
     def compute_result_value(cls, v, values):
@@ -523,22 +545,6 @@ class AssayResult(AssayResultResponseBase, table=True):
         link_model=AssayResultDetail,
         sa_relationship_kwargs={"lazy": "joined", "viewonly": True},
     )
-
-
-class AssayDetail(SQLModel, table=True):
-    __tablename__ = "assay_details"
-    __table_args__ = {"schema": DB_SCHEMA}
-
-    assay_id: int = Field(foreign_key=f"{DB_SCHEMA}.assays.id", primary_key=True)
-    property_id: int = Field(foreign_key=f"{DB_SCHEMA}.properties.id", primary_key=True)
-
-    value_datetime: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    value_uuid: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4)
-    value_num: Optional[float] = Field(default=None)
-    value_string: Optional[str] = Field(default=None)
-
-    assay: "Assay" = Relationship(back_populates="assay_details")
-    property: "Property" = Relationship()
 
 
 class BatchAssayResultsCreate(SQLModel):

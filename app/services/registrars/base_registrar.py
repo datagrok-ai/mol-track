@@ -217,6 +217,7 @@ class BaseRegistrar(ABC):
     def _process_row(self, row: Dict[str, Any], process_func):
         if self.stop_registration:
             self._add_output_row(row, "not_processed")
+            return
 
         try:
             process_func(row)

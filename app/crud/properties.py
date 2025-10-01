@@ -7,6 +7,9 @@ from app.utils.admin_utils import admin
 
 from typing import Type, Dict, Any
 from app.utils import enums, sql_utils
+from typing import TypeVar
+
+T = TypeVar("T")
 
 
 def create_properties(db: Session, properties: list[models.PropertyInput]) -> list[dict]:
@@ -70,7 +73,10 @@ def bulk_create_if_not_exists(
         )
     else:
         existing_entities = set(
-            db.query(getattr(model_cls, name_attr)).filter(getattr(model_cls, name_attr).in_(input_keys)).all()
+            value
+            for (value,) in db.query(getattr(model_cls, name_attr))
+            .filter(getattr(model_cls, name_attr).in_(input_keys))
+            .all()
         )
 
     to_insert = []
@@ -83,12 +89,19 @@ def bulk_create_if_not_exists(
 
         if item_name in reserved_names:
             result.append(
-                {"name": item_name} | {"status": f"Failed: {item_name} is a reserved name and cannot be used"}
+                {"name": item_name}
+                | {
+                    "registration_status": "failed",
+                    "registration_error_message": f"{item_name} is a reserved name and cannot be used",
+                }
             )
             continue
 
         if item_key in existing_entities:
-            result.append(item.model_dump() | {"status": "Skipped: already exists"})
+            result.append(
+                item.model_dump()
+                | {"registration_status": "Skipped", "registration_error_message": f"{item_name} already exists"}
+            )
             continue
 
         try:
@@ -103,7 +116,9 @@ def bulk_create_if_not_exists(
             to_insert.append(data)
             inserted_input_items.append(item)
         except Exception as e:
-            result.append(item.model_dump() | {"status": f"Failed: {str(e)}"})
+            result.append(
+                item.model_dump() | {"registration_status": "failed", "registration_error_message": str(e.args[0])}
+            )
 
     if to_insert:
         try:
@@ -112,11 +127,13 @@ def bulk_create_if_not_exists(
             db.commit()
 
             for i, row in enumerate(db_result):
-                result.append(model_cls.model_validate(row[0]).model_dump() | {"status": "created"})
+                result.append(model_cls.model_validate(row[0]).model_dump() | {"registration_status": "success"})
         except Exception as e:
-            reason = f"Insert error: {str(e)}"
+            reason = f"Insert error: {str(e.args[0])}"
             for item in inserted_input_items:
-                result.append(item.model_dump() | {"status": f"Failed: {reason}"})
+                result.append(
+                    item.model_dump() | {"registration_status": "failed", "registration_error_message": f"{reason}"}
+                )
 
     return result
 
@@ -150,7 +167,7 @@ def enrich_properties(owner, detail_attr: str, id_attr: str) -> list[models.Prop
         enriched.append(
             models.PropertyWithValue(
                 **prop.dict(),
-                value_qualifier=handle_value_qualifier(getattr(detail, "value_qualifier")),
+                value_qualifier=handle_value_qualifier(getattr(detail, "value_qualifier", None)),
                 value_num=getattr(detail, "value_num", None),
                 value_string=getattr(detail, "value_string", None),
                 value_datetime=getattr(detail, "value_datetime", None),
@@ -160,10 +177,32 @@ def enrich_properties(owner, detail_attr: str, id_attr: str) -> list[models.Prop
     return enriched
 
 
-def handle_value_qualifier(value_qualifier: int):
+def handle_value_qualifier(value_qualifier: int | None):
+    if value_qualifier is None:
+        return None
+
     value_qualifier_map = {
         enums.ValueQualifier.EQUALS.value: "=",
         enums.ValueQualifier.LESS_THAN.value: "<",
         enums.ValueQualifier.GREATER_THAN.value: ">",
     }
     return value_qualifier_map[value_qualifier]
+
+
+def enrich_model(owner, response_class: Type[T], detail_attr: str, id_attr: str) -> T:
+    """
+    Generic enrichment function.
+
+    Args:
+        owner: The SQLModel object to enrich (e.g., Assay, AssayResult).
+        response_class: The corresponding Response model class (e.g., AssayResponse).
+        detail_attr: Attribute name where the detail rows live (e.g., 'assay_details').
+        id_attr: Foreign key attribute name (e.g., 'assay_id').
+
+    Returns:
+        An enriched response model instance of type `response_class`.
+    """
+    resp = response_class.model_validate(owner, from_attributes=True)
+    if hasattr(owner, "properties"):
+        resp.properties = enrich_properties(owner, detail_attr, id_attr)
+    return resp

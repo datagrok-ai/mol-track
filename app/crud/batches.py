@@ -2,12 +2,15 @@ from fastapi import HTTPException
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
-from app.crud.properties import enrich_properties
+from app.crud.properties import enrich_model
 from app import crud, models
 
 
 def enrich_batch(batch: models.Batch) -> models.BatchResponse:
-    return models.BatchResponse(**batch.dict(), properties=enrich_properties(batch, "batch_details", "batch_id"))
+    batch_resp = enrich_model(batch, models.BatchResponse, "batch_details", "batch_id")
+    if batch.compound:
+        batch_resp.compound = enrich_model(batch.compound, models.CompoundResponse, "compound_details", "compound_id")
+    return batch_resp
 
 
 def get_batch_by_synonym(db: Session, property_value: str, property_name: str = None, enrich: bool = True):

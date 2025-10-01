@@ -1,5 +1,5 @@
 {
-    "epa_batch_id": "batch_details.epa_batch_id",
+    "epa_batch_id": "batch_details.EPA Batch ID",
     "Species": "assay_run_details.Cell Species",
     "Concentration (µM)": "assay_result_details.Dosed Concentration",
     "Mean HTC recovery (%; n=2)": "assay_result_details.Mean HTC recovery",

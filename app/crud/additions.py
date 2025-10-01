@@ -39,9 +39,12 @@ def create_additions(db: Session, additions: list[models.AdditionBase]) -> list[
 
 def get_additions(db: Session, role: enums.AdditionsRole | None = None) -> List[models.AdditionBase]:
     query = db.query(models.Addition)
-    if role is None:
-        return query.all()
-    return query.filter_by(role=role).all()
+    try:
+        if role is None:
+            return query.all()
+        return query.filter_by(role=role).all()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def get_addition_by_id(db: Session, addition_id: int) -> models.Addition:
@@ -61,10 +64,14 @@ def update_addition_by_id(db: Session, addition_id: int, addition_update: models
     for key, value in update_data.items():
         setattr(db_addition, key, value)
 
-    db_addition.updated_at = datetime.now()
-    db.add(db_addition)
-    db.commit()
-    db.refresh(db_addition)
+    try:
+        db_addition.updated_at = datetime.now()
+        db.add(db_addition)
+        db.commit()
+        db.refresh(db_addition)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e.args[0]))
     return db_addition
 
 

@@ -1,6 +1,6 @@
 {
    "smiles": "smiles",
-   "Common Name": "compound_details.common_name",
+   "Common Name": "compound_details.Common Name",
    "CAS": "compound_details.CAS",
    "EPA Compound ID": "compound_details.EPA Compound ID",
    "EPA Batch ID": "batch_details.EPA Batch ID",
