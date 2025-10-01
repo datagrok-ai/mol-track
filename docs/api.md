@@ -19,13 +19,13 @@
 | PATCH | /v1/admin/settings | Update Settings |
 | PATCH | /v1/admin/update-standardization-config | Update Standardization Config |
 
-### Assay_results
+### Assay results
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | /v1/assay_results/ | Create Assay Results |
 
-### Assay_runs
+### Assay runs
 
 | Method | Path | Description |
 |--------|------|-------------|
