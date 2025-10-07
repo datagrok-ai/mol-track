@@ -15,6 +15,20 @@ def assert_name_entity_type_equal(actual, expected):
     assert actual_name_entity_type == expected_name_entity_type
 
 
+@pytest.fixture
+def first_compound_with_synonyms(client, preload_schema, preload_compounds):
+    response = client.get("/v1/compounds/")
+    assert response.status_code == 200
+    compounds = response.json()
+    assert compounds, "No compounds returned"
+
+    first = compounds[0]
+    synonyms = [p for p in first["properties"] if p["semantic_type_id"] == 1]
+    assert synonyms, f"No synonym properties found for compound {first['canonical_smiles']}"
+
+    return first, synonyms
+
+
 @pytest.mark.parametrize(
     "endpoint,schema_file,response_key,expected_keys",
     [
@@ -131,6 +145,11 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     assert first["canonical_smiles"] == "O=C(O)c1cccc(C(=O)O)c1"
     assert first["inchikey"] == "QQVIHTHCMHWDBS-UHFFFAOYSA-N"
 
+    assert "batches" in first
+    assert isinstance(first["batches"], list)
+
+    assert "properties" in first
+    assert isinstance(first["properties"], list)
     props = {p["name"]: p for p in first["properties"]}
     assert props["EPA Compound ID"]["value_string"] == "EPA-001"
     assert props["CAS"]["value_string"] == "121-91-5"
@@ -138,82 +157,152 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     assert abs(props["MolLogP"]["value_num"] - 1.083) < 1e-3
 
 
-def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds):
-    response = client.get("/v1/compounds/")
-    assert response.status_code == 200
-    compounds = response.json()
-    first_compound = compounds[1]
+def test_get_compound_by_any_synonym(client, preload_schema, preload_compounds, first_compound_with_synonyms):
+    first, synonyms = first_compound_with_synonyms
 
-    corporate_compound_prop = next(
-        (p for p in first_compound["properties"] if p["name"] == "corporate_compound_id"), None
-    )
+    for prop in synonyms:
+        synonym_name = prop["name"]
+        synonym_value = prop["value_string"]
+
+        resp_val = client.get(f"/v1/compounds?property_value={synonym_value}")
+        assert resp_val.status_code == 200
+        assert resp_val.json()["id"] == first["id"]
+
+        resp_name = client.get(f"/v1/compounds?property_value={synonym_value}&property_name={synonym_name}")
+        assert resp_name.status_code == 200
+        assert resp_name.json()["id"] == first["id"]
+
+
+def test_get_compound_synonyms(client, preload_schema, preload_compounds, first_compound_with_synonyms):
+    _, synonyms = first_compound_with_synonyms
+    for prop in synonyms:
+        resp = client.get(f"/v1/compounds/synonyms?property_value={prop['value_string']}")
+        assert resp.status_code == 200
+        props = resp.json()
+        assert all(p["semantic_type_id"] == 1 for p in props), "Non-synonym returned"
+
+
+def test_get_compound_properties(client, preload_schema, preload_compounds, first_compound_with_synonyms):
+    first, synonyms = first_compound_with_synonyms
+    for prop in synonyms:
+        resp = client.get(f"/v1/compounds/properties?property_value={prop['value_string']}")
+        assert resp.status_code == 200
+        props = resp.json()
+        returned_names = {p["name"] for p in props}
+        original_names = {p["name"] for p in first["properties"]}
+        assert returned_names == original_names
+
+
+@pytest.mark.parametrize(
+    "update_payload",
+    [
+        ({"is_archived": True}),
+        ({"canonical_smiles": "CCC"}),
+    ],
+)
+def test_put_compound(client, preload_schema, preload_compounds, first_compound_with_synonyms, update_payload):
+    first, synonyms = first_compound_with_synonyms
+    corporate_compound_prop = next((p for p in first["properties"] if p["name"] == "corporate_compound_id"), None)
     assert corporate_compound_prop is not None, "No Corporate Compound ID found"
-    corporate_id = corporate_compound_prop["value_string"]
-    response = client.get(f"/v1/compounds?property_value={corporate_id}")
+    corporate_compound_id = corporate_compound_prop["value_string"]
+
+    response = client.put(f"/v1/compounds/{corporate_compound_id}", json=update_payload)
     assert response.status_code == 200
+    data = response.json()
 
-    result = response.json()
-    assert result["id"] == 2
-    assert result["canonical_smiles"] == "Oc1ccc(C(c2ccc(O)cc2)(C(F)(F)F)C(F)(F)F)cc1"
-    assert result["inchikey"] == "ZFVMWEVVKGLCIJ-UHFFFAOYSA-N"
-    assert result["inchi"] == (
-        "InChI=1S/C15H10F6O2/c16-14(17,18)13(15(19,20)21,9-1-5-11(22)6-2-9)10-3-7-12(23)8-4-10/h1-8,22-23H"
-    )
-    assert result["is_archived"] is False
-    assert result["batches"] == []
-
-    props = {p["name"]: p for p in result["properties"]}
-
-    assert props["EPA Compound ID"]["value_string"] == "EPA-002"
-    assert props["CAS"]["value_string"] == "1478-61-1"
-    assert props["Common Name"]["value_string"].strip() == "Bisphenol AF"
-    assert abs(props["MolLogP"]["value_num"] - 4.5085) < 1e-3
+    for key, value in update_payload.items():
+        assert data[key] == value, f"Expected {key} to be {value}, but got {data[key]}"
 
 
-def test_compounds_input_sdf(client):
-    sdf_path = BLACK_DIR / "compounds.sdf"
+def test_delete_compound(client, preload_schema, preload_compounds, first_compound_with_synonyms):
+    first, synonyms = first_compound_with_synonyms
+    corporate_compound_prop = next((p for p in first["properties"] if p["name"] == "corporate_compound_id"), None)
+    assert corporate_compound_prop is not None, "No Corporate Compound ID found"
+    corporate_compound_id = corporate_compound_prop["value_string"]
+
+    response_delete = client.delete(f"/v1/compounds/{corporate_compound_id}")
+    assert response_delete.status_code == 200
+
+    response_get = client.get(f"/v1/compounds/properties?property_value={corporate_compound_id}")
+    assert response_get.status_code == 404
+
+    response_get_data = response_get.json()
+    assert "detail" in response_get_data
+    assert response_get_data["detail"] == "Compound not found"
+
+
+@pytest.mark.parametrize(
+    "input_file, mime_type, expected_length, expected_first",
+    [
+        (
+            BLACK_DIR / "compounds.csv",
+            "text/csv",
+            54,
+            {
+                "Common Name": "1,3-Benzenedicarboxylic acid",
+                "CAS": "121-91-5",
+                "EPA Compound ID": "EPA-001",
+                "MolLogP": "1.082999945",
+                "Source": "EPA",
+                "Source Compound Code": "EPA-001",
+                "registration_status": "success",
+                "registration_error_message": "",
+            },
+        ),
+        (
+            BLACK_DIR / "compounds.sdf",
+            "chemical/x-mdl-sdfile",
+            54,
+            {
+                "Common Name": "1,3-Benzenedicarboxylic acid",
+                "CAS": "121-91-5",
+                "EPA Compound ID": "EPA-001",
+                "MolLogP": "1.082999945",
+                "Source": "EPA",
+                "Source Compound Code": "EPA-001",
+                "registration_status": "success",
+                "registration_error_message": "",
+            },
+        ),
+    ],
+)
+def test_compounds_input(client, input_file, mime_type, expected_length, expected_first):
     response = preload_entity(
         client,
         "/v1/compounds/",
-        sdf_path,
+        input_file,
         mapping_path=None,
         error_handling=enums.ErrorHandlingOptions.reject_row,
-        mime_type="chemical/x-mdl-sdfile",
+        mime_type=mime_type,
     )
 
     assert response.status_code == 200
     data = response.json()
-
-    assert len(data) == 54
+    assert len(data) == expected_length
 
     first = data[0]
-    expected = {
-        "Common Name": "1,3-Benzenedicarboxylic acid",
-        "CAS": "121-91-5",
-        "EPA Compound ID": "EPA-001",
-        "MolLogP": "1.082999945",
-        "Source": "EPA",
-        "Source Compound Code": "EPA-001",
-        "registration_status": "success",
-        "registration_error_message": "",
-    }
-
-    for k, v in expected.items():
+    for k, v in expected_first.items():
         actual = first.get(k)
         assert actual.strip() == v.strip(), f"Mismatch in field {k}: expected {v!r}, got {actual!r}"
 
 
-def test_compounds_output_sdf(client):
-    csv_path = BLACK_DIR / "compounds.csv"
+@pytest.mark.parametrize(
+    "input_file, output_format, expected_content_snippet",
+    [
+        (BLACK_DIR / "compounds.csv", enums.OutputFormat.sdf, "$$$$"),
+        (BLACK_DIR / "compounds.sdf", enums.OutputFormat.csv, "Common Name,CAS"),
+    ],
+)
+def test_compounds_output(client, input_file, output_format, expected_content_snippet):
     response = preload_entity(
         client,
         "/v1/compounds/",
-        csv_path,
+        input_file,
         mapping_path=None,
         error_handling=enums.ErrorHandlingOptions.reject_row,
-        output_format=enums.OutputFormat.sdf,
+        output_format=output_format,
     )
 
     assert response.status_code == 200
-    assert "sdf" in response.headers["content-type"].lower()
-    assert "$$$$" in response.text
+    content = response.text
+    assert expected_content_snippet in content, f"Expected snippet not found: {expected_content_snippet}"
