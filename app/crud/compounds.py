@@ -54,7 +54,7 @@ def update_compound(db: Session, property_value: str, property_name: str, update
     if db_compound is None:
         raise HTTPException(status_code=404, detail="Compound not found")
 
-    if db_compound.batches and update_data.smiles is not None:
+    if db_compound.batches and update_data.canonical_smiles is not None:
         raise HTTPException(
             status_code=400, detail="Structure updates are not allowed for compounds with batches attached."
         )
