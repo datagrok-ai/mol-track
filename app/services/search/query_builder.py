@@ -287,12 +287,19 @@ class QueryBuilder:
         else:
             key = "id"
 
+        is_missing_property = condition.operator == "=" and condition.value is None
+        exists_keyword = "NOT EXISTS" if is_missing_property else "EXISTS"
+
         where = (
-            f"EXISTS ( "
+            f"{exists_keyword} ( "
             f"{field_info['subquery']['sql']} "
             f"WHERE {field_info['subquery']['alias']}.{key}="
             f"{field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
             f"AND {field_info['subquery']['property_filter']}"
-            f"AND {value_sql_expr})  "
         )
+
+        if not is_missing_property:
+            where += f"AND {value_sql_expr}"
+        where += ")"
+
         return {"sql": where, "params": value_params}

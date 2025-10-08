@@ -229,6 +229,8 @@ class SearchOperators:
                     )
                 return sql_expr, {"param": value}
             case _:
+                if operator == "=" and value is None:
+                    return f"{field} IS NULL", {}
                 # Standard operator
                 sql_expr = f"{field} {op_def['sql']}"
                 return sql_expr, {"param": value}
