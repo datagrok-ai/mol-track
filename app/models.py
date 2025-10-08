@@ -77,7 +77,6 @@ class CompoundResponseBase(CompoundBase):
 
 
 class CompoundResponse(CompoundResponseBase):
-    batches: List["Batch"] = []
     properties: Optional[List["PropertyWithValue"]] = []
 
 
