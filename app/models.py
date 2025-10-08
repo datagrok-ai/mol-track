@@ -121,10 +121,10 @@ class Compound(CompoundResponseBase, table=True):
     hash_canonical_smiles: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     hash_no_stereo_smiles: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
     hash_no_stereo_tautomer: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    created_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
     deleted_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
-    deleted_by: Optional[uuid.UUID] = Field(default=None)
+    deleted_by: Optional[uuid.UUID] = Field(foreign_key=f"{DB_SCHEMA}.users.id", default=None)
 
     batches: List["Batch"] = Relationship(back_populates="compound")
     compound_details: List["CompoundDetail"] = Relationship(
@@ -196,8 +196,8 @@ class Batch(BatchResponseBase, table=True):
     __table_args__ = {"schema": DB_SCHEMA}
 
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    created_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
     batch_regno: int = Field(nullable=False)
 
     compound: "Compound" = Relationship(back_populates="batches")
@@ -350,8 +350,8 @@ class Assay(AssayResponseBase, table=True):
     __tablename__ = "assays"
     __table_args__ = {"schema": DB_SCHEMA}
 
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    created_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
 
     properties: List["Property"] = Relationship(
         back_populates="assays", link_model=AssayDetail, sa_relationship_kwargs={"viewonly": True}
@@ -404,8 +404,8 @@ class AssayRun(AssayRunResponseBase, table=True):
     __table_args__ = {"schema": DB_SCHEMA}
 
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    created_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
 
     # Relationships - use assay_properties via assay to get list of expected properties
     # No direct properties relationship as assay_properties table no longer exists
@@ -506,8 +506,8 @@ class AssayResultBase(SQLModel):
     batch_id: int = Field(foreign_key=f"{DB_SCHEMA}.batches.id", nullable=False)
     assay_run_id: int = Field(foreign_key=f"{DB_SCHEMA}.assay_runs.id", nullable=False)
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now()))
-    created_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
-    updated_by: uuid.UUID = Field(nullable=False, default_factory=uuid.uuid4)
+    created_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
+    updated_by: uuid.UUID = Field(foreign_key=f"{DB_SCHEMA}.users.id", nullable=False, default_factory=uuid.uuid4)
 
 
 class AssayResultResponseBase(AssayResultBase):
@@ -693,6 +693,7 @@ def validate_field(v: str) -> str:
         raise ValueError("Field must be in format 'table.field' or 'table.details.property'")
 
     valid_tables = get_args(Level)
+    valid_tables = valid_tables + ("users",)
     if parts[0] not in valid_tables:
         allowed = ", ".join(valid_tables)
         raise ValueError(f"Invalid table: {parts[0]}. Must be one of {allowed}")
