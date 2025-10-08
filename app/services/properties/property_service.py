@@ -77,7 +77,7 @@ class PropertyService:
             field_name = prop_info["field_name"]
             prop_id = getattr(prop, "id")
 
-            if value in ("", "none", None):
+            if PropertyValidator.validate_nullable(value, prop):
                 continue
 
             value_qualifier, value = self.extract_qualifiers(value_type, value)

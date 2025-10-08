@@ -240,6 +240,7 @@ class PropertyBase(SQLModel):
     choices: Optional[str] = Field(default=None)
     validators: Optional[str] = Field(default=None)
     friendly_name: Optional[str] = Field(default=None)
+    nullable: bool = Field(default=True)
     created_at: Optional[datetime] = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), server_default=func.now()),
