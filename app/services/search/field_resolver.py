@@ -139,7 +139,7 @@ class FieldResolver:
         # Handle direct field access
         if field_or_details != "details":
             if field_or_details in table_config.get("user_fks", []):
-                return self._resolve_user_fk(table_config, field_or_details) | search_level_info
+                return self._resolve_user_fk(table_config, field_or_details, all_joins) | search_level_info
 
             if field_or_details in table_config["direct_fields"]:
                 return (
@@ -158,12 +158,15 @@ class FieldResolver:
             | search_level_info
         )
 
-    def _resolve_user_fk(self, table_config: Dict, field_or_details: str) -> Dict[str, Any]:
+    def _resolve_user_fk(
+        self, table_config: Dict, field_or_details: str, all_joins: JoinOrderingTool
+    ) -> Dict[str, Any]:
         user_alias = f"u_{field_or_details}"
         join_sql = (
             f"INNER JOIN {self.db_schema}.users {user_alias} "
             f"ON {table_config['alias']}.{field_or_details} = {user_alias}.id"
         )
+        all_joins.add([join_sql], [user_alias])
         base_alias = table_config["alias"]
         subquery_sql = f"SELECT 1 FROM {self.db_schema}.compounds {base_alias} {join_sql} "
         return {
