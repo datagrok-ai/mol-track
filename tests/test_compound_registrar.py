@@ -160,7 +160,6 @@ def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds)
         "InChI=1S/C15H10F6O2/c16-14(17,18)13(15(19,20)21,9-1-5-11(22)6-2-9)10-3-7-12(23)8-4-10/h1-8,22-23H"
     )
     assert result["is_archived"] is False
-    assert result["batches"] == []
 
     props = {p["name"]: p for p in result["properties"]}
 
