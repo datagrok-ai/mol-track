@@ -20,17 +20,20 @@ import uuid
 DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 
 
-class User(SQLModel, table=True):
+class UserBase(SQLModel):
+    email: str = Field(nullable=False)
+    first_name: str = Field(nullable=False)
+    last_name: str = Field(nullable=False)
+    is_active: bool = Field(default=False, nullable=False)
+    is_service_account: bool = Field(default=False, nullable=False)
+
+
+class User(UserBase, table=True):
     __tablename__ = "users"
     __table_args__ = {"schema": DB_SCHEMA}
 
     id: uuid.UUID = Field(primary_key=True, nullable=False, default_factory=uuid.uuid4)
-    email: str = Field(nullable=False)
-    first_name: str = Field(nullable=False)
-    last_name: str = Field(nullable=False)
     has_password: bool = Field(nullable=False)
-    is_active: bool = Field(default=False, nullable=False)
-    is_service_account: bool = Field(default=False, nullable=False)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

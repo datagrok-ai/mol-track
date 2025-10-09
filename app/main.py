@@ -85,6 +85,11 @@ def auto_map_columns(
     return mapping
 
 
+@router.get("/users/", response_model=List[models.UserBase])
+def get_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return db.query(models.User).offset(skip).limit(limit).all()
+
+
 # === Schema endpoints for supplementary data like properties and synonyms ===
 # https://github.com/datagrok-ai/mol-track/blob/main/api_design.md#schema---wip
 @router.post("/schema/")
