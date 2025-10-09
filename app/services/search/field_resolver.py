@@ -41,7 +41,6 @@ class FieldResolver:
 
     def _generate_table_config(self, db):
         tables = get_args(Level)
-        tables = tables + ("users",)
         self.table_configs = {}
         for table in tables:
             alias = create_alias(table)
@@ -57,10 +56,9 @@ class FieldResolver:
                 "value_qualifier": has_value_qualifier(details_table, db),
             }
 
-            if table != "users":
-                user_fks = self.get_user_fks_by_names(f"{DB_SCHEMA}.{table}", "users")
-                if user_fks:
-                    config["user_fks"] = user_fks
+            user_fks = self.get_user_fks_by_names(f"{DB_SCHEMA}.{table}", "users")
+            if user_fks:
+                config["user_fks"] = user_fks
             self.table_configs[table] = config
         self.table_configs["compounds"]["direct_fields"]["structure"] = "c.canonical_smiles"
 
@@ -140,6 +138,9 @@ class FieldResolver:
 
         # Handle direct field access
         if field_or_details != "details":
+            if field_or_details in table_config.get("user_fks", []):
+                return self._resolve_user_fk(table_config, field_or_details) | search_level_info
+
             if field_or_details in table_config["direct_fields"]:
                 return (
                     self._resolve_direct_property(
@@ -156,6 +157,26 @@ class FieldResolver:
             self._resolve_dynamic_property(table_config, property_name, all_joins, subquery, cross_from)
             | search_level_info
         )
+
+    def _resolve_user_fk(self, table_config: Dict, field_or_details: str) -> Dict[str, Any]:
+        user_alias = f"u_{field_or_details}"
+        join_sql = (
+            f"INNER JOIN {self.db_schema}.users {user_alias} "
+            f"ON {table_config['alias']}.{field_or_details} = {user_alias}.id"
+        )
+        base_alias = table_config["alias"]
+        subquery_sql = f"SELECT 1 FROM {self.db_schema}.compounds {base_alias} {join_sql} "
+        return {
+            "sql_expression": f"{user_alias}.email",
+            "sql_field": "",
+            "is_dynamic": False,
+            "table_alias": user_alias,
+            "property_filter": None,
+            "subquery": {
+                "sql": subquery_sql,
+                "alias": base_alias,
+            },
+        }
 
     def _resolve_dynamic_property(
         self, table_config: Dict, property_name: str, joins: JoinOrderingTool, subquery: bool, cross_from: str

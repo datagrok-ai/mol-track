@@ -50,51 +50,21 @@ class JoinResolver:
         self._generate_relationships(table_configs, schema)
         self.graph = self._build_graph()
 
-    # def _generate_relationships(self, table_configs, schema):
-    #     self.relationships = {}
-    #     for from_name, from_table in table_configs.items():
-    #         for to_name, to_table in table_configs.items():
-    #             if from_name == to_name:
-    #                 continue
-    #             from_fk, from_alias = from_table["details_fk"], from_table["alias"]
-    #             to_fk, to_alias = to_table["details_fk"], to_table["alias"]
-    #             if from_fk in to_table["direct_fields"]:
-    #                 self.relationships[(from_name, to_name)] = (
-    #                     f"INNER JOIN {schema}.{to_name} {to_alias} ON {to_alias}.{from_fk} = {from_alias}.id"
-    #                 )
-    #             if to_fk in from_table["direct_fields"]:
-    #                 self.relationships[(from_name, to_name)] = (
-    #                     f"INNER JOIN {schema}.{to_name} {to_alias} ON {to_alias}.id = {from_alias}.{to_fk}"
-    #                 )
-
     def _generate_relationships(self, table_configs, schema):
         self.relationships = {}
-
         for from_name, from_table in table_configs.items():
             for to_name, to_table in table_configs.items():
                 if from_name == to_name:
                     continue
-
-                from_alias = from_table["alias"]
-                to_alias = to_table["alias"]
-
-                from_fk = from_table.get("details_fk")
-                to_fk = to_table.get("details_fk")
-
-                if from_fk and from_fk in to_table["direct_fields"]:
+                from_fk, from_alias = from_table["details_fk"], from_table["alias"]
+                to_fk, to_alias = to_table["details_fk"], to_table["alias"]
+                if from_fk in to_table["direct_fields"]:
                     self.relationships[(from_name, to_name)] = (
                         f"INNER JOIN {schema}.{to_name} {to_alias} ON {to_alias}.{from_fk} = {from_alias}.id"
                     )
-
-                if to_fk and to_fk in from_table["direct_fields"]:
+                if to_fk in from_table["direct_fields"]:
                     self.relationships[(from_name, to_name)] = (
                         f"INNER JOIN {schema}.{to_name} {to_alias} ON {to_alias}.id = {from_alias}.{to_fk}"
-                    )
-
-                user_fks = from_table.get("user_fks", [])
-                for fk in user_fks:
-                    self.relationships[(from_name, "users")] = (
-                        f"INNER JOIN {schema}.users {to_alias} ON {from_alias}.{fk} = {to_alias}.id"
                     )
 
     def _build_graph(self):
