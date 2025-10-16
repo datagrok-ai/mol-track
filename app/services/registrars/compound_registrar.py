@@ -178,16 +178,16 @@ class CompoundRegistrar(BaseRegistrar):
             def process_row(row):
                 grouped = self._group_data(row)
                 compound_data = grouped.get("compound", {})
-                details_data = grouped.get("compound_details", {})
+                compound_details_data = grouped.get("compound_details", {})
 
-                compound = self._build_compound_record(compound_data, details_data)
+                compound = self._build_compound_record(compound_data, compound_details_data)
                 molregno = compound["molregno"]
 
                 # This step is performed here specifically to attach corporate IDs to the output row
-                self.inject_corporate_property(row, grouped, molregno, enums.EntityType.COMPOUND)
+                self.inject_corporate_property(row, compound_details_data, molregno, enums.EntityType.COMPOUND)
                 inserted, compound_details = self.property_service.build_details_records(
                     models.CompoundDetail,
-                    details_data,
+                    compound_details_data,
                     {"molregno": molregno},
                     enums.EntityType.COMPOUND,
                     True,
@@ -271,7 +271,7 @@ class CompoundRegistrar(BaseRegistrar):
             )"""
 
     def inject_corporate_property(
-        self, row: dict[str, Any], grouped: dict[str, Any], entity_value: str, entity_type: enums.EntityType
+        self, row: dict[str, Any], details_data: dict[str, Any], entity_value: str, entity_type: enums.EntityType
     ):
         entity_type_lower = entity_type.value.lower()
         prop_name = f"corporate_{entity_type_lower}_id"
@@ -283,8 +283,7 @@ class CompoundRegistrar(BaseRegistrar):
 
         value = prop.pattern.format(entity_value)
         row[prop_name] = value
-        details_key = f"{entity_type_lower}_details"
-        grouped.setdefault(details_key, {})[prop_name] = value
+        details_data[prop_name] = value
 
     def cleanup_chunk(self):
         super().cleanup_chunk()

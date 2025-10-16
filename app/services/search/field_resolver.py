@@ -4,10 +4,12 @@ Handles resolution of field paths like 'compounds.details.chembl' to SQL compone
 """
 
 from typing import Any, Dict, get_args
+from sqlmodel import SQLModel
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 from app.services.search.utils.helper_functions import create_alias, has_value_qualifier, singularize, get_table_columns
 from app.services.search.utils.join_tools import JoinOrderingTool, JoinResolver
-from app.models import Level
+from app.models import Level, DB_SCHEMA
 
 
 class FieldResolutionError(Exception):
@@ -24,6 +26,19 @@ class FieldResolver:
         self._generate_table_config(db)
         self.join_resolver = JoinResolver(db_schema, self.table_configs)
 
+    def get_user_fks_by_names(self, table_name: str, user_table_name: str):
+        fks = []
+        table = SQLModel.metadata.tables.get(table_name)
+        if table is None:
+            raise ValueError(f"Table '{table_name}' not found in metadata")
+
+        mapper = inspect(table)
+        for col in mapper.columns:
+            for fk in col.foreign_keys:
+                if fk.column.table.name == user_table_name and fk.column.name == "id":
+                    fks.append(col.name)
+        return fks
+
     def _generate_table_config(self, db):
         tables = get_args(Level)
         self.table_configs = {}
@@ -31,7 +46,7 @@ class FieldResolver:
             alias = create_alias(table)
             singular_name = singularize(table)
             details_table = f"{singular_name}_details"
-            self.table_configs[table] = {
+            config = {
                 "table": table,
                 "alias": alias,
                 "details_table": details_table,
@@ -40,6 +55,11 @@ class FieldResolver:
                 "direct_fields": {column: f"{alias}.{column}" for column in get_table_columns(table, db)},
                 "value_qualifier": has_value_qualifier(details_table, db),
             }
+
+            user_fks = self.get_user_fks_by_names(f"{DB_SCHEMA}.{table}", "users")
+            if user_fks:
+                config["user_fks"] = user_fks
+            self.table_configs[table] = config
         self.table_configs["compounds"]["direct_fields"]["structure"] = "c.canonical_smiles"
 
     def validate_field_path(self, field_path: str, level: Level = None) -> bool:
@@ -118,6 +138,9 @@ class FieldResolver:
 
         # Handle direct field access
         if field_or_details != "details":
+            if field_or_details in table_config.get("user_fks", []):
+                return self._resolve_user_fk(table_config, field_or_details, all_joins) | search_level_info
+
             if field_or_details in table_config["direct_fields"]:
                 return (
                     self._resolve_direct_property(
@@ -134,6 +157,29 @@ class FieldResolver:
             self._resolve_dynamic_property(table_config, property_name, all_joins, subquery, cross_from)
             | search_level_info
         )
+
+    def _resolve_user_fk(
+        self, table_config: Dict, field_or_details: str, all_joins: JoinOrderingTool
+    ) -> Dict[str, Any]:
+        user_alias = f"u_{field_or_details}"
+        join_sql = (
+            f"LEFT JOIN {self.db_schema}.users {user_alias} "
+            f"ON {table_config['alias']}.{field_or_details} = {user_alias}.id"
+        )
+        all_joins.add([join_sql], [user_alias])
+        base_alias = table_config["alias"]
+        subquery_sql = f"SELECT 1 FROM {self.db_schema}.compounds {base_alias} {join_sql} "
+        return {
+            "sql_expression": f"{user_alias}.email",
+            "sql_field": "",
+            "is_dynamic": False,
+            "table_alias": user_alias,
+            "property_filter": None,
+            "subquery": {
+                "sql": subquery_sql,
+                "alias": base_alias,
+            },
+        }
 
     def _resolve_dynamic_property(
         self, table_config: Dict, property_name: str, joins: JoinOrderingTool, subquery: bool, cross_from: str

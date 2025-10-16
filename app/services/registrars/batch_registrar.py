@@ -68,11 +68,12 @@ class BatchRegistrar(CompoundRegistrar):
     def get_additional_records(self, row, grouped, molregno, compound_details):
         batch_record = self._build_batch_record(molregno)
         batch_regno = batch_record["batch_regno"]
+        batch_details_data = grouped.get("batch_details", {})
 
-        self.inject_corporate_property(row, grouped, batch_regno, enums.EntityType.BATCH)
+        self.inject_corporate_property(row, batch_details_data, batch_regno, enums.EntityType.BATCH)
         inserted, record = self.property_service.build_details_records(
             models.BatchDetail,
-            grouped.get("batch_details", {}),
+            batch_details_data,
             {"batch_regno": batch_regno},
             enums.EntityType.BATCH,
             additional_details=compound_details,

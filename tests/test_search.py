@@ -23,6 +23,13 @@ valid_filter = {
     ],
 }
 
+valid_filter_null_eln_reference = {
+    "field": "batches.details.ELN Reference",
+    "operator": "=",
+    "value": None,
+    "threshold": None,
+}
+
 valid_output_compounds = ["compounds.molregno", "compounds.details.corporate_compound_id"]
 valid_output_batches = ["batches.batch_regno", "batches.details.corporate_batch_id"]
 valid_aggregations = [
@@ -227,3 +234,18 @@ def test_all_numeric_aggregations(client):
             },
         )
         assert response.status_code == 200, f"{aggr.value} failed with {response.text}"
+
+
+@pytest.mark.usefixtures("preload_simple_data")
+def test_batch_search_null_eln_reference(client):
+    response = client.post(
+        "v1/search/batches", json={"output": valid_output_batches, "filter": valid_filter_null_eln_reference}
+    )
+    assert response.status_code == 200
+
+    content = response.json()
+    assert content["total_count"] == 5
+
+    returned_corporate_ids = [row["batches.details.corporate_batch_id"] for row in content["data"]]
+    expected_corporate_ids = ["DGB-000041", "DGB-000042", "DGB-000043", "DGB-000044", "DGB-000045"]
+    assert returned_corporate_ids == expected_corporate_ids

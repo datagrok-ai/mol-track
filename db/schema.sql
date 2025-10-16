@@ -51,6 +51,7 @@ CREATE TABLE moltrack.properties (
   choices text, -- JSON-encoded list of choices. Applicable to string properties only
   validators text, -- JSON-encoded list of validators. Applicable to string properties only
   friendly_name text,
+  nullable bool NOT NULL DEFAULT true,
   UNIQUE(name, entity_type) -- Ensure unique property names within each entity_type
 );
 

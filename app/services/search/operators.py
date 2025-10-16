@@ -170,6 +170,11 @@ class SearchOperators:
         """
         op_def = cls.get_operator(operator)
 
+        null_ops = {
+            enums.CompareOp.EQUALS: "IS",
+            enums.CompareOp.NOT_EQUALS: "IS NOT",
+        }
+
         # Transform value if needed
         if "value_transform" in op_def:
             value = op_def["value_transform"](value)
@@ -229,6 +234,8 @@ class SearchOperators:
                     )
                 return sql_expr, {"param": value}
             case _:
+                if operator in null_ops and value is None:
+                    return f"{field} {null_ops[operator]} NULL", {}
                 # Standard operator
                 sql_expr = f"{field} {op_def['sql']}"
                 return sql_expr, {"param": value}
