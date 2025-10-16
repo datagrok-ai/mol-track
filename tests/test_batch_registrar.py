@@ -1,6 +1,7 @@
 import pytest
 from tests.conftest import _preload_batches
-from tests.test_compound_registrar import BaseRegistrarTest
+from tests.utils.test_base_registrar import BaseRegistrarTest
+from app import models
 
 
 @pytest.fixture
@@ -37,4 +38,5 @@ class TestBatchesRegistrar(BaseRegistrarTest):
         "Project": "Project 1",
     }
     preload_func = staticmethod(_preload_batches)
+    get_response_model = models.BatchResponse
     first_entity_fixture_name = "first_batch_with_synonyms"
