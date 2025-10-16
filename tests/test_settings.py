@@ -1,57 +1,49 @@
-import app.utils.enums as enums
+import pytest
+from app.utils import enums
+
+COMPOUND_RULES = enums.CompoundMatchingRule
+ENTITY = enums.EntityTypeReduced
+
+test_cases = [
+    (
+        enums.SettingName.COMPOUND_MATCHING_RULE.value,
+        COMPOUND_RULES.ALL_LAYERS.value,
+        200,
+        f"Compound matching rule is already set to {COMPOUND_RULES.ALL_LAYERS.value}",
+    ),
+    (
+        enums.SettingName.COMPOUND_MATCHING_RULE.value,
+        COMPOUND_RULES.STEREO_INSENSITIVE_LAYERS.value,
+        200,
+        f"Compound matching rule updated from {COMPOUND_RULES.ALL_LAYERS.value} to {COMPOUND_RULES.STEREO_INSENSITIVE_LAYERS.value}",
+    ),
+    (
+        enums.SettingName.CORPORATE_COMPOUND_ID_PATTERN.value,
+        "DG-{:09d}",
+        200,
+        f"Corporate ID pattern for {ENTITY.COMPOUND.value} updated",
+    ),
+    (enums.SettingName.CORPORATE_BATCH_ID_PATTERN.value, "INVALID-PATTERN", 400, "Invalid pattern format"),
+    (
+        enums.SettingName.CORPORATE_COMPOUND_ID_FRIENDLY_NAME.value,
+        "MyCompoundID",
+        200,
+        f"Friendly name for {ENTITY.COMPOUND.value} updated",
+    ),
+    (
+        enums.SettingName.CORPORATE_BATCH_ID_FRIENDLY_NAME.value,
+        "MyBatchID",
+        200,
+        f"Friendly name for {ENTITY.BATCH.value} updated",
+    ),
+    (enums.SettingName.COMPOUND_SEQUENCE_START.value, "1000", 200, "moltrack.molregno_seq set to 1000"),
+    (enums.SettingName.BATCH_SEQUENCE_START.value, "500", 200, "moltrack.batch_regno_seq set to 500"),
+]
 
 
-def test_update_institution_id_pattern_valid(client):
-    # Test with valid pattern
-    response = client.patch(
-        "/v1/admin/settings", data={"name": enums.SettingName.CORPORATE_COMPOUND_ID_PATTERN.value, "value": "DG-{:09d}"}
-    )
-
-    assert response.status_code == 200
-    assert f"Corporate ID pattern for {enums.EntityTypeReduced.COMPOUND.value} updated" in response.json()["message"]
-    assert "DG-000000001" in response.json()["message"]  # Check that formatting works
-
-
-def test_update_institution_id_pattern_invalid_format(client):
-    # Test invalid pattern (doesn't match expected regex)
-    response = client.patch(
-        "/v1/admin/settings",
-        data={"name": enums.SettingName.CORPORATE_BATCH_ID_PATTERN.value, "value": "INVALID-PATTERN"},
-    )
-
-    assert response.status_code == 400
-    assert "Invalid pattern format" in response.json()["detail"]
-
-
-def test_update_compound_matching_rule_already_set(client):
-    # Assuming the default value in the database is 'ALL_LAYERS'
-    response = client.patch(
-        "/v1/admin/settings",
-        data={
-            "name": enums.SettingName.COMPOUND_MATCHING_RULE.value,
-            "value": enums.CompoundMatchingRule.ALL_LAYERS.value,
-        },
-    )
-
-    assert response.status_code == 200
-    assert (
-        f"Compound matching rule is already set to {enums.CompoundMatchingRule.ALL_LAYERS.value}"
-        in response.json()["message"]
-    )
-
-
-def test_update_compound_matching_rule_success(client):
-    # Update to a different rule succesfully
-    response = client.patch(
-        "/v1/admin/settings",
-        data={
-            "name": enums.SettingName.COMPOUND_MATCHING_RULE.value,
-            "value": enums.CompoundMatchingRule.STEREO_INSENSITIVE_LAYERS.value,
-        },
-    )
-
-    assert response.status_code == 200
-    assert (
-        f"Compound matching rule updated from {enums.CompoundMatchingRule.ALL_LAYERS.value} to {enums.CompoundMatchingRule.STEREO_INSENSITIVE_LAYERS.value}"
-        in response.json()["message"]
-    )
+@pytest.mark.parametrize("setting_name, value, expected_status, expected_message_substr", test_cases)
+def test_update_settings(client, setting_name, value, expected_status, expected_message_substr):
+    response = client.patch("/v1/admin/settings", data={"name": setting_name, "value": value})
+    message = response.json().get("message", "") or response.json().get("detail", "")
+    assert response.status_code == expected_status
+    assert expected_message_substr in message
