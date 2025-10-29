@@ -5,9 +5,15 @@ import hashlib
 import secrets
 import base64
 from typing import Iterable, Optional, Tuple
+from app.utils.logging_utils import logger
 
 
-SERVER_HMAC_KEY = base64.b64decode(os.environ["APIKEY_HMAC_KEY_B64"])
+key_b64 = os.environ.get("APIKEY_HMAC_KEY_B64")
+if key_b64:
+    SERVER_HMAC_KEY = base64.b64decode(key_b64)
+else:
+    SERVER_HMAC_KEY = b""
+    logger.warning("APIKEY_HMAC_KEY_B64 not set, HMAC operations will not work.")
 
 
 def _b64url(nbytes: int) -> str:
