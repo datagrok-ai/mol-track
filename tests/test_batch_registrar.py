@@ -3,14 +3,14 @@ import app.utils.enums as enums
 from tests.conftest import BLACK_DIR, _preload_batches
 
 
-def test_register_batches_without_mapping(client, preload_schema):
-    register_response = _preload_batches(client, BLACK_DIR / "batches.csv")
+def test_register_batches_without_mapping(client, preload_schema, api_headers):
+    register_response = _preload_batches(client, BLACK_DIR / "batches.csv", api_headers=api_headers)
     assert register_response.status_code == 200
 
     register_data = register_response.json()
     assert len(register_data) == 54
 
-    get_response = client.get("/v1/batches/")
+    get_response = client.get("/v1/batches/", headers=api_headers)
     assert get_response.status_code == 200
 
     batches = get_response.json()
@@ -36,9 +36,13 @@ def test_register_batches_without_mapping(client, preload_schema):
 
 
 @pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject all' behaviour.")
-def test_register_batches_reject_all(client, preload_schema, preload_additions):
+def test_register_batches_reject_all(client, preload_schema, preload_additions, api_headers):
     response = _preload_batches(
-        client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json", enums.ErrorHandlingOptions.reject_all
+        client,
+        BLACK_DIR / "batches.csv",
+        BLACK_DIR / "batches_mapping.json",
+        enums.ErrorHandlingOptions.reject_all,
+        api_headers,
     )
     assert response.status_code == 400
 
@@ -57,8 +61,10 @@ def test_register_batches_reject_all(client, preload_schema, preload_additions):
 
 
 @pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject row' behaviour.")
-def test_register_batches_reject_row(client, preload_schema, preload_additions):
-    response = _preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
+def test_register_batches_reject_row(client, preload_schema, preload_additions, api_headers):
+    response = _preload_batches(
+        client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json", api_headers=api_headers
+    )
     assert response.status_code == 200
 
     result = response.json()

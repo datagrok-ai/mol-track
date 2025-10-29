@@ -72,7 +72,7 @@ def test_standardize_mol(client, test_db, test_molecule, temp_standardizer_confi
     assert Chem.MolToSmiles(standardized_mol) == "O=C(O)c1ccccc1"
 
 
-def test_standardize_mol_missing_operation(client, test_db, test_molecule, tmp_path):
+def test_standardize_mol_missing_operation(client, test_db, test_molecule, tmp_path, api_headers):
     config_data = {"operations": [{"enable": True}]}
     config_file = tmp_path / "invalid_config.yaml"
     with open(config_file, "w") as f:
@@ -81,6 +81,7 @@ def test_standardize_mol_missing_operation(client, test_db, test_molecule, tmp_p
     client.patch(
         "/v1/admin/update-standardization-config",
         files={"file": ("standardize.yaml", open(config_file).read(), "application/x-yaml")},
+        headers=api_headers,
     )
 
     with pytest.raises(ValueError, match="Operation type is missing in the configuration."):
@@ -88,7 +89,7 @@ def test_standardize_mol_missing_operation(client, test_db, test_molecule, tmp_p
 
 
 # Test for disabled operations. Ensure molecule remains unchanged and with salt since all operations are disabled
-def test_standardize_mol_disabled_operations(client, test_db, test_molecule, tmp_path):
+def test_standardize_mol_disabled_operations(client, test_db, test_molecule, tmp_path, api_headers):
     config_data = {
         "operations": [
             {"type": "Cleanup", "enable": False},
@@ -103,6 +104,7 @@ def test_standardize_mol_disabled_operations(client, test_db, test_molecule, tmp
     client.patch(
         "/v1/admin/update-standardization-config",
         files={"file": ("standardize.yaml", open(config_file).read(), "application/x-yaml")},
+        headers=api_headers,
     )
 
     original_smiles = Chem.MolToSmiles(test_molecule)

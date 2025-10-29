@@ -7,9 +7,9 @@ import json
 from app.utils import enums
 
 
-def upload_compounds(client, smiles_list: List[str]) -> None:
+def upload_compounds(client, smiles_list: List[str], api_headers) -> None:
     """Uploads a list of SMILES using the /v1/compounds/ endpoint."""
-    response = client.get("/v1/compounds/")
+    response = client.get("/v1/compounds/", headers=api_headers)
     assert response.status_code == 200
     existing = response.json()
     max_id = existing[0]["id"] if existing else 0
@@ -25,7 +25,7 @@ def upload_compounds(client, smiles_list: List[str]) -> None:
         "mapping": json.dumps(mapping),
     }
 
-    response = client.post("/v1/compounds/", files=files, data=data)
+    response = client.post("/v1/compounds/", files=files, data=data, headers=api_headers)
     assert response.status_code == 200, f"Failed to upload compounds: {response.text}"
 
     first_new_id = max_id + 1
@@ -33,7 +33,7 @@ def upload_compounds(client, smiles_list: List[str]) -> None:
 
 
 @pytest.mark.skip(reason="This needs to be corrected to work with new search. Old search is no longer available")
-def test_create_compound_and_get_hash(client):
+def test_create_compound_and_get_hash(client, api_headers):
     """Test creating a compound and retrieving its hash using the exact search endpoint"""
     smiles = ["C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1"]
 
@@ -42,7 +42,7 @@ def test_create_compound_and_get_hash(client):
 
     # Step 2: Use the /v1/search/compounds/exact endpoint to retrieve the hash_mol
     search_payload = {"query_smiles": smiles[0]}
-    search_response = client.post("/v1/search/compounds/exact", json=search_payload)
+    search_response = client.post("/v1/search/compounds/exact", json=search_payload, headers=api_headers)
     assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
     search_results = search_response.json()
 
@@ -68,7 +68,7 @@ def predefined_compounds(client):
 
 
 @pytest.mark.skip(reason="This needs to be corrected to work with new search. Old search is no longer available")
-def test_search_compound_structure_tautomer(client, predefined_compounds):
+def test_search_compound_structure_tautomer(client, predefined_compounds, api_headers):
     """Test tautomer search using the /v1/search/compounds/structure endpoint"""
     smiles_list = [
         "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
@@ -82,7 +82,7 @@ def test_search_compound_structure_tautomer(client, predefined_compounds):
         "query_smiles": smiles_list[0],
         "search_parameters": {},
     }
-    search_response = client.post("/v1/search/compounds/structure", json=search_payload)
+    search_response = client.post("/v1/search/compounds/structure", json=search_payload, headers=api_headers)
     assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
     search_results = search_response.json()
     result_ids = [compound["id"] for compound in search_results]
@@ -94,7 +94,7 @@ def test_search_compound_structure_tautomer(client, predefined_compounds):
 
 
 @pytest.mark.skip(reason="This needs to be corrected to work with new search. Old search is no longer available")
-def test_search_compound_structure_stereo(client, predefined_compounds):
+def test_search_compound_structure_stereo(client, predefined_compounds, api_headers):
     """Test stereo search using the /v1/search/compounds/structure endpoint"""
     smiles_list = [
         "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
@@ -108,7 +108,7 @@ def test_search_compound_structure_stereo(client, predefined_compounds):
         "query_smiles": smiles_list[0],
         "search_parameters": {},
     }
-    search_response = client.post("/v1/search/compounds/structure", json=search_payload)
+    search_response = client.post("/v1/search/compounds/structure", json=search_payload, headers=api_headers)
     assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
     search_results = search_response.json()
     result_ids = [compound["id"] for compound in search_results]
@@ -120,7 +120,7 @@ def test_search_compound_structure_stereo(client, predefined_compounds):
 
 
 @pytest.mark.skip(reason="This needs to be corrected to work with new search. Old search is no longer available")
-def test_search_compound_structure_connectivity(client, predefined_compounds):
+def test_search_compound_structure_connectivity(client, predefined_compounds, api_headers):
     """Test connectivity search using the /v1/search/compounds/structure endpoint"""
     smiles_list = [
         "C[C@@](F)(Cl)c1cc2ccc[nH]c-2n1",  # Tautomer1 R
@@ -134,7 +134,7 @@ def test_search_compound_structure_connectivity(client, predefined_compounds):
         "query_smiles": smiles_list[0],
         "search_parameters": {},
     }
-    search_response = client.post("/v1/search/compounds/structure", json=search_payload)
+    search_response = client.post("/v1/search/compounds/structure", json=search_payload, headers=api_headers)
     assert search_response.status_code == 200, f"Unexpected status code: {search_response.status_code}"
     search_results = search_response.json()
     result_ids = [compound["id"] for compound in search_results]

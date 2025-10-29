@@ -24,8 +24,8 @@ def assert_name_entity_type_equal(actual, expected):
         ("/v1/schema/batches/synonyms", "batches_schema.json", "synonym_types", ["synonym_types"]),
     ],
 )
-def test_schema(client, endpoint, schema_file, response_key, expected_keys, preload_schema):
-    response = client.get(endpoint)
+def test_schema(client, endpoint, schema_file, response_key, expected_keys, preload_schema, api_headers):
+    response = client.get(endpoint, headers=api_headers)
     assert response.status_code == 200
 
     response_data = response.json()
@@ -46,14 +46,14 @@ def test_schema(client, endpoint, schema_file, response_key, expected_keys, prel
         assert "additions" in response_data
 
 
-def test_register_compounds_without_mapping(client, preload_schema):
-    register_response = _preload_compounds(client, BLACK_DIR / "compounds.csv")
+def test_register_compounds_without_mapping(client, preload_schema, api_headers):
+    register_response = _preload_compounds(client, BLACK_DIR / "compounds.csv", api_headers=api_headers)
     assert register_response.status_code == 200
 
     register_data = register_response.json()
     assert len(register_data) == 54
 
-    get_response = client.get("/v1/compounds/")
+    get_response = client.get("/v1/compounds/", headers=api_headers)
     assert get_response.status_code == 200
     compounds = get_response.json()
 
@@ -78,9 +78,13 @@ def test_register_compounds_without_mapping(client, preload_schema):
 
 
 @pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject all' behaviour.")
-def test_register_compounds_reject_all(client, preload_schema):
+def test_register_compounds_reject_all(client, preload_schema, api_headers):
     response = _preload_compounds(
-        client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json", enums.ErrorHandlingOptions.reject_all
+        client,
+        BLACK_DIR / "compounds.csv",
+        BLACK_DIR / "compounds_mapping.json",
+        enums.ErrorHandlingOptions.reject_all,
+        api_headers,
     )
     assert response.status_code == 400
 
@@ -100,8 +104,10 @@ def test_register_compounds_reject_all(client, preload_schema):
 
 
 @pytest.mark.skip(reason="No test datasets contain invalid records to validate 'reject row' behaviour.")
-def test_register_compounds_reject_row(client, preload_schema):
-    response = _preload_compounds(client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
+def test_register_compounds_reject_row(client, preload_schema, api_headers):
+    response = _preload_compounds(
+        client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json", api_headers=api_headers
+    )
     assert response.status_code == 200
 
     result = response.json()
@@ -118,8 +124,8 @@ def test_register_compounds_reject_row(client, preload_schema):
     assert item9["registration_error_message"] is None
 
 
-def test_get_compounds_list(client, preload_schema, preload_compounds):
-    response = client.get("/v1/compounds/")
+def test_get_compounds_list(client, preload_schema, preload_compounds, api_headers):
+    response = client.get("/v1/compounds/", headers=api_headers)
     assert response.status_code == 200
 
     result = response.json()
@@ -138,8 +144,8 @@ def test_get_compounds_list(client, preload_schema, preload_compounds):
     assert abs(props["MolLogP"]["value_num"] - 1.083) < 1e-3
 
 
-def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds):
-    response = client.get("/v1/compounds/")
+def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds, api_headers):
+    response = client.get("/v1/compounds/", headers=api_headers)
     assert response.status_code == 200
     compounds = response.json()
     first_compound = compounds[1]
@@ -149,7 +155,7 @@ def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds)
     )
     assert corporate_compound_prop is not None, "No Corporate Compound ID found"
     corporate_id = corporate_compound_prop["value_string"]
-    response = client.get(f"/v1/compounds/{corporate_id}")
+    response = client.get(f"/v1/compounds/{corporate_id}", headers=api_headers)
     assert response.status_code == 200
 
     result = response.json()
@@ -170,7 +176,7 @@ def test_get_compound_by_corporate_id(client, preload_schema, preload_compounds)
     assert abs(props["MolLogP"]["value_num"] - 4.5085) < 1e-3
 
 
-def test_compounds_input_sdf(client):
+def test_compounds_input_sdf(client, api_headers):
     sdf_path = BLACK_DIR / "compounds.sdf"
     response = preload_entity(
         client,
@@ -179,6 +185,7 @@ def test_compounds_input_sdf(client):
         mapping_path=None,
         error_handling=enums.ErrorHandlingOptions.reject_row,
         mime_type="chemical/x-mdl-sdfile",
+        api_headers=api_headers,
     )
 
     assert response.status_code == 200
@@ -203,7 +210,7 @@ def test_compounds_input_sdf(client):
         assert actual.strip() == v.strip(), f"Mismatch in field {k}: expected {v!r}, got {actual!r}"
 
 
-def test_compounds_output_sdf(client):
+def test_compounds_output_sdf(client, api_headers):
     csv_path = BLACK_DIR / "compounds.csv"
     response = preload_entity(
         client,
@@ -212,6 +219,7 @@ def test_compounds_output_sdf(client):
         mapping_path=None,
         error_handling=enums.ErrorHandlingOptions.reject_row,
         output_format=enums.OutputFormat.sdf,
+        api_headers=api_headers,
     )
 
     assert response.status_code == 200

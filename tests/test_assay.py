@@ -1,8 +1,8 @@
 from tests.conftest import _preload_assays, _preload_assay_runs, BLACK_DIR
 
 
-def test_create_assay(client, preload_schema):
-    response = _preload_assays(client, BLACK_DIR / "assays.json")
+def test_create_assay(client, preload_schema, api_headers):
+    response = _preload_assays(client, BLACK_DIR / "assays.json", api_headers)
     assert response.status_code == 200
 
     assays = response.json()["created"]
@@ -11,8 +11,8 @@ def test_create_assay(client, preload_schema):
     assert assays[0]["name"] == "Hepatocyte Stability"
 
 
-def test_get_all_assays(client, preload_schema, preload_assays):
-    response = client.get("/v1/assays/")
+def test_get_all_assays(client, preload_schema, preload_assays, api_headers):
+    response = client.get("/v1/assays/", headers=api_headers)
     assert response.status_code == 200
 
     assays = response.json()
@@ -30,8 +30,10 @@ def test_get_all_assays(client, preload_schema, preload_assays):
     )
 
 
-def test_create_assay_run(client, preload_schema, preload_assays):
-    response = _preload_assay_runs(client, BLACK_DIR / "assay_runs.csv", BLACK_DIR / "assay_runs_mapping.json")
+def test_create_assay_run(client, preload_schema, preload_assays, api_headers):
+    response = _preload_assay_runs(
+        client, BLACK_DIR / "assay_runs.csv", BLACK_DIR / "assay_runs_mapping.json", api_headers=api_headers
+    )
     assert response.status_code == 200
     result = response.json()
 
@@ -40,8 +42,8 @@ def test_create_assay_run(client, preload_schema, preload_assays):
     assert all(run.get("registration_status") == "success" for run in result)
 
 
-def test_get_assay_run_by_id(client, preload_schema, preload_assays, preload_assay_runs):
-    response = client.get("/v1/assay_runs/2")
+def test_get_assay_run_by_id(client, preload_schema, preload_assays, preload_assay_runs, api_headers):
+    response = client.get("/v1/assay_runs/2", headers=api_headers)
     assert response.status_code == 200
 
     data = response.json()
@@ -66,8 +68,8 @@ def test_get_assay_run_by_id(client, preload_schema, preload_assays, preload_ass
     assert any(p["name"] == "Cell Species" for p in props)
 
 
-def test_get_assay_runs(client, preload_schema, preload_assays, preload_assay_runs):
-    response = client.get("/v1/assay_runs/")
+def test_get_assay_runs(client, preload_schema, preload_assays, preload_assay_runs, api_headers):
+    response = client.get("/v1/assay_runs/", headers=api_headers)
     assert response.status_code == 200
 
     data = response.json()

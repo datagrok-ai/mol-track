@@ -77,4 +77,16 @@ VALUES (
   'Defines the molecule standardization pipeline'
 );
 
+INSERT INTO moltrack.api_keys (
+  owner_id, prefix, secret_hash,
+  privileges, status, ip_allowlist
+) VALUES (
+  (SELECT id FROM moltrack.users WHERE email = 'admin@datagrok.ai'),
+  'Ib-vwjI',
+  'y4XqY3MbIzGb1/aXL8LAKWI4tImIKUOhhn/7bxvf+C4=',
+  ARRAY['admin'],
+  'active',
+  ARRAY[]::cidr[]
+);
+
 COMMIT;

@@ -5,7 +5,7 @@ import json
 from app.utils import enums
 
 
-def send_registration_request(client, rows):
+def send_registration_request(client, rows, api_headers):
     csv_buffer = io.StringIO()
     writer = csv.DictWriter(csv_buffer, fieldnames=rows[0].keys())
     writer.writeheader()
@@ -15,7 +15,7 @@ def send_registration_request(client, rows):
     files = {"file": ("data.csv", csv_buffer.getvalue(), "text/csv")}
     data = {"error_handling": enums.ErrorHandlingOptions.reject_row.value}
 
-    response = client.post("v1/compounds/", files=files, data=data)
+    response = client.post("v1/compounds/", files=files, data=data, headers=api_headers)
     return response
 
 
@@ -42,8 +42,8 @@ rows_validators = [
 
 
 @pytest.mark.usefixtures("preload_simple_data")
-def test_single_property_validators(client):
-    schema_response = client.post("/v1/schema/", json=validated_property_validator)
+def test_single_property_validators(client, api_headers):
+    schema_response = client.post("/v1/schema/", json=validated_property_validator, headers=api_headers)
 
     schema_response_content = schema_response.content.decode("utf-8")
     schema_response_content = json.loads(schema_response_content)
@@ -51,7 +51,7 @@ def test_single_property_validators(client):
     assert schema_response_content["status"] == "success"
     assert schema_response_content["property_types"][0]["validators"] is not None
 
-    response = send_registration_request(client, rows_validators)
+    response = send_registration_request(client, rows_validators, api_headers)
 
     assert response.status_code == 200
     assert response.headers["content-disposition"].startswith("attachment;")
@@ -88,8 +88,8 @@ rows_min_max = [
 
 
 @pytest.mark.usefixtures("preload_simple_data")
-def test_single_property_min_max(client):
-    schema_response = client.post("/v1/schema/", json=validated_property_min_max)
+def test_single_property_min_max(client, api_headers):
+    schema_response = client.post("/v1/schema/", json=validated_property_min_max, headers=api_headers)
 
     schema_response_content = schema_response.content.decode("utf-8")
     schema_response_content = json.loads(schema_response_content)
@@ -98,7 +98,7 @@ def test_single_property_min_max(client):
     assert schema_response_content["property_types"][0]["min"] is not None
     assert schema_response_content["property_types"][0]["max"] is not None
 
-    response = send_registration_request(client, rows_min_max)
+    response = send_registration_request(client, rows_min_max, api_headers)
 
     assert response.status_code == 200
     assert response.headers["content-disposition"].startswith("attachment;")
@@ -134,8 +134,8 @@ rows_choices = [
 
 
 @pytest.mark.usefixtures("preload_simple_data")
-def test_single_property_choices(client):
-    schema_response = client.post("/v1/schema/", json=validated_property_choices)
+def test_single_property_choices(client, api_headers):
+    schema_response = client.post("/v1/schema/", json=validated_property_choices, headers=api_headers)
 
     schema_response_content = schema_response.content.decode("utf-8")
     schema_response_content = json.loads(schema_response_content)
@@ -143,7 +143,7 @@ def test_single_property_choices(client):
     assert schema_response_content["status"] == "success"
     assert schema_response_content["property_types"][0]["choices"] is not None
 
-    response = send_registration_request(client, rows_choices)
+    response = send_registration_request(client, rows_choices, api_headers)
 
     assert response.status_code == 200
     assert response.headers["content-disposition"].startswith("attachment;")
@@ -191,9 +191,9 @@ valid_rule = "matches(${val_string_prop_1}, r'^input_') && ${val_int_prop_1} > 1
 
 
 @pytest.mark.usefixtures("preload_simple_data")
-def test_validator_registration_and_record_validation_valid(client):
+def test_validator_registration_and_record_validation_valid(client, api_headers):
     # Register properties
-    schema_response = client.post("/v1/schema/", json=properties)
+    schema_response = client.post("/v1/schema/", json=properties, headers=api_headers)
 
     schema_response_content = schema_response.content.decode("utf-8")
     schema_response_content = json.loads(schema_response_content)
@@ -207,7 +207,7 @@ def test_validator_registration_and_record_validation_valid(client):
         "expression": valid_rule,
         "description": "test validator 1 description",
     }
-    register_rule_response = client.post("/v1/validators/", data=validator_payload)
+    register_rule_response = client.post("/v1/validators/", data=validator_payload, headers=api_headers)
 
     register_rule_response_content = register_rule_response.content.decode("utf-8")
     register_rule_response_content = json.loads(register_rule_response_content)
@@ -215,7 +215,7 @@ def test_validator_registration_and_record_validation_valid(client):
     assert register_rule_response_content["status"] == "success"
     assert register_rule_response_content["added_validator"] == valid_rule
 
-    response = send_registration_request(client, rows_record_validation)
+    response = send_registration_request(client, rows_record_validation, api_headers)
 
     assert response.status_code == 200
     assert response.headers["content-disposition"].startswith("attachment;")
@@ -233,7 +233,7 @@ invalid_rule = "matches(${val_string_prop_1}, r'^input_') & ${val_int_prop_1} > 
 
 
 @pytest.mark.usefixtures("preload_simple_data")
-def test_validator_registration_invalid_property(client):
+def test_validator_registration_invalid_property(client, api_headers):
     # Register validator
     validator_payload = {
         "name": "test_validator_1",
@@ -241,7 +241,7 @@ def test_validator_registration_invalid_property(client):
         "expression": valid_rule,
         "description": "test validator 1 description",
     }
-    register_rule_response = client.post("/v1/validators/", data=validator_payload)
+    register_rule_response = client.post("/v1/validators/", data=validator_payload, headers=api_headers)
 
     register_rule_response_content = register_rule_response.content.decode("utf-8")
     register_rule_response_content = json.loads(register_rule_response_content)
@@ -251,9 +251,9 @@ def test_validator_registration_invalid_property(client):
 
 
 @pytest.mark.usefixtures("preload_simple_data")
-def test_validator_registration_invalid_rule(client):
+def test_validator_registration_invalid_rule(client, api_headers):
     # Register properties
-    schema_response = client.post("/v1/schema/", json=properties)
+    schema_response = client.post("/v1/schema/", json=properties, headers=api_headers)
 
     schema_response_content = schema_response.content.decode("utf-8")
     schema_response_content = json.loads(schema_response_content)
@@ -267,7 +267,7 @@ def test_validator_registration_invalid_rule(client):
         "expression": invalid_rule,
         "description": "test validator 1 description",
     }
-    register_rule_response = client.post("/v1/validators/", data=validator_payload)
+    register_rule_response = client.post("/v1/validators/", data=validator_payload, headers=api_headers)
 
     register_rule_response_content = register_rule_response.content.decode("utf-8")
     register_rule_response_content = json.loads(register_rule_response_content)

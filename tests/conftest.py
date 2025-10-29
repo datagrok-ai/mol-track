@@ -45,7 +45,7 @@ DB_SCHEMA = os.environ.get("DB_SCHEMA", "moltrack")
 DATA_DIR = Path(__file__).parent.parent / "data"
 BLACK_DIR = DATA_DIR / "black"
 SIMPLE_DIR = DATA_DIR / "simple"
-EXCLUDE_TABLES = ["users", "settings", "semantic_types", "properties"]
+EXCLUDE_TABLES = ["users", "api_keys", "settings", "semantic_types", "properties"]
 SCHEMA_FILES = [
     "batches_schema.json",
     "compounds_schema.json",
@@ -201,17 +201,17 @@ def read_csv(file_path: Path) -> str:
 
 
 @pytest.fixture
-def preload_schema(client):
+def preload_schema(client, api_headers):
     for schema_file in SCHEMA_FILES:
         data = read_json(BLACK_DIR / schema_file)
-        client.post("/v1/schema/", json=data)
+        client.post("/v1/schema/", json=data, headers=api_headers)
 
 
 @pytest.fixture
-def preload_additions(client):
+def preload_additions(client, api_headers):
     file_path = DATA_DIR / "additions.csv"
     files = {"csv_file": (str(file_path), read_csv(file_path), "text/csv")}
-    client.post("/v1/additions/", files=files)
+    client.post("/v1/additions/", files=files, headers=api_headers)
 
 
 def preload_entity(
@@ -222,6 +222,7 @@ def preload_entity(
     error_handling=enums.ErrorHandlingOptions.reject_row,
     mime_type: str = "text/csv",
     output_format: str = enums.OutputFormat.json,
+    api_headers=None,
 ):
     files = {"file": (str(file_path), open(file_path, "rb"), mime_type)}
     data = {"error_handling": error_handling.value, "output_format": output_format.value}
@@ -229,74 +230,98 @@ def preload_entity(
     if mapping_path is not None:
         data["mapping"] = json.dumps(read_json(mapping_path))
 
-    return client.post(endpoint, files=files, data=data)
+    return client.post(endpoint, files=files, data=data, headers=api_headers)
 
 
 def _preload_compounds(
-    client, csv_path: str, mapping_path: Optional[str] = None, error_handling=enums.ErrorHandlingOptions.reject_row
+    client,
+    csv_path: str,
+    mapping_path: Optional[str] = None,
+    error_handling=enums.ErrorHandlingOptions.reject_row,
+    api_headers=None,
 ):
-    return preload_entity(client, "/v1/compounds/", csv_path, mapping_path, error_handling)
+    return preload_entity(client, "/v1/compounds/", csv_path, mapping_path, error_handling, api_headers=api_headers)
 
 
 @pytest.fixture
-def preload_compounds(client):
-    return _preload_compounds(client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json")
+def preload_compounds(client, api_headers):
+    return _preload_compounds(
+        client, BLACK_DIR / "compounds.csv", BLACK_DIR / "compounds_mapping.json", api_headers=api_headers
+    )
 
 
 def _preload_batches(
-    client, csv_path: str, mapping_path: Optional[str] = None, error_handling=enums.ErrorHandlingOptions.reject_row
+    client,
+    csv_path: str,
+    mapping_path: Optional[str] = None,
+    error_handling=enums.ErrorHandlingOptions.reject_row,
+    api_headers=None,
 ):
-    return preload_entity(client, "/v1/batches/", csv_path, mapping_path, error_handling)
+    return preload_entity(client, "/v1/batches/", csv_path, mapping_path, error_handling, api_headers=api_headers)
 
 
 @pytest.fixture
-def preload_batches(client):
-    return _preload_batches(client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json")
+def preload_batches(client, api_headers):
+    return _preload_batches(
+        client, BLACK_DIR / "batches.csv", BLACK_DIR / "batches_mapping.json", api_headers=api_headers
+    )
 
 
-def _preload_assays(client, json_path: str):
+def _preload_assays(client, json_path: str, api_headers=None):
     data = read_json(json_path)
-    return client.post("/v1/assays", json=data)
+    return client.post("/v1/assays", json=data, headers=api_headers)
 
 
 @pytest.fixture
-def preload_assays(client):
-    return _preload_assays(client, BLACK_DIR / "assays.json")
+def preload_assays(client, api_headers):
+    return _preload_assays(client, BLACK_DIR / "assays.json", api_headers=api_headers)
 
 
 def _preload_assay_runs(
-    client, csv_path: str, mapping_path: Optional[str] = None, error_handling=enums.ErrorHandlingOptions.reject_row
+    client,
+    csv_path: str,
+    mapping_path: Optional[str] = None,
+    error_handling=enums.ErrorHandlingOptions.reject_row,
+    api_headers=None,
 ):
-    return preload_entity(client, "/v1/assay_runs/", csv_path, mapping_path, error_handling)
+    return preload_entity(client, "/v1/assay_runs/", csv_path, mapping_path, error_handling, api_headers=api_headers)
 
 
 @pytest.fixture
-def preload_assay_runs(client):
-    return _preload_assay_runs(client, BLACK_DIR / "assay_runs.csv", BLACK_DIR / "assay_runs_mapping.json")
+def preload_assay_runs(client, api_headers):
+    return _preload_assay_runs(
+        client, BLACK_DIR / "assay_runs.csv", BLACK_DIR / "assay_runs_mapping.json", api_headers=api_headers
+    )
 
 
 def _preload_assay_results(
-    client, csv_path: str, mapping_path: Optional[str] = None, error_handling=enums.ErrorHandlingOptions.reject_row
+    client,
+    csv_path: str,
+    mapping_path: Optional[str] = None,
+    error_handling=enums.ErrorHandlingOptions.reject_row,
+    api_headers=None,
 ):
-    return preload_entity(client, "/v1/assay_results/", csv_path, mapping_path, error_handling)
+    return preload_entity(client, "/v1/assay_results/", csv_path, mapping_path, error_handling, api_headers=api_headers)
 
 
 @pytest.fixture
-def preload_assay_results(client):
-    return _preload_assay_results(client, BLACK_DIR / "assay_results.csv", BLACK_DIR / "assay_results_mapping.json")
+def preload_assay_results(client, api_headers):
+    return _preload_assay_results(
+        client, BLACK_DIR / "assay_results.csv", BLACK_DIR / "assay_results_mapping.json", api_headers=api_headers
+    )
 
 
-def preload_data_from_dir(client, data_dir: str, use_mapping_files: bool = True):
+def preload_data_from_dir(client, data_dir: str, use_mapping_files: bool = True, api_headers=None):
     for schema_file in SCHEMA_FILES:
         schema_data = read_json(data_dir / schema_file)
-        client.post("/v1/schema/", json=schema_data)
+        client.post("/v1/schema/", json=schema_data, headers=api_headers)
 
     file_path = DATA_DIR / "additions.csv"
     files = {"file": (str(file_path), read_csv(file_path), "text/csv")}
-    client.post("/v1/additions/", files=files)
+    client.post("/v1/additions/", files=files, headers=api_headers)
 
     assays_data = read_json(data_dir / "assays.json")
-    client.post("/v1/assays", json=assays_data)
+    client.post("/v1/assays", json=assays_data, headers=api_headers)
 
     for endpoint, (csv_file, mapping_file) in {
         "/v1/compounds/": DATA_PATHS["compounds"],
@@ -313,17 +338,22 @@ def preload_data_from_dir(client, data_dir: str, use_mapping_files: bool = True)
             mapping_path = data_dir / mapping_file
             data["mapping"] = json.dumps(read_json(mapping_path))
 
-        client.post(endpoint, files=files, data=data)
+        client.post(endpoint, files=files, data=data, headers=api_headers)
 
 
 @pytest.fixture
-def preload_black_data(client):
-    preload_data_from_dir(client, BLACK_DIR, use_mapping_files=True)
+def preload_black_data(client, api_headers):
+    preload_data_from_dir(client, BLACK_DIR, use_mapping_files=True, api_headers=api_headers)
 
 
 @pytest.fixture
-def preload_simple_data(client):
-    preload_data_from_dir(client, SIMPLE_DIR, use_mapping_files=False)
+def preload_simple_data(client, api_headers):
+    preload_data_from_dir(client, SIMPLE_DIR, use_mapping_files=False, api_headers=api_headers)
+
+
+@pytest.fixture
+def api_headers():
+    return {"X-API-Key": "Ib-vwjI.1wDSVuvQgXiP0CrTLUUCIZN0HzLuqYuo893vznAz5Cs"}
 
 
 # Common test data
