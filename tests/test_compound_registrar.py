@@ -19,8 +19,8 @@ def assert_name_entity_type_equal(actual, expected):
 
 
 @pytest.fixture
-def first_compound_with_synonyms(client, preload_schema, preload_compounds):
-    response = client.get("/v1/compounds/")
+def first_compound_with_synonyms(client, preload_schema, preload_compounds, api_headers):
+    response = client.get("/v1/compounds/", headers=api_headers)
     assert response.status_code == 200
     compounds = response.json()
     assert compounds, "No compounds returned"

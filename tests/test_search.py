@@ -236,7 +236,7 @@ def test_sql_injection_attempt(client, test_db, api_headers):
 
 
 @pytest.mark.usefixtures("preload_simple_data")
-def test_all_numeric_aggregations(client):
+def test_all_numeric_aggregations(client, api_headers):
     for aggr in enums.AggregationNumericOp:
         response = client.post(
             "v1/search/compounds",
@@ -246,14 +246,17 @@ def test_all_numeric_aggregations(client):
                 "filter": valid_filter,
                 "output_format": enums.SearchOutputFormat.json.value,
             },
+            headers=api_headers,
         )
         assert response.status_code == 200, f"{aggr.value} failed with {response.text}"
 
 
 @pytest.mark.usefixtures("preload_simple_data")
-def test_batch_search_null_eln_reference(client):
+def test_batch_search_null_eln_reference(client, api_headers):
     response = client.post(
-        "v1/search/batches", json={"output": valid_output_batches, "filter": valid_filter_null_eln_reference}
+        "v1/search/batches",
+        json={"output": valid_output_batches, "filter": valid_filter_null_eln_reference},
+        headers=api_headers,
     )
     assert response.status_code == 200
 

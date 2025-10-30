@@ -15,9 +15,11 @@ class BaseRegistrarTest:
     default_entity_count = 54
 
     # --- helpers ---
-    def _preload(self, client, file=None, mapping=None, error_handling=enums.ErrorHandlingOptions.reject_row):
+    def _preload(
+        self, client, file=None, mapping=None, error_handling=enums.ErrorHandlingOptions.reject_row, api_headers=None
+    ):
         file = file or self._default_file()
-        return self.preload_func(client, file, mapping, error_handling)
+        return self.preload_func(client, file, mapping, error_handling, api_headers=api_headers)
 
     def _default_file(self):
         return BLACK_DIR / f"{self.entity_name}.csv"
@@ -25,8 +27,8 @@ class BaseRegistrarTest:
     def _mapping_path(self):
         return BLACK_DIR / f"{self.entity_name}_mapping.json"
 
-    def _get_entities(self, client):
-        resp = client.get(f"/v1/{self.entity_name}/")
+    def _get_entities(self, client, api_headers):
+        resp = client.get(f"/v1/{self.entity_name}/", headers=api_headers)
         assert resp.status_code == 200
         return resp.json()
 
@@ -37,13 +39,13 @@ class BaseRegistrarTest:
         return next(p["value_string"] for p in entity["properties"] if "corporate" in p["name"])
 
     # --- common tests ---
-    def test_register_without_mapping(self, client, preload_schema):
-        response = self._preload(client)
+    def test_register_without_mapping(self, client, preload_schema, api_headers):
+        response = self._preload(client, api_headers=api_headers)
         assert response.status_code == 200
         data = response.json()
         assert len(data) == self.default_entity_count
 
-        entities = self._get_entities(client)
+        entities = self._get_entities(client, api_headers=api_headers)
 
         def assert_properties(entity, expected_props, index):
             properties = entity.get("properties", [])
@@ -55,12 +57,15 @@ class BaseRegistrarTest:
 
         assert_properties(entities[0], self.expected_properties, 0)
 
-    def test_get_list(self, client, preload_schema):
+    def test_get_list(self, client, preload_schema, api_headers):
         response = self._preload(
-            client, mapping=self._mapping_path(), error_handling=enums.ErrorHandlingOptions.reject_all
+            client,
+            mapping=self._mapping_path(),
+            error_handling=enums.ErrorHandlingOptions.reject_all,
+            api_headers=api_headers,
         )
         assert response.status_code == 200
-        entities = self._get_entities(client)
+        entities = self._get_entities(client, api_headers=api_headers)
 
         assert len(entities) == self.default_entity_count
         for e in entities:
@@ -73,7 +78,7 @@ class BaseRegistrarTest:
             ("sdf", "chemical/x-mdl-sdfile"),
         ],
     )
-    def test_input_files(self, client, ext, mime_type):
+    def test_input_files(self, api_headers, client, ext, mime_type):
         input_file = BLACK_DIR / f"{self.entity_name}.{ext}"
         if not input_file.exists():
             return
@@ -85,6 +90,7 @@ class BaseRegistrarTest:
             mapping_path=None,
             error_handling=enums.ErrorHandlingOptions.reject_row,
             mime_type=mime_type,
+            api_headers=api_headers,
         )
         assert response.status_code == 200
         data = response.json()
@@ -102,7 +108,7 @@ class BaseRegistrarTest:
             ("sdf", enums.OutputFormat.csv, "Common Name,CAS"),
         ],
     )
-    def test_output_formats(self, client, ext, output_format, expected_snippet):
+    def test_output_formats(self, client, api_headers, ext, output_format, expected_snippet):
         input_file = BLACK_DIR / f"{self.entity_name}.{ext}"
         if not input_file.exists():
             return
@@ -114,6 +120,7 @@ class BaseRegistrarTest:
             mapping_path=None,
             error_handling=enums.ErrorHandlingOptions.reject_row,
             output_format=output_format,
+            api_headers=api_headers,
         )
         assert response.status_code == 200
         content = response.text

@@ -6,8 +6,8 @@ from app import models
 
 
 @pytest.fixture
-def first_batch_with_synonyms(client, preload_schema, preload_batches):
-    response = client.get("/v1/batches/")
+def first_batch_with_synonyms(client, preload_schema, preload_batches, api_headers):
+    response = client.get("/v1/batches/", headers=api_headers)
     assert response.status_code == 200
     batches = response.json()
     first = batches[0]

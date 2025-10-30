@@ -34,8 +34,8 @@ def test_get_all_assays(client, preload_schema, preload_assays, api_headers):
     )
 
 
-def test_get_assay_by_id(client, preload_schema, preload_assays):
-    all_response = client.get("/v1/assays/")
+def test_get_assay_by_id(client, preload_schema, preload_assays, api_headers):
+    all_response = client.get("/v1/assays/", headers=api_headers)
     assert all_response.status_code == 200
 
     assays = all_response.json()
@@ -43,7 +43,7 @@ def test_get_assay_by_id(client, preload_schema, preload_assays):
     expected_assay = assays[0]
     assay_id = expected_assay["id"]
 
-    response = client.get(f"/v1/assays/{assay_id}")
+    response = client.get(f"/v1/assays/{assay_id}", headers=api_headers)
     assert response.status_code == 200, f"Failed to fetch assay {assay_id}"
     assay = response.json()
 
@@ -52,7 +52,7 @@ def test_get_assay_by_id(client, preload_schema, preload_assays):
     assert assay["properties"] == expected_assay["properties"]
     assert assay["property_requirements"] == expected_assay["property_requirements"]
 
-    missing = client.get("/v1/assays/999999")
+    missing = client.get("/v1/assays/999999", headers=api_headers)
     assert missing.status_code == 404, "Expected 404 for non-existent assay"
 
 
@@ -72,8 +72,8 @@ class TestAssayRunRegistrar(BaseRegistrarTest):
     get_response_model = models.AssayRunResponse
     default_entity_count = 9
 
-    def test_get_assay_run_by_id(self, client, preload_schema, preload_assay_runs):
-        all_response = client.get("/v1/assay_runs/")
+    def test_get_assay_run_by_id(self, client, preload_schema, preload_assay_runs, api_headers):
+        all_response = client.get("/v1/assay_runs/", headers=api_headers)
         assert all_response.status_code == 200
 
         assay_runs = all_response.json()
@@ -81,7 +81,7 @@ class TestAssayRunRegistrar(BaseRegistrarTest):
         expected_run = assay_runs[0]
         run_id = expected_run["id"]
 
-        response = client.get(f"/v1/assay_runs/{run_id}")
+        response = client.get(f"/v1/assay_runs/{run_id}", headers=api_headers)
         assert response.status_code == 200, f"Failed to fetch assay run {run_id}"
 
         assay_run = response.json()
@@ -90,7 +90,7 @@ class TestAssayRunRegistrar(BaseRegistrarTest):
         assert assay_run["properties"] == expected_run["properties"]
         assert assay_run["assay_run_details"] == expected_run["assay_run_details"]
 
-        missing = client.get("/v1/assay_runs/999999")
+        missing = client.get("/v1/assay_runs/999999", headers=api_headers)
         assert missing.status_code == 404, "Expected 404 for non-existent assay run"
 
     @pytest.mark.skip(reason="Registering assay run requires a mapping to determine assay names.")

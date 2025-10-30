@@ -16,8 +16,8 @@ def _get_all_additions(client, api_headers):
 
 
 @pytest.mark.parametrize("expected", expected_additions)
-def test_get_all_additions(client, preload_additions, expected):
-    additions = _get_all_additions(client)
+def test_get_all_additions(client, preload_additions, api_headers, expected):
+    additions = _get_all_additions(client, api_headers=api_headers)
     api_names = [a["name"] for a in additions]
     assert expected["name"] in api_names
 
@@ -45,12 +45,12 @@ def test_get_solvates(client, preload_additions, api_headers):
 
 
 @pytest.mark.parametrize("expected", expected_additions)
-def test_get_addition_by_id(client, preload_additions, expected):
-    additions = _get_all_additions(client)
+def test_get_addition_by_id(client, preload_additions, api_headers, expected):
+    additions = _get_all_additions(client, api_headers=api_headers)
 
     api_addition = next(a for a in additions if a["name"] == expected["name"])
 
-    response = client.get(f"/v1/additions/{api_addition['id']}")
+    response = client.get(f"/v1/additions/{api_addition['id']}", headers=api_headers)
     assert response.status_code == 200
     addition = response.json()
 
@@ -59,8 +59,8 @@ def test_get_addition_by_id(client, preload_additions, expected):
 
 
 @pytest.fixture
-def first_addition_id(client, preload_additions):
-    additions = _get_all_additions(client)
+def first_addition_id(client, preload_additions, api_headers):
+    additions = _get_all_additions(client, api_headers=api_headers)
     return additions[0]["id"]
 
 
@@ -71,8 +71,8 @@ def first_addition_id(client, preload_additions):
         ({"description": "updated addition description"}),
     ],
 )
-def test_put_addition_by_id(client, first_addition_id, update_payload):
-    response = client.put(f"/v1/additions/{first_addition_id}", json=update_payload)
+def test_put_addition_by_id(client, first_addition_id, update_payload, api_headers):
+    response = client.put(f"/v1/additions/{first_addition_id}", json=update_payload, headers=api_headers)
     assert response.status_code == 200
     data = response.json()
 
@@ -80,11 +80,11 @@ def test_put_addition_by_id(client, first_addition_id, update_payload):
         assert data[key] == value, f"Expected {key} to be {value}, but got {data[key]}"
 
 
-def test_delete_addition_by_id(client, first_addition_id):
-    response_delete = client.delete(f"/v1/additions/{first_addition_id}")
+def test_delete_addition_by_id(client, first_addition_id, api_headers):
+    response_delete = client.delete(f"/v1/additions/{first_addition_id}", headers=api_headers)
     assert response_delete.status_code == 200
 
-    response_get = client.get(f"/v1/additions/{first_addition_id}")
+    response_get = client.get(f"/v1/additions/{first_addition_id}", headers=api_headers)
     assert response_get.status_code == 404
 
     response_get_data = response_get.json()

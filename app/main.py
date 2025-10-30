@@ -336,7 +336,11 @@ def update_compound_by_id(
 
 
 @router.delete("/compounds/{corporate_compound_id}", response_model=models.Compound)
-def delete_compound_by_id(corporate_compound_id: str, db: Session = Depends(get_db)):
+def delete_compound_by_id(
+    corporate_compound_id: str,
+    db: Session = Depends(get_db),
+    auth_scopes=Depends(require_privileges(enums.AuthPrivileges.WRITER, enums.AuthPrivileges.ADMIN)),
+):
     return crud.delete_compound(db, corporate_compound_id, "corporate_compound_id")
 
 

@@ -42,8 +42,8 @@ test_cases = [
 
 
 @pytest.mark.parametrize("setting_name, value, expected_status, expected_message_substr", test_cases)
-def test_update_settings(client, setting_name, value, expected_status, expected_message_substr):
-    response = client.patch("/v1/admin/settings", data={"name": setting_name, "value": value})
+def test_update_settings(client, api_headers, setting_name, value, expected_status, expected_message_substr):
+    response = client.patch("/v1/admin/settings", data={"name": setting_name, "value": value}, headers=api_headers)
     message = response.json().get("message", "") or response.json().get("detail", "")
     assert response.status_code == expected_status
     assert expected_message_substr in message
