@@ -7,12 +7,14 @@ from app.services.properties.property_validator import PropertyValidator
 from app.utils import type_casting_utils, enums
 from app.utils.admin_utils import admin
 from typing import Callable, Dict, Any, List, Optional, Tuple, Type
+from app.utils.registrar_utils import get_validation_prefix
 
 
 class PropertyService:
     def __init__(self, property_records_map: Dict[str, Any], db: Session, entity: str):
         self.property_records_map = property_records_map
         self.institution_synonym_dict = self._load_institution_synonym_dict()
+        self.entity = entity
         self.validators = self._load_validators(db, entity)
 
     def _load_validators(self, db, entity: str) -> List[str]:
@@ -62,8 +64,9 @@ class PropertyService:
         entity_type: enums.EntityType,
         include_user_fields: bool = True,
         update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
+        additional_details: Optional[Dict[str, Any]] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        records_to_insert, records_to_update = [], []
+        records_to_insert = []
         records_to_validate = {}
 
         for prop_name, value in properties.items():
@@ -74,24 +77,12 @@ class PropertyService:
             field_name = prop_info["field_name"]
             prop_id = getattr(prop, "id")
 
-            if value in ("", "none", None):
+            if PropertyValidator.validate_nullable(value, prop):
                 continue
 
+            value_qualifier, value = self.extract_qualifiers(value_type, value)
+
             PropertyValidator.validate_value(value, prop)
-
-            #  Detect and parse value qualifiers
-            value_qualifier = 0
-            if value_type in ("double", "int") and isinstance(value, str):
-                qualifiers = {
-                    "<": 1,
-                    ">": 2,
-                    "=": 0,
-                }
-
-                first_char = value[0] if value else ""
-                if first_char in qualifiers:
-                    value_qualifier = qualifiers[first_char]
-                    value = value[1:].strip()
 
             try:
                 casted_value = cast_fn(value)
@@ -128,17 +119,26 @@ class PropertyService:
                 detail["created_by"] = admin.admin_user_id
                 detail["updated_by"] = admin.admin_user_id
 
-            if update_checker:
-                result = update_checker(entity_ids, detail, field_name, casted_value)
-                if result.action == "skip":
-                    continue
-                elif result.action == "update":
-                    records_to_update.append(result.update_data)
-                    continue
-                elif result.action == "insert":
-                    pass
-
             records_to_insert.append(detail)
-        if self.validators and records_to_validate:
+        records_to_validate = {f"{get_validation_prefix(entity_type)}": records_to_validate}
+        if entity_type.value == self.entity and self.validators and records_to_validate:
+            records_to_validate = {**records_to_validate, **(additional_details or {})}
             ComplexValidator.validate_record(records_to_validate, self.validators)
-        return records_to_insert, records_to_update
+
+        return records_to_insert, records_to_validate
+
+    def extract_qualifiers(self, value_type: str, value: Any):
+        #  Detect and parse value qualifiers
+        value_qualifier = 0
+        if value_type in ("double", "int") and isinstance(value, str):
+            qualifiers = {
+                "<": enums.ValueQualifier.LESS_THAN,
+                ">": enums.ValueQualifier.GREATER_THAN,
+                "=": enums.ValueQualifier.EQUALS,
+            }
+
+            first_char = value[0] if value else ""
+            if first_char in qualifiers:
+                value_qualifier = qualifiers[first_char]
+                value = value[1:].strip()
+        return value_qualifier, value

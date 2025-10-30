@@ -1,4 +1,9 @@
-from tests.conftest import _preload_assays, _preload_assay_runs, BLACK_DIR
+import pytest
+from app import models
+from tests.conftest import _preload_assay_results, _preload_assays, _preload_assay_runs, BLACK_DIR
+from tests.utils.test_base_registrar import BaseRegistrarTest
+
+# === Tests for Assay endpoints ===
 
 
 def test_create_assay(client, preload_schema, api_headers):
@@ -22,7 +27,6 @@ def test_get_all_assays(client, preload_schema, preload_assays, api_headers):
     assay = assays[0]
     assert assay["name"] == "Hepatocyte Stability"
     assert "properties" in assay and isinstance(assay["properties"], list) and len(assay["properties"]) > 0
-    assert "assay_details" in assay and isinstance(assay["assay_details"], list) and len(assay["assay_details"]) > 0
     assert (
         "property_requirements" in assay
         and isinstance(assay["property_requirements"], list)
@@ -30,64 +34,86 @@ def test_get_all_assays(client, preload_schema, preload_assays, api_headers):
     )
 
 
-def test_create_assay_run(client, preload_schema, preload_assays, api_headers):
-    response = _preload_assay_runs(
-        client, BLACK_DIR / "assay_runs.csv", BLACK_DIR / "assay_runs_mapping.json", api_headers=api_headers
-    )
-    assert response.status_code == 200
-    result = response.json()
+def test_get_assay_by_id(client, preload_schema, preload_assays):
+    all_response = client.get("/v1/assays/")
+    assert all_response.status_code == 200
 
-    assert isinstance(result, list)
-    assert len(result) == 9
-    assert all(run.get("registration_status") == "success" for run in result)
+    assays = all_response.json()
+    assert isinstance(assays, list) and len(assays) > 0
+    expected_assay = assays[0]
+    assay_id = expected_assay["id"]
 
+    response = client.get(f"/v1/assays/{assay_id}")
+    assert response.status_code == 200, f"Failed to fetch assay {assay_id}"
+    assay = response.json()
 
-def test_get_assay_run_by_id(client, preload_schema, preload_assays, preload_assay_runs, api_headers):
-    response = client.get("/v1/assay_runs/2", headers=api_headers)
-    assert response.status_code == 200
+    assert assay["id"] == expected_assay["id"]
+    assert assay["name"] == expected_assay["name"]
+    assert assay["properties"] == expected_assay["properties"]
+    assert assay["property_requirements"] == expected_assay["property_requirements"]
 
-    data = response.json()
-    assert data["id"] == 2
-    assert data["name"] == "Hepatocyte Stability2024-02-02"
-    assert data["assay_id"] == 1
-
-    assay = data.get("assay")
-    assert assay and assay["id"] == 1
-    assert assay["name"] == "Hepatocyte Stability"
-
-    details = data.get("assay_run_details")
-    assert isinstance(details, list)
-    assert len(details) == 3
-
-    detail_22 = next((d for d in details if d["property_id"] == 22), None)
-    assert detail_22 is not None
-    assert detail_22["value_string"] == "Human"
-
-    props = data.get("properties")
-    assert isinstance(props, list)
-    assert any(p["name"] == "Cell Species" for p in props)
+    missing = client.get("/v1/assays/999999")
+    assert missing.status_code == 404, "Expected 404 for non-existent assay"
 
 
-def test_get_assay_runs(client, preload_schema, preload_assays, preload_assay_runs, api_headers):
-    response = client.get("/v1/assay_runs/", headers=api_headers)
-    assert response.status_code == 200
+# === Tests for Assay Run endpoints ===
 
-    data = response.json()
-    assert len(data) == 9
 
-    first = data[0]
-    assert first["name"] == "Hepatocyte Stability2024-02-01"
-    assert first["assay_id"] == 1
-    assert first["id"] == 1
+@pytest.mark.usefixtures("preload_assays")
+class TestAssayRunRegistrar(BaseRegistrarTest):
+    entity_name = "assay_runs"
+    expected_properties = {"Cell Species", "Cell Lot", "Assay Run Date"}
+    expected_first = {
+        "cell species": "Human",
+        "cell lot": " H1",
+        "assay date": "2024-02-01",
+    }
+    preload_func = staticmethod(_preload_assay_runs)
+    get_response_model = models.AssayRunResponse
+    default_entity_count = 9
 
-    assay = first.get("assay")
-    assert assay is not None
-    assert assay.get("name") == "Hepatocyte Stability"
+    def test_get_assay_run_by_id(self, client, preload_schema, preload_assay_runs):
+        all_response = client.get("/v1/assay_runs/")
+        assert all_response.status_code == 200
 
-    details = first.get("assay_run_details", [])
-    assert isinstance(details, list)
-    assert len(details) > 0
+        assay_runs = all_response.json()
+        assert isinstance(assay_runs, list) and len(assay_runs) > 0
+        expected_run = assay_runs[0]
+        run_id = expected_run["id"]
 
-    properties = first.get("properties", [])
-    assert isinstance(properties, list)
-    assert len(properties) > 0
+        response = client.get(f"/v1/assay_runs/{run_id}")
+        assert response.status_code == 200, f"Failed to fetch assay run {run_id}"
+
+        assay_run = response.json()
+        assert assay_run["id"] == expected_run["id"]
+        assert assay_run["name"] == expected_run["name"]
+        assert assay_run["properties"] == expected_run["properties"]
+        assert assay_run["assay_run_details"] == expected_run["assay_run_details"]
+
+        missing = client.get("/v1/assay_runs/999999")
+        assert missing.status_code == 404, "Expected 404 for non-existent assay run"
+
+    @pytest.mark.skip(reason="Registering assay run requires a mapping to determine assay names.")
+    def test_register_without_mapping(self, **kwargs):
+        pass
+
+
+# === Tests for Assay Result endpoints ===
+
+
+@pytest.mark.usefixtures("preload_compounds", "preload_batches", "preload_assays", "preload_assay_runs")
+class TestAssayResultRegistrar(BaseRegistrarTest):
+    entity_name = "assay_results"
+    expected_properties = {}
+    expected_first = {
+        "Concentration (µM)": "0.1",
+        "Mean HTC recovery (%; n=2)": "59.51",
+        "SD HTC recovery (%; n=2)": "84.16",
+    }
+    preload_func = staticmethod(_preload_assay_results)
+    get_response_model = models.AssayResultResponse
+    default_entity_count = 238
+
+    @pytest.mark.skip(reason="Registering assay result requires a mapping to determine assay and batch.")
+    def test_register_without_mapping(self, **kwargs):
+        pass

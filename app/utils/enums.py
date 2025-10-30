@@ -143,10 +143,11 @@ class SettingName(str, enum.Enum):
     BATCH_SEQUENCE_START = "BATCH_SEQUENCE_START"
     CORPORATE_COMPOUND_ID_PATTERN = "CORPORATE_COMPOUND_ID_PATTERN"
     CORPORATE_BATCH_ID_PATTERN = "CORPORATE_BATCH_ID_PATTERN"
+    CORPORATE_COMPOUND_ID_FRIENDLY_NAME = "CORPORATE_COMPOUND_ID_FRIENDLY_NAME"
+    CORPORATE_BATCH_ID_FRIENDLY_NAME = "CORPORATE_BATCH_ID_FRIENDLY_NAME"
 
 
 class AggregationNumericOp(str, enum.Enum):
-    FIRST = "FIRST"
     TOTAL_COUNT = "COUNT"
     VALUE_COUNT = "VALUES"
     UNIQUE_COUNT = "UNIQUE"
@@ -158,11 +159,12 @@ class AggregationNumericOp(str, enum.Enum):
     AVG = "AVG"
     STDEV = "STDEV"
     VARIANCE = "VARIANCE"
-    SKEW = "SKEW"
-    KURT = "KURT"
+    STDDEV_POP = "STDDEV_POP"
+    VAR_POP = "VAR_POP"
     Q1 = "Q1"
     Q2 = "Q2"
     Q3 = "Q3"
+    ARRAY_AGG = "ARRAY_AGG"
 
     @classmethod
     def _missing_(cls, value):
@@ -172,10 +174,7 @@ class AggregationNumericOp(str, enum.Enum):
 class AggregationStringOp(str, enum.Enum):
     CONCAT_ALL = "CONCAT ALL"
     CONCAT_UNIQUE = "CONCAT UNIQUE"
-    LONGEST = "LONGEST"
-    SHORTEST = "SHORTEST"
     MOST_FREQUENT = "MOST FREQUENT"
-    CONCAT_COUNTS = "CONCAT COUNTS"
 
     @classmethod
     def _missing_(cls, value):
@@ -200,3 +199,9 @@ class AuthPrivileges(str, enum.Enum):
 class APIKeyStatus(str, enum.Enum):
     active = "active"
     revoked = "revoked"
+
+
+class ValueQualifier(int, enum.Enum):
+    EQUALS = 0
+    LESS_THAN = 1
+    GREATER_THAN = 2

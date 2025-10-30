@@ -23,11 +23,18 @@ valid_filter = {
     ],
 }
 
+valid_filter_null_eln_reference = {
+    "field": "batches.details.ELN Reference",
+    "operator": "=",
+    "value": None,
+    "threshold": None,
+}
+
 valid_output_compounds = ["compounds.molregno", "compounds.details.corporate_compound_id"]
 valid_output_batches = ["batches.batch_regno", "batches.details.corporate_batch_id"]
 valid_aggregations = [
-    {"field": "assay_results.details.ic50", "operation": "AVG"},
-    {"field": "assay_results.details.ic50", "operation": "COUNT"},
+    {"field": "assay_results.details.clearance", "operation": "AVG"},
+    {"field": "assay_results.details.clearance", "operation": "COUNT"},
 ]
 
 
@@ -158,7 +165,7 @@ def test_valid_json_assay_runs(client, api_headers):
 
 @pytest.mark.usefixtures("preload_simple_data")
 def test_valid_molecular_operations(client, api_headers):
-    output = ["compounds.canonical_smiles"]
+    output = ["compounds.canonical_smiles", "compounds.details.corporate_compound_id"]
     filter = {
         "field": "compounds.structure",
         "operator": "IS SIMILAR",
@@ -226,3 +233,33 @@ def test_sql_injection_attempt(client, test_db, api_headers):
     compounds_after = test_db.execute(text("select * from moltrack.compounds")).fetchall()
 
     assert compounds_before == compounds_after
+
+
+@pytest.mark.usefixtures("preload_simple_data")
+def test_all_numeric_aggregations(client):
+    for aggr in enums.AggregationNumericOp:
+        response = client.post(
+            "v1/search/compounds",
+            json={
+                "output": valid_output_compounds,
+                "aggregations": [{"field": "assay_results.details.clearance", "operation": aggr.value}],
+                "filter": valid_filter,
+                "output_format": enums.SearchOutputFormat.json.value,
+            },
+        )
+        assert response.status_code == 200, f"{aggr.value} failed with {response.text}"
+
+
+@pytest.mark.usefixtures("preload_simple_data")
+def test_batch_search_null_eln_reference(client):
+    response = client.post(
+        "v1/search/batches", json={"output": valid_output_batches, "filter": valid_filter_null_eln_reference}
+    )
+    assert response.status_code == 200
+
+    content = response.json()
+    assert content["total_count"] == 5
+
+    returned_corporate_ids = [row["batches.details.corporate_batch_id"] for row in content["data"]]
+    expected_corporate_ids = ["DGB-000001", "DGB-000002", "DGB-000003", "DGB-000004", "DGB-000005"]
+    assert returned_corporate_ids == expected_corporate_ids

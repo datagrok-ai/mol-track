@@ -1,186 +1,95 @@
-# MolTrack Server
+# MolTrack
 
-A lightweight, flexible and extendable FastAPI-based server for managing chemical compounds, batches, and properties, with the RDKit cartridge-enabled Postgres for chemical intelligence. Ideal for labs, startups, and small- to medium-sized biotech companies.
+[![PyPI](https://img.shields.io/pypi/v/dg-mol-track)](https://pypi.org/project/dg-mol-track/) [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-See also [user stories](./docs/user-stories.md)
+A lightweight, flexible, and extendable FastAPI server for managing chemical compounds, batches, and properties, powered by RDKit-enabled Postgres for chemical intelligence. Ideal for labs, startups, and small- to medium-sized biotech companies.
 
-## Features
+**MolTrack is:**
 
-Work in progress:
+* **Open-source**: Fully accessible code under the MIT license
+* **Easy to use**: CLI and REST APIs for seamless workflow integration
+* **Chemically intelligent**: Supports structure-aware queries
+* **Hackable**: Simple to extend, customize, and integrate proprietary logic
+* **Enterprise-ready**: Scales reliably for production environments
+* **Fast**: Optimized for high performance
 
-1. Compound Registration
-    * [x] **Unique Identifiers**: Automatically assigns unique identifiers (e.g., registration numbers, UUIDs) to new compounds.
-    * [x] **Duplicate Detection**: Prevents registration of duplicates.
-    * [x] **Structure Validation**: Valence checking, standardization of stereochemistry, etc.
-    * [ ] **Structure Standardization**: Converts entered structures into a consistent format, handling tautomerization, salts, and stereo conventions.
-2. Metadata
-    * [ ] **Custom Attributes**: Supports capturing custom metadata (e.g., biological data, physicochemical properties, origin information) and ties it to the appropriate entity (compound, batch/lot).
-    * [ ] **Attachment Management**: Allows attaching documents (NMR spectra, mass spectrometry data, analytical certificates).
-3. Batches and Lots
-    * [ ] **Batch Registration**: Manages registration of multiple batches or lots for a single compound.
-    * [ ] **Duplicate Detection**: Prevents the registration of duplicates
-    * [ ] **Purity and Inventory Tracking**: Tracks batch-specific details such as purity, quantity, storage location, supplier, and expiration dates.
-4. Protocols and Assay Results
-    * [ ] **Protocols**: Define assay types used to measure batches.
-    * [ ] **Assay Results**: Register and query assay results.
-5. Search
-    * [ ] **Structure-based Search**: Supports exact, substructure, similarity, and Markush searches.
-    * [ ] **Metadata Search**: Enables querying by metadata fields such as IDs, names, properties, and batch information.
-6. Audit and Compliance
-    * [ ] **Audit Trails**: Records detailed logs of registration, editing, and deletion activities for compliance and traceability.
-    * [ ] **Role-based Access Control**: Implements security controls to ensure sensitive data is accessible only by authorized users.
-7. Integration and APIs
-    * [x] **API Access**: Provides RESTful APIs to facilitate integration with other lab informatics systems (ELNs, LIMS, inventory management systems).
-9. User Interface
-    * [ ] **Chemical Drawing Integration**: Allows users to input structures directly using chemical drawing tools (e.g., MarvinJS, ChemDraw, Ketcher).
-    * [ ] **Custom Reports**: Generates reports on compound libraries, registration statistics, and inventory statuses.
-    * [ ] **Visualization Tools**: Includes dashboards and data visualization features for quick analysis and decision-making.
+See also: [User stories](./docs/user-stories.md) • [Features](./docs/features.md) • [Developer guide](./CONTRIBUTING.md)
 
-## Automated setup
+## Table of Contents
 
-To simplify and speed up the installation and launch process, we provide two automated setup scripts:
+- [Usage](#usage)
+- [Integration with Datagrok](#integration-with-datagrok)
+- [Features](#features)
 
-* `setup.bat` for **Windows**
-* `setup.sh` for **macOS/Linux**
+## Usage
 
-[Manual setup](#manual-setup) can be time-consuming and error-prone, requiring multiple steps such as building Docker images, running containers, configuring virtual environments, and starting the server. These scripts handle all of that automatically, so you can get your environment ready with a single command.
+### CLI tool
 
-Both scripts accept an optional `--run_server` flag (if specified, the Uvicorn server is started).
+MolTrack provides a command-line interface for managing compounds, batches and assay data directly from your terminal. Currently, the CLI can be run from the MolTrack root folder using:
+<!-- We should publish the CLI tool to PyPI, as it is currently only available via endpoints in dg-mol-track. This is just a placeholder for the official version. -->
 
-> **Note:** Docker must be installed and running on your machine before running these scripts.
-
-### On Windows
-
-1. Open CMD in the project directory.
-2. Run:
-
-```cmd
-setup.bat # Run setup only, skip starting server
-setup.bat --run_server # Run setup and start server
+```bash
+python mtcli.py <command> [options]
 ```
 
-### On macOS/Linux
+To see the full list of available commands and usage examples, refer to the [CLI usage guide](./client/client.md).
 
-1. Open a terminal in the project directory.
-2. Make the script executable and run:
+<!-- This is the placeholder for the gif. -->
+![](./images/mol-track-cli.gif)
+
+### Web server
+
+MolTrack can be run locally as a web server using the automated setup scripts:
+
+* `setup.sh` — for **macOS/Linux**
+* `setup.bat` — for **Windows**
+
+<br>
+
+These scripts handle all setup steps automatically, including building the Docker image, running the container, creating a Python virtual environment, and syncing dependencies. They can also optionally start the server.
+
+> **Note:** Docker must be installed and running before using these scripts.
+
+**macOS/Linux**
 
 ```bash
 chmod +x setup.sh
-./setup.sh # Run setup only, skip starting server
-./setup.sh --run_server # Run setup and start server
+./setup.sh           # Run setup only
+./setup.sh --run_server  # Run setup and start the server
 ```
 
-## Manual setup
+**Windows**
 
-### 1. Create and activate a virtual environment
-
-Create a new virtual environment:
-
-```bash
-python3 -m venv .venv
+```cmd
+setup.bat            # Run setup only
+setup.bat --run_server  # Run setup and start the server
 ```
 
-Activate the environment:
+The setup typically takes **2–3 minutes**. Once ready, open [http://localhost:8000/docs](http://localhost:8000/docs) to access the API documentation.
 
-* **Windows (CMD):**
+## Integration with Datagrok
 
-  ```cmd
-  .venv\Scripts\activate
-  ```
-* **macOS/Linux:**
+To make MolTrack truly accessible, we aim to provide chemists with an intuitive UI, without requiring them to run Docker containers or use the CLI.
 
-  ```bash
-  source .venv/bin/activate
-  ```
+To achieve this, we have developed an MIT-licensed [Datagrok MolTrack plugin](https://github.com/datagrok-ai/public/tree/master/packages/MolTrack/README.md). The plugin allows users to interact with MolTrack directly within the Datagrok platform, providing features such as:
 
-### 2. Install `uv`
+* Compound, batch, and assay data registration
+* Powerful structure-based search
+* Effortless integration with Datagrok analysis and visualization tools
 
-Install `uv` package using pip:
+> **Note:** While both MolTrack and the MolTrack plugin are open-source, the Datagrok platform itself is proprietary. It is free for personal use, academia, and non-profit research. Claim your license [here](https://datagrok.ai).
 
-```bash
-pip install uv
-```
+![](./images/mol-track-registration.gif)
 
-*For alternative installation options, see the [official docs](https://docs.astral.sh/uv/guides/install-python/#getting-started).*
+## Features
 
-### 3. Initialize the project environment with `uv`
+Core MolTrack capabilities:
 
-Set up the virtual environment and dependencies using `uv` commands:
+* Registration of compounds, batches, and assay data  
+* Metadata and property management  
+* Structure-based and metadata search  
+* Audit trails and role-based access control  
+* RESTful API for integration with external systems  
 
-```bash
-uv venv
-uv sync
-```
-
-* `uv venv` creates the virtual environment.
-* `uv sync` installs all required dependencies.
-
-### 4. Configure the database connection
-
-Edit the `database.py` file and update the `SQLALCHEMY_DATABASE_URL` variable with your PostgreSQL connection string:
-
-```python
-SQLALCHEMY_DATABASE_URL = "postgresql://user:password@host:port/database"
-```
-
-Make sure your database server is running and accessible.
-
-### 5. Run the server
-
-Start the FastAPI server with:
-
-```bash
-uv run --active uvicorn app.main:app --reload
-```
-
-You can now access the API at [http://localhost:8000](http://localhost:8000).
-
-## Setting up pytest in VS Code
-
-To configure pytest in VS Code, follow these steps:
-
-1. Install the **Python** extension
-
-   * Open the **Extensions** view (`Ctrl+Shift+X` on Windows/Linux or `Cmd+Shift+X` on macOS).
-   * Search for **Python** and install the official extension by Microsoft.
-
-2. Click the **Testing** icon (beaker icon) in the **Activity bar**.
-
-3. Configure python tests
-
-   * Click on **Configure Python Tests** button.
-   * When prompted, select:
-
-     * **Test framework**: `pytest`
-     * **Test directory**: folder containing the tests (important: ensure it contains an `__init__.py` file — this is required for test discovery to work properly)
-
-Your tests should now be detected and listed in the **Testing panel**.
-
-
-## API Documentation
-
-Once the server is running, you can access:
-- Interactive API documentation: http://localhost:8000/docs
-- Alternative API documentation: http://localhost:8000/redoc
-
-
-## API Endpoints
-
-### Compounds
-- `GET /compounds/` - List all compounds
-- `POST /compounds/` - Create a new compound
-- `GET /compounds/{compound_id}` - Get a specific compound
-- `PUT /compounds/{compound_id}` - Update a compound
-- `DELETE /compounds/{compound_id}` - Delete a compound
-
-### Batches
-- `GET /batches/` - List all batches
-- `POST /batches/` - Create a new batch
-- `GET /batches/{batch_id}` - Get a specific batch
-- `PUT /batches/{batch_id}` - Update a batch
-- `DELETE /batches/{batch_id}` - Delete a batch
-
-### Properties
-- `POST /properties/` - Create a new property
-- `GET /compounds/{compound_id}/properties/` - Get properties for a compound 
-
+➡️ Explore the full roadmap: [Features & Roadmap](./docs/features.md)  
+➡️ Detailed API documentation: [API Reference](./docs/api.md)

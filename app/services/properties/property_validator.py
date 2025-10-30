@@ -69,3 +69,11 @@ class PropertyValidator:
             choices = json.loads(property.choices.replace("'", '"'))
             if value not in choices:
                 raise ValueError(f"Value '{value}' is not in the allowed choices: {choices}")
+
+    @classmethod
+    def validate_nullable(cls, value: Any, property: models.Property) -> bool:
+        if value in {None, "", "none"}:
+            if not property.nullable:
+                raise ValueError(f"Property '{property.name}' is not nullable, but got empty value")
+            return True
+        return False

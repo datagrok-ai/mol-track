@@ -46,6 +46,7 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 BLACK_DIR = DATA_DIR / "black"
 SIMPLE_DIR = DATA_DIR / "simple"
 EXCLUDE_TABLES = ["users", "api_keys", "settings", "semantic_types", "properties"]
+KEEP_PROPERTIES_KEYS = ["corporate_compound_id", "corporate_batch_id"]
 SCHEMA_FILES = [
     "batches_schema.json",
     "compounds_schema.json",
@@ -61,20 +62,36 @@ DATA_PATHS = {
 }
 
 
-def truncate_all_except(db, schema, exclude_tables):
+def truncate_all_except(db, schema, exclude_tables, keep_properties_keys=None):
     tables_query = text("""
         SELECT tablename FROM pg_tables
         WHERE schemaname = :schema
-          AND tablename NOT IN :exclude_tables
+          AND tablename <> ALL(:exclude_tables)
     """)
-    result = db.execute(tables_query, {"schema": schema, "exclude_tables": tuple(exclude_tables)})
+    result = db.execute(tables_query, {"schema": schema, "exclude_tables": exclude_tables})
     tables = [row[0] for row in result]
 
-    if not tables:
-        return
+    if tables:
+        db.execute(text(f"TRUNCATE {', '.join(f'{schema}.{t}' for t in tables)} RESTART IDENTITY CASCADE;"))
 
-    tables_str = ", ".join(f"{schema}.{table}" for table in tables)
-    db.execute(text(f"TRUNCATE {tables_str} RESTART IDENTITY CASCADE;"))
+    # Manually reset sequences to start from 1. These sequences are not tied to any table columns,
+    # so they are not affected by `TRUNCATE ... RESTART IDENTITY` and must be reset explicitly.
+    sequences_to_reset = [
+        "moltrack.molregno_seq",
+        "moltrack.batch_regno_seq",
+    ]
+    for seq in sequences_to_reset:
+        db.execute(text(f"ALTER SEQUENCE {seq} RESTART WITH 1;"))
+
+    if "properties" in exclude_tables and keep_properties_keys:
+        db.execute(
+            text(f"""
+                DELETE FROM {schema}.properties
+                WHERE name <> ALL(:keep_keys)
+            """),
+            {"keep_keys": keep_properties_keys},
+        )
+
     db.commit()
 
 
@@ -170,7 +187,7 @@ def test_db(test_engine):
         yield db
     finally:
         # Clean up data after each test
-        truncate_all_except(db, DB_SCHEMA, EXCLUDE_TABLES)
+        truncate_all_except(db, DB_SCHEMA, EXCLUDE_TABLES, KEEP_PROPERTIES_KEYS)
 
 
 @pytest.fixture

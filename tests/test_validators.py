@@ -200,10 +200,11 @@ def test_validator_registration_and_record_validation_valid(client, api_headers)
 
     assert schema_response_content["status"] == "success"
 
+    entity_type = enums.EntityType.COMPOUND.value
     # Register validator
     validator_payload = {
         "name": "test_validator_1",
-        "entity_type": enums.EntityType.COMPOUND.value,
+        "entity_type": entity_type,
         "expression": valid_rule,
         "description": "test validator 1 description",
     }
@@ -213,7 +214,9 @@ def test_validator_registration_and_record_validation_valid(client, api_headers)
     register_rule_response_content = json.loads(register_rule_response_content)
 
     assert register_rule_response_content["status"] == "success"
-    assert register_rule_response_content["added_validator"] == valid_rule
+    added_validator = register_rule_response_content["added_validator"]
+    normalized_added = added_validator.replace(f"{entity_type.lower()}_details.", "")
+    assert normalized_added == valid_rule
 
     response = send_registration_request(client, rows_record_validation, api_headers)
 
@@ -238,7 +241,7 @@ def test_validator_registration_invalid_property(client, api_headers):
     validator_payload = {
         "name": "test_validator_1",
         "entity_type": enums.EntityType.COMPOUND.value,
-        "expression": valid_rule,
+        "expression": invalid_rule,
         "description": "test validator 1 description",
     }
     register_rule_response = client.post("/v1/validators/", data=validator_payload, headers=api_headers)

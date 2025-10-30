@@ -4,6 +4,7 @@ Search operators and their SQL translations
 
 from typing import Dict, Any, Tuple
 from datetime import datetime
+from app.utils import enums
 from app.utils.enums import OperatorType
 
 
@@ -140,16 +141,26 @@ class SearchOperators:
     @classmethod
     def validate_operands(cls, operator: str, field: str):
         """Validate that operand is appropriate for operation"""
-        if operator in ["IS SIMILAR", "HAS SUBSTRUCTURE", "IS SUBSTRUCTURE OF"]:
+        molecular_ops = {"IS SIMILAR", "HAS SUBSTRUCTURE", "IS SUBSTRUCTURE OF"}
+
+        if operator in molecular_ops:
             if not field.endswith(".structure"):
                 raise ValueError("Molecular operators can only be applied to compounds.structure")
         else:
+            if field.endswith((".canonical_smiles", ".original_molfile")):
+                raise ValueError(f"Operator {operator} can not be applied to {field}")
             if field.endswith(".structure"):
                 raise ValueError("Only molecular operators can be applied to compounds.structure")
 
     @classmethod
     def get_sql_expression(
-        cls, operator: str, field: str, value: Any, threshold: float = None
+        cls,
+        operator: str,
+        field: str,
+        value: Any,
+        threshold: float = None,
+        alias: str = None,
+        value_qualifier: bool = False,
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Get SQL expression and parameters for an operator
@@ -158,6 +169,11 @@ class SearchOperators:
             Tuple of (sql_expression, parameters_dict)
         """
         op_def = cls.get_operator(operator)
+
+        null_ops = {
+            enums.CompareOp.EQUALS: "IS",
+            enums.CompareOp.NOT_EQUALS: "IS NOT",
+        }
 
         # Transform value if needed
         if "value_transform" in op_def:
@@ -174,6 +190,16 @@ class SearchOperators:
                 return sql_expr, params
             case "RANGE":
                 sql_expr = op_def["sql"].format(field=field)
+                if value_qualifier:
+                    sql_expr = (
+                        f"(("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.GREATER_THAN.value} AND {field} < :param2)"
+                        f" OR ("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.LESS_THAN.value} AND {field} > :param1)"
+                        f" OR ("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.EQUALS.value} AND {sql_expr})"
+                        f")"
+                    )
                 return sql_expr, {"param1": value[0], "param2": value[1]}
             case "IS SIMILAR":
                 sql_expr = op_def["sql"].format(field=field)
@@ -181,7 +207,35 @@ class SearchOperators:
             case "IS SUBSTRUCTURE OF" | "HAS SUBSTRUCTURE" | "ON":
                 sql_expr = op_def["sql"].format(field=field)
                 return sql_expr, {"param": value}
+            case "<" | "<=":
+                sql_expr = f"{field} {op_def['sql']}"
+                if value_qualifier:
+                    sql_expr = (
+                        f"(("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.LESS_THAN.value})"
+                        f" OR ("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.GREATER_THAN.value} AND {field} < :param)"
+                        f" OR ("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.EQUALS.value} AND {field} {op_def['sql']})"
+                        f")"
+                    )
+                return sql_expr, {"param": value}
+            case ">" | ">=":
+                sql_expr = f"{field} {op_def['sql']}"
+                if value_qualifier:
+                    sql_expr = (
+                        f"(("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.GREATER_THAN.value})"
+                        f" OR ("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.LESS_THAN.value} AND {field} > :param)"
+                        f" OR ("
+                        f"{alias}.value_qualifier = {enums.ValueQualifier.EQUALS.value} AND {field} {op_def['sql']})"
+                        f")"
+                    )
+                return sql_expr, {"param": value}
             case _:
+                if operator in null_ops and value is None:
+                    return f"{field} {null_ops[operator]} NULL", {}
                 # Standard operator
                 sql_expr = f"{field} {op_def['sql']}"
                 return sql_expr, {"param": value}

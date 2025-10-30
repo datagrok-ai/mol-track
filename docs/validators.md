@@ -1,6 +1,7 @@
 # Data Validation System Documentation
 
 ## Overview
+
 This system provides a flexible and multi-layered validation framework for database entities.
 Validation happens at two levels:
 
@@ -23,16 +24,19 @@ Every property (database field) can have **validation metadata** stored alongsid
 If a field’s metadata entry is populated, the value must satisfy **all conditions** associated with that field.
 
 ### 1.1 Min/Max Constraints
+
 For numeric properties:
 
 - `min` - Value must be greater than or equal to this number
 - `max` - Value must be less than or equal to this number
 
 **Example:**
+
 ```json
   min =  0
   max = 100
 ```
+
 **Validation:**
 The value must lie between **0** and **100** (inclusive).
 
@@ -45,6 +49,7 @@ For string properties, the system can restrict allowed values using a JSON list 
 ```json
   choices = '["draft", "submitted", "approved", "rejected"]'
 ```
+
 **Validation:**
 The value must be one of `"draft"`, `"submitted"`, `"approved"`, or `"rejected"`.
 ### 1.3 Validators (Advanced Numeric Conditions)
@@ -73,6 +78,7 @@ Validators are stored as a JSON-encoded list of numeric expressions, parsed usin
 ```json
   validators = ["> 10", "<= 50", "!= 25", "in (5, 15, 20, 30)"]
 ```
+
 ### 1.4 Single-Property Validation Flow
 
 1. Check if the field has validation metadata.
@@ -80,6 +86,7 @@ Validators are stored as a JSON-encoded list of numeric expressions, parsed usin
 3. If **choices** exist - check if string value is in the list.
 4. If **validators** exist - parse each validator expression and test against the value.
 5. Value passes only if **all conditions** are satisfied.
+
 ## 2. Complex Validation (Record-Level)
 
 Single-property validation is not always sufficient. Some rules span multiple fields
@@ -121,6 +128,7 @@ CEL supports:
 ```cel
 age >= 18 && age <= 120
 ```
+
 ***Meaning:*** Age must be between 18 and 120.
 
 **Cross-Field Validation**
@@ -128,6 +136,7 @@ age >= 18 && age <= 120
 ```cel
 end_date > start_date
 ```
+
 ***Meaning***: The end date must be later than the start date.
 
 **String Conditions**
@@ -135,6 +144,7 @@ end_date > start_date
 ```cel
 status in ["draft", "submitted", "approved"]
 ```
+
 ***Meaning***: Status must be one of the allowed states.
 
 For more information on expression format, check out the [CEL library documentation](https://python-common-expression-language.readthedocs.io/en/latest/tutorials/cel-language-basics/).

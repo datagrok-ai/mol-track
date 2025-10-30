@@ -3,6 +3,8 @@ from typing import Dict, Mapping, List, Any
 from cel import evaluate, Context
 import re
 
+from app.utils import enums
+
 
 class ComplexValidationError(ValueError):
     """Raised when a record does not satisfy a validation expression."""
@@ -15,7 +17,7 @@ class ComplexValidator:
     """
 
     @classmethod
-    def validate_record(cls, record: Mapping[str, Any], rules: List[str] = None, validate_rule=False) -> None:
+    def validate_record(cls, record: Dict[str, Any], rules: List[str] = None, validate_rule=False) -> None:
         """
         Validate a record against a list of CEL rules.
         Raises RecordValidationError if any rule fails.
@@ -29,14 +31,16 @@ class ComplexValidator:
             evaluate_rule = True
             variables = cls._extract_variables(raw_expr)
             for var in variables:
-                if var not in record.keys():
+                var_parts = var.replace(" ", "_").split(".")
+                details_table, property_name = var_parts[0], var_parts[1]
+                if details_table not in safe_ctx.keys() or property_name not in safe_ctx[details_table]:
                     evaluate_rule = False
                     break
             if not evaluate_rule:
                 continue
             expr = cls._preprocess(raw_expr)
             try:
-                result = evaluate(expr, ctx)
+                result = evaluate(expr, ctx, mode="strict")
             except Exception as e:
                 raise ComplexValidationError(
                     f"Error while evaluating rule '{raw_expr}' (translated to '{expr}'): {e}"
@@ -46,7 +50,7 @@ class ComplexValidator:
                 raise ComplexValidationError(f"Record does not satisfy rule: {raw_expr}")
 
     @classmethod
-    def validate_rule(cls, expr: str, properties: Dict[str, str]) -> bool:
+    def validate_rule(cls, expr: str, properties: Dict[str, str], entity_type: enums.EntityType) -> bool:
         """
         Validate a single CEL rule against a dictionary of properties.
         Creates a mock context where each property is set to a non-null value.
@@ -54,35 +58,52 @@ class ComplexValidator:
         """
 
         variables = cls._extract_variables(expr)
-        for var in variables:
-            if var not in properties.keys():
-                raise ComplexValidationError(f"Unknown property '{var}' in rule: {expr}")
+        for i, var in enumerate(variables):
+            standardized_var = var
+            if "." not in var:
+                standardized_var = f"{entity_type.value.lower()}_details.{var}"
+                expr = expr.replace(f"${{{var}}}", f"${{{standardized_var}}}")
+            if standardized_var not in properties.keys():
+                raise ComplexValidationError(
+                    f"Unknown property '{var}' (transformed to {standardized_var}) in rule: {expr}"
+                )
+            variables[i] = standardized_var
 
         mock_record = cls._create_mock_record(variables, properties)
 
         cls.validate_record(mock_record, [expr], validate_rule=True)
 
+        return expr
+
     # ------------------------
     # Internal helpers
     # ------------------------
     @staticmethod
-    def _sanitize_context(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    def _sanitize_context(record: Dict[str, Any]) -> Mapping[str, Any]:
         """Convert record values into JSON-serializable primitives."""
+
         safe_ctx = {}
-        for k, v in record.items():
-            k = k.replace(" ", "_")
-            if isinstance(v, (str, int, float, bool)) or v is None:
-                safe_ctx[k] = v
-            else:
-                safe_ctx[k] = str(v)
+        for scope in record.keys():
+            scope_details = {}
+            for k, v in record[scope].items():
+                k = k.replace(" ", "_")
+                if isinstance(v, (str, int, float, bool)) or v is None:
+                    scope_details[k] = v
+                else:
+                    scope_details[k] = str(v)
+            safe_ctx[scope] = scope_details
         return safe_ctx
 
     @staticmethod
-    def _build_context(record: Mapping[str, Any]) -> Context:
+    def _build_context(record: Dict[str, Any]) -> Context:
         """
         Build a CEL Context with custom functions.
         """
-        ctx = Context(record)
+
+        ctx = Context()
+
+        for key, value in record.items():
+            ctx.add_variable(key, value)
 
         # size(value) → length of string or list
         ctx.add_function("size", lambda x: len(x) if x is not None else 0)
@@ -114,7 +135,7 @@ class ComplexValidator:
         expr = re.sub(r"([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+not\s+null", r"\1 != null", expr)
 
         # replaces white spaces inside ${...} with underscores
-        expr = re.sub(r"\$\{([^}]+)\}", lambda m: re.sub(r"[^a-zA-Z0-9_]", "_", m.group(1)), expr)
+        expr = re.sub(r"\$\{([^}]+)\}", lambda m: re.sub(r"[^a-zA-Z0-9_.]", "_", m.group(1)), expr)
 
         return expr.strip()
 
@@ -146,7 +167,9 @@ class ComplexValidator:
 
         record = {}
         for var in variables:
+            parent, child = var.split(".", 1)
+            record.setdefault(parent, {})
             value = mock_values.get(properties.get(var, "string"), "mock")
-            record[var] = value
+            record[parent][child] = value
 
         return record

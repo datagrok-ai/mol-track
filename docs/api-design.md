@@ -49,10 +49,16 @@ When a user wants to register data into [Moltrack](https://github.com/datagrok-a
    ```
 
   - Output
-  The output should indicate the success of the overall request (`200 OK` or `201 Created`). *I can't identify the appropriate response for mixed suceess.* There should also be an item-by-item success status and if necessary a failure message:
-    - Success - new property or synonym type is successfully registered.
-    - Skipped - property or synonym type exists in MolTrack already.
-    - Failed - the insert of the property or synonym type failed.  A 'failure message' attribute should be added to the item.
+  The output should indicate the success of the overall request (`200 OK` or `201 Created`). *I can't identify the appropriate response for mixed suceess.* Each item should include:
+  
+      - `registration_status` — indicates the result for the specific item:
+      
+         - **Success** — new property or synonym type is successfully registered.
+         - **Skipped** - property or synonym type exists in MolTrack already.
+         - **Failed** - the insert of the property or synonym type failed.
+         
+      - `registration_error_message` (optional) — provides a descriptive reason if the operation **failed** or **skipped**.
+
 
 ### Getter endpoints for schema ###
 

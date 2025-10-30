@@ -13,13 +13,20 @@ INSERT INTO moltrack.users (
 );
 
 INSERT INTO moltrack.semantic_types (name, description) 
-VALUES ('Synonym', 'A semantic type representing a synonym or alternative identifier')
+VALUES
+    ('Synonym', 'A semantic type representing a synonym or alternative identifier'),
+    ('Molecule', 'A semantic type that represents the chemical structure of a compound')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO moltrack.settings (name, value, description)
 VALUES
     ('corporate_compound_id_pattern', 'DG-{:06d}', 'Pattern for corporate compound IDs'),
     ('corporate_batch_id_pattern', 'DGB-{:06d}', 'Pattern for corporate batch IDs');
+
+INSERT INTO moltrack.settings (name, value, description)
+VALUES
+    ('corporate_compound_id_friendly_name', 'Grok ID', 'Friendly name for corporate compound IDs'),
+    ('corporate_batch_id_friendly_name', 'Grok Batch ID', 'Friendly name for corporate batch IDs');
 
 INSERT INTO moltrack.settings (name, value, description)
 VALUES
@@ -41,7 +48,7 @@ VALUES (
   (SELECT id FROM STYPE), 
   'DECLARED', 'COMPOUND',
   (SELECT value FROM moltrack.settings WHERE name = 'corporate_compound_id_pattern'),
-  'Grok ID'
+  (SELECT value FROM moltrack.settings WHERE name = 'corporate_compound_id_friendly_name')
 ), (
   (SELECT id FROM ADMIN),
   (SELECT id FROM ADMIN),
@@ -50,7 +57,7 @@ VALUES (
   (SELECT id FROM STYPE), 
   'DECLARED', 'BATCH',
   (SELECT value FROM moltrack.settings WHERE name = 'corporate_batch_id_pattern'),
-  'Grok Batch ID'
+  (SELECT value FROM moltrack.settings WHERE name = 'corporate_batch_id_friendly_name')
 );
 
 INSERT INTO moltrack.settings (name, value, description)

@@ -16,7 +16,7 @@ from rdkit import Chem
 
 
 class BaseRegistrar(ABC):
-    def __init__(self, db, mapping: Optional[str], error_handling: str):
+    def __init__(self, db, mapping: Optional[str], error_handling: str = enums.ErrorHandlingOptions.reject_all):
         """
         Base class for processing and registering data to a database.
         :param db: SQLAlchemy database session.
@@ -217,6 +217,7 @@ class BaseRegistrar(ABC):
     def _process_row(self, row: Dict[str, Any], process_func):
         if self.stop_registration:
             self._add_output_row(row, "not_processed")
+            return
 
         try:
             process_func(row)

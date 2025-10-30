@@ -3,9 +3,8 @@ from app.services.search.field_resolver import FieldResolutionError, FieldResolv
 from app.services.search.operators import SearchOperators
 import app.models as models
 from app.services.search.utils.aggregation_operators import AggregationOperators
-from app.services.search.utils.helper_functions import sanitize_field_name
+from app.services.search.utils.helper_functions import get_qualifier_sql, sanitize_field_name
 from app.services.search.utils.join_tools import JoinOrderingTool
-from app.utils.enums import AggregationStringOp
 
 
 class QueryBuildError(Exception):
@@ -85,7 +84,10 @@ class QueryBuilder:
         # Build main query
         base_sql = f"WITH base AS (SELECT {base_select_clause} FROM {base_from_clause} {base_joins} {filter_sql} ) "
         order_by_sql = f"ORDER BY {select_direct_parts[0]}" if select_direct_parts else ""
-        complete_sql = f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} {order_by_sql} "
+        limit_sql = f"LIMIT {request.limit}" if request.limit else ""
+        complete_sql = (
+            f"{base_sql} SELECT {' ,'.join(select_clause)} FROM base {group_by_sql} {order_by_sql} {limit_sql}"
+        )
 
         return {"sql": complete_sql.strip(), "params": query_params}
 
@@ -96,9 +98,11 @@ class QueryBuilder:
             column_value = details["column_value"]
             sql = details["sql"]
             statement = AggregationOperators.get_sql_expression(operation, column_value, sql)
-            if operation not in [AggregationStringOp.LONGEST.value, AggregationStringOp.SHORTEST.value]:
-                statement += f" FILTER (WHERE {details['sql']})"
+            statement += f" FILTER (WHERE {details['sql']})"
             statement = statement + f" AS {alias} "
+            qualifier = details.get("qualifier_field", None)
+            if qualifier:
+                statement = f"{get_qualifier_sql(qualifier)} FILTER (WHERE {details['sql']}) || " + statement
             select_clause.append(statement)
         return select_clause
 
@@ -127,6 +131,7 @@ class QueryBuilder:
             else:
                 has_dynamic = True
                 table_alias = resolved["table_alias"]
+                has_value_qualifier = resolved.get("value_qualifier", False)
                 if table_alias not in dynamic_columns:
                     select_fields.extend(
                         [
@@ -134,11 +139,18 @@ class QueryBuilder:
                             f"{resolved['property_name']} AS {resolved['property_alias']}",
                         ]
                     )
+                    if has_value_qualifier:
+                        select_fields.append(f"{table_alias}.value_qualifier as {table_alias}_qualifier")
                     dynamic_columns.append(table_alias)
+
+                qualifier_field = None
+                if has_value_qualifier:
+                    qualifier_field = f"{table_alias}_qualifier"
                 self.dynamic_query_parts[field_alias] = {
                     "sql": resolved["property_filter"],
                     "operation": operation,
                     "column_value": f"{table_alias}_value",
+                    "qualifier_field": qualifier_field,
                 }
 
         if has_dynamic:
@@ -262,7 +274,12 @@ class QueryBuilder:
             value_column = f"CAST({value_column} AS NUMERIC)"
 
         value_sql_expr, value_params = self.operators.get_sql_expression(
-            condition.operator, value_column, condition.value, condition.threshold
+            condition.operator,
+            value_column,
+            condition.value,
+            condition.threshold,
+            field_info["table_alias"],
+            field_info["value_qualifier"],
         )
 
         if field_info["search_level"]["alias"] != field_info["subquery"]["alias"]:
@@ -270,12 +287,19 @@ class QueryBuilder:
         else:
             key = "id"
 
+        is_missing_property = condition.operator == "=" and condition.value is None
+        exists_keyword = "NOT EXISTS" if is_missing_property else "EXISTS"
+
         where = (
-            f"EXISTS ( "
+            f"{exists_keyword} ( "
             f"{field_info['subquery']['sql']} "
             f"WHERE {field_info['subquery']['alias']}.{key}="
             f"{field_info['search_level']['alias']}{field_info['search_level']['alias']}.id "
             f"AND {field_info['subquery']['property_filter']}"
-            f"AND {value_sql_expr})  "
         )
+
+        if not is_missing_property:
+            where += f"AND {value_sql_expr}"
+        where += ")"
+
         return {"sql": where, "params": value_params}

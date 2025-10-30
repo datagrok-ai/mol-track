@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+import decimal
 from io import BytesIO, StringIO
 import json
 import re
@@ -11,6 +12,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.models import Level, Aggregation
 from app.utils import enums
+
+
+def get_qualifier_sql(field: str):
+    qualifier_sql = f"MAX(CASE {field} WHEN 0 THEN '' WHEN 1 THEN '<' WHEN 2 THEN '>' END)"
+    return qualifier_sql
+
+
+def get_identity_field(level: Level) -> str:
+    if level in ["compounds", "batches"]:
+        return f"{level}.details.corporate_{singularize(level)}_id"
+    return f"{level}.id"
 
 
 def create_alias_mapping(columns: List[str], aggregations: List[Aggregation]) -> Dict[str, str]:
@@ -48,6 +60,15 @@ def singularize(word: str) -> str:
     return word
 
 
+def has_value_qualifier(table_name: str, session: Session):
+    """
+    Checks whether table has a value qualifier
+    """
+
+    details_columns = get_table_columns(table_name, session)
+    return "value_qualifier" in details_columns
+
+
 def get_table_columns(table_name: str, session: Session) -> list:
     """
     Get the columns of a table in the database.
@@ -81,6 +102,17 @@ def convert_datetime(obj):
     return obj
 
 
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, uuid.UUID):
+            return str(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
+        if isinstance(o, decimal.Decimal):
+            return float(o)
+        return super().default(o)
+
+
 def prepare_search_output(results: List[Any], headers: List[str], output_format: enums.SearchOutputFormat):
     match output_format:
         # UUID objects are not JSON serializable, so convert to str to prevent circular reference errors
@@ -89,12 +121,9 @@ def prepare_search_output(results: List[Any], headers: List[str], output_format:
                 "status": "success",
                 "total_count": len(results),
                 "columns": headers,
-                "data": [
-                    dict(zip(headers, (str(cell) if isinstance(cell, uuid.UUID) else cell for cell in row)))
-                    for row in results
-                ],
+                "data": [dict(zip(headers, row)) for row in results],
             }
-            json_output = json.dumps(return_obj, default=convert_datetime)
+            json_output = json.dumps(return_obj, cls=CustomJSONEncoder)
             return Response(
                 content=json_output,
                 media_type="application/json",

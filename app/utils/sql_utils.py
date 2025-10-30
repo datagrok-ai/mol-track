@@ -69,14 +69,23 @@ def get_table_fields(table_name: str) -> list[dict[str, Any]] | None:
     }
 
     table = SQLModel.metadata.tables.get(f"moltrack.{table_name}")
-    return [
-        {
-            "entity_type": mapping.get(table_name),
-            "name": col.name,
-            "value_type": normalize_type(col.type.__class__.__name__),
-        }
-        for col in table.columns
-    ]
+    if table is None:
+        return None
+
+    molecule_columns = {"canonical_smiles", "original_molfile"}
+
+    fields = []
+    for col in table.columns:
+        fields.append(
+            {
+                "entity_type": mapping.get(table_name),
+                "name": col.name,
+                "value_type": normalize_type(col.type.__class__.__name__),
+                "semantic_type": {"name": "Molecule", "description": ""} if col.name in molecule_columns else None,
+            }
+        )
+
+    return fields
 
 
 def get_direct_fields():

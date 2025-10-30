@@ -1,3 +1,5 @@
+# Architecture
+
 MolTrack server component consists of the FastAPI service that uses RDKit, and 
 a Postgres database with the RDKit cartridge for chemical intelligence.
 
