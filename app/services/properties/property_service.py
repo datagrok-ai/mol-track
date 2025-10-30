@@ -1,3 +1,4 @@
+import re
 from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session
@@ -6,8 +7,11 @@ from app.services.properties.complex_validator import ComplexValidator
 from app.services.properties.property_validator import PropertyValidator
 from app.utils import type_casting_utils, enums
 from app.utils.admin_utils import admin
-from typing import Callable, Dict, Any, List, Optional, Tuple, Type
+from typing import Dict, Any, List, Optional, Tuple, Type
 from app.utils.registrar_utils import get_validation_prefix
+
+
+_LIST_SPLIT_RE = re.compile(r"[,;|]")
 
 
 class PropertyService:
@@ -55,6 +59,20 @@ class PropertyService:
             "cast_fn": type_casting_utils.value_type_cast_map[value_type],
         }
 
+    def iter_property_values(self, properties, entity_type):
+        for prop_name, raw_value in properties.items():
+            prop_info = self.get_property_info(prop_name, entity_type)
+            input_type = getattr(prop_info["property"], "input_type", None)
+
+            if input_type == "list":
+                if isinstance(raw_value, str):
+                    values = [v.strip() for v in _LIST_SPLIT_RE.split(raw_value) if v.strip()]
+            else:
+                values = [raw_value]
+
+            for v in values:
+                yield prop_name, prop_info, v
+
     # TODO: Design a more robust and efficient approach for handling updates to compound details
     def build_details_records(
         self,
@@ -63,14 +81,13 @@ class PropertyService:
         entity_ids: Dict[str, Any],
         entity_type: enums.EntityType,
         include_user_fields: bool = True,
-        update_checker: Optional[Callable[[str, int, Any], Optional[Dict[str, Any]]]] = None,
         additional_details: Optional[Dict[str, Any]] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         records_to_insert = []
         records_to_validate = {}
 
-        for prop_name, value in properties.items():
-            prop_info = self.get_property_info(prop_name, entity_type)
+        mapper = inspect(model)
+        for prop_name, prop_info, value in self.iter_property_values(properties, entity_type):
             prop = prop_info["property"]
             value_type = prop_info["value_type"]
             cast_fn = prop_info["cast_fn"]
@@ -95,10 +112,6 @@ class PropertyService:
                 field_name: casted_value,
             }
 
-            records_to_validate.update({prop_name: casted_value})
-
-            # TODO: Refactor to generically handle all value_* fields without hardcoding model-specific attributes
-            mapper = inspect(model)
             value_columns = [
                 col.key for col in mapper.columns if col.key.startswith("value") and col.key not in field_name
             ]
@@ -114,6 +127,8 @@ class PropertyService:
                     if not callable(column.default.arg):
                         default = column.default.arg
                 detail[col_name] = default
+
+            records_to_validate.update({prop_name: casted_value})
 
             if include_user_fields:
                 detail["created_by"] = admin.admin_user_id

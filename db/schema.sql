@@ -49,6 +49,7 @@ CREATE TABLE moltrack.properties (
   updated_by uuid NOT NULL REFERENCES moltrack.users (id),
   name text NOT NULL,
   description text,
+  input_type text,
   -- value_type defines the colummn in the batch_details, assay_run_details and assay_results
   -- tables that store the property value:
   -- * [value_num] for "int" and "double",

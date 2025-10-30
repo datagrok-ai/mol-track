@@ -252,6 +252,7 @@ class SemanticType(SemanticTypeBase, table=True):
 class PropertyBase(SQLModel):
     name: str = Field(nullable=False)
     description: Optional[str] = Field(default=None)
+    input_type: Optional[str] = Field(default=None)
     value_type: enums.ValueType = Field(sa_column=Column(Enum(enums.ValueType), nullable=False))
     property_class: enums.PropertyClass = Field(sa_column=Column(Enum(enums.PropertyClass), nullable=False))
     unit: Optional[str] = Field(default=None)
