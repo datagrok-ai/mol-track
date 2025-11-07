@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from rdkit import Chem
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 from app.crud.properties import enrich_model
@@ -56,46 +56,79 @@ def update_compound(db: Session, property_value: str, property_name: str, update
 
     if db_compound.batches and update_data.canonical_smiles is not None:
         raise HTTPException(
-            status_code=400, detail="Structure updates are not allowed for compounds with batches attached."
+            status_code=400,
+            detail="Structure updates are not allowed for compounds with batches attached.",
         )
 
-    for field in ["original_molfile", "is_archived", "canonical_smiles"]:
-        value = getattr(update_data, field)
-        if value is not None:
+    for field in ("original_molfile", "is_archived", "canonical_smiles"):
+        if (value := getattr(update_data, field)) is not None:
             setattr(db_compound, field, value)
 
-    if update_data.properties:
-        for detail in update_data.properties:
-            db_property = db.get(models.Property, detail.property_id)
-            if db_property is None:
-                raise HTTPException(status_code=404, detail=f"Property with id {detail.property_id} not found")
+    for detail in update_data.properties or []:
+        db_property = db.get(models.Property, detail.property_id)
+        if db_property is None:
+            raise HTTPException(status_code=404, detail=f"Property with id {detail.property_id} not found")
 
-            expected_type = db_property.value_type
-            if (
-                expected_type not in type_casting_utils.value_type_to_field
-                or expected_type not in type_casting_utils.value_type_cast_map
-            ):
-                raise HTTPException(status_code=400, detail=f"Unsupported value type '{expected_type}'")
+        expected_type = db_property.value_type
+        field_name = type_casting_utils.value_type_to_field.get(expected_type)
+        cast_func = type_casting_utils.value_type_cast_map.get(expected_type)
 
-            try:
-                cast_value = type_casting_utils.value_type_cast_map[expected_type](detail.value)
-            except Exception:
-                raise HTTPException(
-                    status_code=400, detail=f"Invalid value '{detail.value}' for type '{expected_type}'"
-                )
+        if not field_name or not cast_func:
+            raise HTTPException(status_code=400, detail=f"Unsupported value type '{expected_type}'")
 
-            stmt = select(models.CompoundDetail).where(
+        existing_details = (
+            db.query(models.CompoundDetail)
+            .filter(
                 models.CompoundDetail.compound_id == db_compound.id,
                 models.CompoundDetail.property_id == detail.property_id,
             )
-            existing_detail = db.execute(stmt).scalars().first()
+            .all()
+        )
+
+        new_values = detail.value if isinstance(detail.value, list) else [detail.value]
+        old_values = [getattr(d, field_name) for d in existing_details]
+
+        to_add = set(new_values) - set(old_values)
+        to_remove = set(old_values) - set(new_values)
+
+        if not isinstance(detail.value, list):
+            existing_detail = existing_details[0] if existing_details else None
             if not existing_detail:
                 raise HTTPException(
-                    status_code=400, detail=f"No existing CompoundDetail found for property_id {detail.property_id}"
+                    status_code=400,
+                    detail=f"No existing CompoundDetail found for property_id {detail.property_id}",
                 )
-
-            setattr(existing_detail, type_casting_utils.value_type_to_field[expected_type], cast_value)
+            try:
+                setattr(existing_detail, field_name, cast_func(detail.value))
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid value '{detail.value}' for type '{expected_type}'",
+                )
             existing_detail.updated_by = admin.admin_user_id
+            continue
+
+        for val in to_add:
+            try:
+                cast_val = cast_func(val)
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid value '{val}' for type '{expected_type}'",
+                )
+            db.add(
+                models.CompoundDetail(
+                    compound_id=db_compound.id,
+                    property_id=detail.property_id,
+                    **{field_name: cast_val},
+                    created_by=admin.admin_user_id,
+                    updated_by=admin.admin_user_id,
+                )
+            )
+
+        for d in existing_details:
+            if getattr(d, field_name) in to_remove:
+                db.delete(d)
 
     db.add(db_compound)
     db.commit()

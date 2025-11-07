@@ -274,7 +274,7 @@ class QueryBuilder:
             value_column = f"CAST({value_column} AS NUMERIC)"
 
         value_sql_expr, value_params = self.operators.get_sql_expression(
-            condition.operator,
+            "=" if condition.operator == "!=" else condition.operator,
             value_column,
             condition.value,
             condition.threshold,
@@ -288,7 +288,10 @@ class QueryBuilder:
             key = "id"
 
         is_missing_property = condition.operator == "=" and condition.value is None
-        exists_keyword = "NOT EXISTS" if is_missing_property else "EXISTS"
+        if condition.operator == "!=" or is_missing_property:
+            exists_keyword = "NOT EXISTS"
+        else:
+            exists_keyword = "EXISTS"
 
         where = (
             f"{exists_keyword} ( "

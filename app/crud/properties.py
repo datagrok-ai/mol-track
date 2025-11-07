@@ -162,15 +162,30 @@ def get_entities_by_entity_type(
 def enrich_properties(owner, detail_attr: str, id_attr: str) -> list[models.PropertyWithValue]:
     enriched = []
     owner_id = getattr(owner, "id")
+
     for prop in owner.properties:
         details = getattr(prop, detail_attr, [])
-        detail = next((d for d in details if getattr(d, id_attr, None) == owner_id), None)
+        details_iterator = (d for d in details if getattr(d, id_attr, None) == owner_id)
+
+        detail = next(details_iterator, None)
+        if not detail:
+            continue
+
+        if getattr(prop, "input_type", None) == "list":
+            value_string = ", ".join(
+                getattr(d, "value_string")
+                for d in details
+                if getattr(d, id_attr, None) == owner_id and getattr(d, "value_string", None) is not None
+            )
+        else:
+            value_string = getattr(detail, "value_string", None)
+
         enriched.append(
             models.PropertyWithValue(
                 **prop.dict(),
                 value_qualifier=handle_value_qualifier(getattr(detail, "value_qualifier", None)),
                 value_num=getattr(detail, "value_num", None),
-                value_string=getattr(detail, "value_string", None),
+                value_string=value_string,
                 value_datetime=getattr(detail, "value_datetime", None),
                 value_uuid=getattr(detail, "value_uuid", None),
             )
