@@ -702,7 +702,7 @@ class AssayCreateBase(AssayBase):
 
     @model_validator(mode="before")
     def collect_extra_fields(cls, values):
-        known_keys = {"name", "assay_result_properties"}
+        known_keys = {"name", "description", "assay_result_properties"}
         extra = {k: v for k, v in values.items() if k not in known_keys}
         values["extra_fields"] = extra
         return values

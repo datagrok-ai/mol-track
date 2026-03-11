@@ -574,7 +574,13 @@ def create_assays(
     property_service = PropertyService(all_properties, db, enums.EntityType.ASSAY.value)
 
     assays_to_insert = [
-        {"name": assay.name, "created_by": admin.admin_user_id, "updated_by": admin.admin_user_id} for assay in payload
+        {
+            "name": assay.name,
+            "description": assay.description,
+            "created_by": admin.admin_user_id,
+            "updated_by": admin.admin_user_id,
+        }
+        for assay in payload
     ]
 
     stmt = insert(models.Assay).returning(models.Assay.id)
