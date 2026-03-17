@@ -26,6 +26,7 @@ dependencies = [
     "typer>=0.16.0",
     "requests>=2.32.4",
     "pydantic-settings",
+    "keyring>=25.7.0",
 ]
 
 [tool.ruff]
